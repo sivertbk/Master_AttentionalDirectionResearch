@@ -1,0 +1,24 @@
+# Required dependencies for EEG analysis project
+
+# Core scientific computing libraries
+numpy
+scipy
+pandas
+matplotlib
+
+# Machine learning and statistical analysis
+scikit-learn
+statsmodels
+
+# EEG processing
+mne
+AutoReject
+
+# Jupyter Notebook support
+jupyter
+
+# Logging and utilities
+tqdm
+
+# Ensure compatibility with Python 3.8+
+python>=3.8
