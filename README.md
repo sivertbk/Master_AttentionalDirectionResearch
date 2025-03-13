@@ -9,56 +9,52 @@ The analysis workflow includes **preprocessing**, **frequency domain transformat
 
 ## Project Structure
 ```
-Master_AttentionalDirectionResearch/
-│── data/                        # Raw and processed EEG data
-│   ├── datasets/                 # Original EEG datasets
-│   ├── epochs/                   # Preprocessed segmented epochs
-│   ├── psd_data/                 # Power Spectral Density (PSD) data
+attentional_direction_research_workspace/
+│── backups/                        # Backup files for analysis
 │
-│── eeg_analyzer/                 # Main module for EEG analysis
-│   ├── __init__.py               # Module initialization
-│   ├── eeg_analyzer.py           # EEGAnalyzer class (handles all subjects)
-│   ├── metrics.py                # Computes EEG-specific metrics
-│   ├── processor.py              # Processes PSD data (normalization, outlier removal)
-│   ├── statistics.py             # Statistical modeling and hypothesis testing
-│   ├── subject.py                # Manages individual subject data
-│   ├── visualizer.py             # Visualization and plotting functions
+│── data/                           # EEG datasets and processed data
+│   ├── datasets/                   # Original EEG datasets
+│   ├── epochs/                     # Preprocessed segmented epochs
+│   ├── psd_data/                   # Power Spectral Density (PSD) data
 │
-│── logs/                         # Logging directory
-│   ├── analysis_logs/            # Logs for analysis scripts
-│   ├── preprocessing_logs/        # Logs for preprocessing steps
+│── eeg_analyzer/                    # Main module for EEG analysis
+│   ├── __init__.py                  # Module initialization
+│   ├── eeg_analyzer.py              # EEGAnalyzer class (handles all subjects)
+│   ├── metrics.py                   # Computes EEG-specific metrics
+│   ├── processor.py                 # Processes PSD data (normalization, outlier removal)
+│   ├── statistics.py                # Statistical modeling and hypothesis testing
+│   ├── subject.py                   # Manages individual subject data
+│   ├── visualizer.py                 # Visualization and plotting functions
 │
-│── notebooks/                    # Jupyter Notebooks for experiments
-│   ├── exploring.ipynb           # Exploratory data analysis
-│   ├── hypothesis_testing.ipynb  # Hypothesis-driven analysis
-│   ├── dataset_specific.ipynb    # One notebook per dataset (manual preprocessing)
+│── notebooks/                       # Jupyter Notebooks for experiments
+│   ├── exploring.ipynb              # Exploratory data analysis
+│   ├── hypothesis_testing.ipynb     # Hypothesis-driven analysis
 │
-│── plots/                        # Directory for generated plots
-│   ├── psd_plots/                # Individual PSD visualizations
-│   ├── subject_analysis/         # Subject-level comparisons
-│   ├── summary_plots/            # Group-level insights
+│── reports/                         # Generated reports, logs, and plots
+│   ├── logs/                        # Logs for analysis and preprocessing
+│   │   ├── analysis_logs/           # Logs for EEG analysis scripts
+│   │   ├── preprocessing_logs/      # Logs for preprocessing steps
+│   ├── plots/                       # Directory for generated plots
 │
-│── scripts/                      # Scripts for batch processing and analysis
-│   ├── preprocess_data.py        # Filters and preprocesses EEG data
-│   ├── compute_psd.py            # Converts EEG epochs to PSD data
-│   ├── run_analysis.py           # Runs statistical analysis on PSD
-│   ├── visualize_results.py      # Generates publication-ready plots
+│── scripts/                         # Standalone scripts for batch processing and analysis
+│   ├── dir_tree.py                  # Script for generating directory tree
 │
-│── tests/                        # Unit tests for code validation
-│   ├── __init__.py               # Module initialization
-│   ├── test_metrics.py           # Tests for metrics calculations
-│   ├── test_processing.py        # Tests for data processing logic
+│── tests/                           # Unit tests for validating code
+│   ├── __init__.py                  # Module initialization
+│   ├── test_metrics.py              # Tests for EEG metrics calculations
+│   ├── test_processing.py           # Tests for data processing logic
 │
-│── utils/                        # Utility functions and helpers
-│   ├── __init__.py               # Module initialization
-│   ├── file_io.py                # Functions for loading and saving data
-│   ├── helpers.py                # Miscellaneous helper functions
-│   ├── config.py                 # Global settings for file paths and parameters
+│── utils/                           # Utility functions and helpers
+│   ├── __init__.py                  # Module initialization
+│   ├── config.py                    # Global settings for file paths and parameters
+│   ├── file_io.py                   # Functions for loading and saving data
+│   ├── helpers.py                    # Miscellaneous helper functions
 │
-│── README.md                     # Project documentation
-│── requirements.txt               # Required Python dependencies
-│── directory_tree.ipynb           # Notebook for project file structure
-│── .gitignore                     # Files to exclude from version control
+│── .gitignore                       # Files to exclude from version control
+│── README.md                        # Project documentation
+│── pyproject.toml                   # Python build system configuration
+│── requirements.txt                  # Required Python dependencies
+│── setup.py                         # Setup file for package installation
 ```
 
 ---
@@ -106,28 +102,63 @@ Final Output:
 ---
 
 ## Installation & Setup
+## Project Setup
+To set up this project correctly, follow these steps:
+
 ### 1. Clone the Repository
-```sh
-git clone https://github.com/yourusername/Master_AttentionalDirectionResearch.git
-cd Master_AttentionalDirectionResearch
+```bash
+git clone https://github.com/yourusername/your-repo.git
+cd your-repo
 ```
 
-### 2. Create a Virtual Environment (Recommended)
-```sh
-python3 -m venv venv
-source venv/bin/activate  # Linux/macOS
-venv\Scripts\activate  # Windows
+### 2. Create a Conda Environment
+It is recommended to use a virtual environment to manage dependencies. Create one using Conda:
+```bash
+conda create --name eeg-analysis-env python=3.10
+conda activate eeg-analysis-env
 ```
 
 ### 3. Install Dependencies
-```sh
+Install the required dependencies from `requirements.txt`:
+```bash
 pip install -r requirements.txt
 ```
 
-### 4. Running Jupyter Notebooks
-```sh
-jupyter notebook
+### 4. Install the Package in Editable Mode
+Since `eeg_analyzer/` and `utils/` contain reusable modules, install them in **editable mode** to allow modifications without reinstalling:
+```bash
+pip install -e . --use-pep517
 ```
+This ensures that `eeg_analyzer` and `utils` are available for import in all scripts and notebooks.
+
+### 5. Verify Installation
+Test that everything is set up correctly by running:
+```bash
+python -c "import eeg_analyzer; print('EEG Analyzer imported successfully')"
+```
+
+If you see the success message, the project is properly configured.
+
+## Usage
+You can now run scripts inside `scripts/` or use Jupyter notebooks inside `notebooks/`.
+
+### **Running a Script in `scripts/`**
+```bash
+python scripts/dir_tree.py
+```
+
+---
+## Troubleshooting
+If you encounter issues with imports, try the following:
+1. Ensure the correct Conda environment is activated:
+   ```bash
+   conda activate eeg-analysis-env
+   ```
+2. If you installed the package earlier, you may need to reinstall:
+   ```bash
+   pip install -e . --use-pep517
+   ```
+3. Run the script from the **root directory** (where `setup.py` is located).
 
 ---
 

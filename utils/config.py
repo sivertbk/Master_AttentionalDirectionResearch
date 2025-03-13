@@ -5,19 +5,31 @@ Defines global parameters, file paths, and default values.
 
 import os
 
-# Project root directory (adjust if necessary)
-PROJECT_ROOT = os.path.abspath(os.path.dirname(__file__))
+# Project root directory (one level up from the current file's location)
+ROOT_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 # File paths
-DATA_PATH = os.path.join(PROJECT_ROOT, "data")
+DATA_PATH = os.path.join(ROOT_PATH, "data")
+DATASETS_PATH = os.path.join(DATA_PATH, "datasets")
 EPOCHS_PATH = os.path.join(DATA_PATH, "epochs")
 PSD_DATA_PATH = os.path.join(DATA_PATH, "psd_data")
-LOGS_PATH = os.path.join(PROJECT_ROOT, "logs")
-PLOTS_PATH = os.path.join(PROJECT_ROOT, "plots")
+
+# Reports and logs
+REPORTS_PATH = os.path.join(ROOT_PATH, "reports")
+LOGS_PATH = os.path.join(REPORTS_PATH, "logs")
+PREPROCESSING_LOG_PATH = os.path.join(LOGS_PATH, "preprocessing_logs")
+ANALYSIS_LOG_PATH = os.path.join(LOGS_PATH, "analysis_logs")
+PLOTS_PATH = os.path.join(REPORTS_PATH, "plots")
+
+# Scripts and utilities
+SCRIPTS_PATH = os.path.join(ROOT_PATH, "scripts")
+UTILS_PATH = os.path.join(ROOT_PATH, "utils")
 
 # Logging
-PREPROCESSING_LOG = os.path.join(LOGS_PATH, "preprocessing_logs", "preprocessing.log")
-ANALYSIS_LOG = os.path.join(LOGS_PATH, "analysis_logs", "analysis.log")
+PREPROCESSING_LOG = os.path.join(PREPROCESSING_LOG_PATH, "preprocessing.log")
+ANALYSIS_LOG = os.path.join(ANALYSIS_LOG_PATH, "analysis.log")
+
+
 
 # EEG Preprocessing Settings
 LOW_CUTOFF_HZ = 1.0  # Low-frequency cutoff for high-pass filter
@@ -36,5 +48,4 @@ Z_SCORE_THRESHOLD = 3.0  # Threshold for outlier detection based on z-score
 FIGURE_DPI = 300  # Resolution for saved figures
 
 if __name__ == "__main__":
-    print("Configuration file loaded. Project root:", PROJECT_ROOT)
-
+    print("Configuration file loaded. Project root:", ROOT_PATH)
