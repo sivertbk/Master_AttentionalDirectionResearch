@@ -102,7 +102,6 @@ Final Output:
 ---
 
 ## Installation & Setup
-## Project Setup
 To set up this project correctly, follow these steps:
 
 ### 1. Clone the Repository
