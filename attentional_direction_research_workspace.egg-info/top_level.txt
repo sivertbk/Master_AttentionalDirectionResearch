@@ -1,3 +1,0 @@
-eeg_analyzer
-tests
-utils
