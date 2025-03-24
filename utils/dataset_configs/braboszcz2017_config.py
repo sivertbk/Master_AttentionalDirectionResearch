@@ -5,6 +5,9 @@ from utils.dataset_config import DatasetConfig
 #               Braboszcz et al. (2017) EEG Dataset Configuration
 # =============================================================================
 
+subjects = list(range(60, 79)) # All 30 subjects
+sessions = [1] # Only one session
+
 
 # Initialize an empty dictionary for subject grouping
 subject_groups = {}
@@ -35,12 +38,13 @@ event_id = {'htr/med1':1, 'htr/med2':2, 'htr/think1':3, 'htr/think2':4,
 
 braboszcz2017_config = DatasetConfig(
     name="Braboszcz et al. (2017)",
-    subjects=list(subject_groups.keys()),
-    sessions=None,  # or define explicitly if relevant
+    subjects=subjects,
+    sessions=sessions,  # or define explicitly if relevant
     mapping_channels={},  # specify if available
     mapping_non_eeg={},   # specify if available
     event_id_map=event_id,
     event_classes=None,   # specify if needed
+    path=None,            # specify if available
     extra_info={
         "subject_groups": subject_groups
     }

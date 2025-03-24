@@ -40,11 +40,14 @@ ANALYSIS_LOG = os.path.join(ANALYSIS_LOG_PATH, "analysis.log")
 EEG_SETTINGS = {
     "LOW_CUTOFF_HZ": 1.0,
     "HIGH_CUTOFF_HZ": 40.0,
-    "ICA_COMPONENTS_TO_REMOVE": [],
+    "N_ICA_COMPONENTS": 20,
     "EPOCH_LENGTH_SEC": 5.0,
+    "EPOCH_START_SEC": -5.0,
     "PSD_FREQUENCY_RES": 0.5,
     "PSD_NORMALIZATION": "z-score",
     "Z_SCORE_THRESHOLD": 3.0,
+    "SAMPLING_RATE": 128.0,
+    "REJECT_THRESHOLD": 150e-6,
 }
 
 VISUALIZATION_SETTINGS = {
@@ -55,12 +58,16 @@ VISUALIZATION_SETTINGS = {
 #                        DATASET SPECIFIC CONFIGURATIONS
 # =============================================================================
 
-from utils.dataset_configs import jin2019_config, braboszcz2017_config
+from utils.dataset_configs.jin2019_config import jin2019_config
+from utils.dataset_configs.braboszcz2017_config import braboszcz2017_config
 
 DATASETS = {
     "Jin2019": jin2019_config,
     "Braboszcz2017": braboszcz2017_config
 }
+
+DATASETS["Braboszcz2017"].path = os.path.join(DATASETS_PATH, "braboszcz2017")
+DATASETS["Jin2019"].path = os.path.join(DATASETS_PATH, "jin2019")
 
 if __name__ == "__main__":
     print("Global configuration loaded successfully.")

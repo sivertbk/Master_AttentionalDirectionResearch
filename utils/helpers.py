@@ -111,265 +111,6 @@ def print_directory_tree(
 
     return output_lines
 
-
-
-
-# =============================================================================
-#                 Jin et al. (2019) EEG Dataset Helper Functions
-# =============================================================================
-
-def load_new_events(path, subject, session):
-    file_name = f'subject-{subject}_session-{session}_events.csv'
-    file_path = os.path.join(path, file_name)
-    if os.path.exists(file_path):
-        df = pd.read_csv(file_path)
-        column_names = df.columns.values
-        return df.values, column_names
-    else:
-        raise FileNotFoundError(f"No such file: {file_path}")
-    
-def load_epochs(subject, session, bids_root="./epochs/external_task"):
-    """
-    Load MNE epochs from a file with structured filename.
-
-    Parameters:
-    -----------
-    subject : str or int
-        Subject identifier.
-    session : str or int
-        Session identifier.
-    bids_root : str, optional
-        Directory where the epoch files are stored. Defaults to "./epochs".
-
-    Returns:
-    --------
-    mne.Epochs
-        The loaded epochs object.
-    """
-    # Construct filename
-    filename = f"sub-{subject}_ses-{session}_epo.fif"
-    file_path = os.path.join(bids_root, filename)
-    if not os.path.exists(file_path):
-        print(f"File not found: {file_path}")
-        return None
-
-    # Load the epochs
-    epochs = mne.read_epochs(file_path, preload=True)
-
-    print(f"Loaded epochs from: {file_path}")
-    return epochs
-
-def encode_events(events):
-    """
-    Encode a 2D array of events with 3 integers into a 1D array of encoded integers.
-    
-    Parameters:
-    events (np.ndarray): 2D array of shape (n_events, 3) where each row contains 3 integers.
-    
-    Returns:
-    np.ndarray: 1D array of shape (n_events, 1) with encoded integers.
-    """
-    return events[:, 0] * 100 + events[:, 1] + events[:, 2]* 10 
-
-def decode_events(encoded_events):
-    """
-    Decode a 1D array of encoded integers back into a 2D array of events with 3 integers.
-    
-    Parameters:
-    encoded_events (np.ndarray): 1D array of shape (n_events, 1) with encoded integers.
-    
-    Returns:
-    np.ndarray: 2D array of shape (n_events, 3) where each row contains 3 integers.
-    """
-    events = np.zeros((encoded_events.shape[0], 3), dtype=int)
-    events[:, 0] = encoded_events // 100
-    events[:, 2] = (encoded_events % 100) // 10
-    events[:, 1] = encoded_events % 10
-    return events
-
-def decode_event(event_id, event_info):
-    """
-    Decode an encoded event ID back into the original event.
-    
-    Parameters:
-    event_id (int): Encoded event ID.
-    event_info (list): List of 3 strings representing the event information.
-    
-    Returns:
-    dict: Event as a dict of 3 integers.
-    """
-    return {event_info[0]: event_id // 100, event_info[1]: event_id % 10, event_info[2]: (event_id % 100) // 10}
-
-def save_epochs(epochs, subject, session, output_dir=config.EPOCHS_PATH):
-    """
-    Save MNE epochs with structured filenames.
-
-    Parameters:
-    -----------
-    epochs : mne.Epochs
-        The epochs object to save.
-    subject : str or int
-        Subject identifier.
-    session : str or int
-        Session identifier.
-    output_dir : str, optional
-        Directory to save the epoch files. Defaults to "./epochs".
-
-    Returns:
-    --------
-    str
-        Path to the saved file.
-    """
-    # Ensure the output directory exists
-    os.makedirs(output_dir, exist_ok=True)
-
-    # Construct filename
-    filename = f"sub-{subject}_ses-{session}_epo.fif"
-    file_path = os.path.join(output_dir, filename)
-
-    # Save the epochs
-    epochs.save(file_path, overwrite=True)
-
-    print(f"Saved epochs to: {file_path}")
-    return file_path
-
-
-def log_warning(subject, session, msg, path="./logs/warnings.log"):
-    """
-    Log warnings to a specified file.
-
-    Parameters:
-    -----------
-    subject : int
-        Subject identifier.
-    session : int
-        Session identifier.
-    msg : str
-        Warning message to log.
-    path : str, optional
-        Path to the log file. Defaults to "./logs/warnings.log".
-    """
-    # Ensure the log directory exists
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-
-    # Construct the log message
-    log_msg = f"Subject: {subject}, Session: {session}, Message: {msg}\n"
-
-    # Write the log message to the file
-    with open(path, "a") as log_file:
-        log_file.write(log_msg)
-
-    print(f"Logged warning for Subject {subject}, Session {session}: {msg}")
-
-
-def log_msg(subject, session, msg, path="./logs/info.log"):
-    """
-    Log messages to a specified file.
-
-    Parameters:
-    -----------
-    subject : int
-        Subject identifier.
-    session : int
-        Session identifier.
-    msg : str
-        Message to log.
-    path : str, optional
-        Path to the log file. Defaults to "./logs/info.log".
-    """
-    # Ensure the log directory exists
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-
-    # Construct the log message
-    log_msg = f"Subject: {subject}, Session: {session}, Message: {msg}\n"
-
-    # Write the log message to the file
-    with open(path, "a") as log_file:
-        log_file.write(log_msg)
-
-    print(f"Logged message for Subject {subject}, Session {session}: {msg}")
-
-
-
-def mark_bad_channels(subject_list, bids_root, dataset_name="Jin2019", bad_channels_dict=None):
-    """
-    Interactively mark bad channels for each subject and session using dataset configuration.
-
-    Parameters:
-        subject_list (list): List of subject IDs.
-        bids_root (str): Directory where raw files are stored.
-        dataset_name (str): Name of the dataset in config (default: "Jin2019").
-        bad_channels_dict (dict): Existing dictionary to update (default: None).
-
-    Returns:
-        dict: Dictionary with bad channels for each subject and session.
-    """
-    if bad_channels_dict is None:
-        bad_channels_dict = {}
-
-    dataset_config = DATASETS[dataset_name]
-    subject_session_df = dataset_config.extra_info['subject_session_df']
-
-    for subject in subject_list:
-        print(f"\nProcessing subject: {subject}")
-
-        if subject not in bad_channels_dict:
-            bad_channels_dict[subject] = {}
-
-        for session in dataset_config.sessions:
-            try:
-                raw_file = os.path.join(bids_root, subject_session_df.loc[subject, session] + ".bdf")
-                raw = mne.io.read_raw_bdf(raw_file, preload=True)
-                print(f"Loaded: {raw_file}")
-
-                old_ch_names = raw.ch_names
-
-                # Temporary renaming for alignment
-                temp_ch_names = ['temp_' + ch for ch in old_ch_names[:-9]] + old_ch_names[-9:]
-                mapping_old_to_temp = dict(zip(old_ch_names, temp_ch_names))
-
-                # Renaming channels using dataset config mappings
-                raw.rename_channels(mapping_old_to_temp)
-                raw.rename_channels(dataset_config.mapping_channels)
-                raw.rename_channels(dataset_config.mapping_non_eeg)
-
-                # Set channel types for EXG channels
-                raw.set_channel_types({
-                    'sacc_EOG1': 'eog',
-                    'sacc_EOG2': 'eog',
-                    'blink_EOG1': 'eog',
-                    'blink_EOG2': 'eog',
-                    'EXG5': 'misc',
-                    'EXG6': 'misc',
-                    'EXG7': 'misc',
-                    'EXG8': 'misc'
-                })
-
-                # Identify non-EEG channels
-                non_eeg_channels = [ch for ch, ch_type in zip(raw.ch_names, raw.get_channel_types()) if ch_type != 'eeg']
-
-                # Channels to retain
-                channels_to_keep = list(dataset_config.mapping_channels.keys()) + non_eeg_channels
-                raw.pick(channels_to_keep)
-
-                # Interactive marking
-                print("Mark bad channels interactively and close the plot window to continue...")
-                raw.plot(highpass=1, lowpass=40, block=True)
-
-                # Save bad channels
-                bad_channels_dict[subject][session] = raw.info['bads']
-                print(f"Bad channels for subject {subject}, session {session}: {raw.info['bads']}")
-
-                del raw
-                gc.collect()
-
-            except FileNotFoundError:
-                print(f"File not found: {raw_file}. Skipping this session.")
-                continue
-
-    return bad_channels_dict
-
-
 def perform_ica_cleaning(epochs, subject, n_components=20, method='infomax', random_state=97):
     """
     Perform ICA on the provided epochs and allow manual selection of components for exclusion.
@@ -406,6 +147,48 @@ def perform_ica_cleaning(epochs, subject, n_components=20, method='infomax', ran
     print("ICA cleaning complete.")
 
     return cleaned_epochs, ica
+
+def save_epochs(epochs, output_dir, subject, session=1, prefix=None, suffix=None):
+    """
+    Save MNE epochs with structured filenames.
+
+    Parameters:
+    -----------
+    epochs : mne.Epochs
+        The epochs object to save.
+    subject : str or int
+        Subject identifier.
+    session : str or int
+        Session identifier. Defaults to 1 assumes only one session.
+    output_dir : str
+        Directory to save the epoch files.
+    prefix : str, optional
+        Prefix to add to the filename.
+    suffix : str, optional
+        Suffix to add to the filename.
+
+    Returns:
+    --------
+    str
+        Path to the saved file.
+    """
+    # Ensure the output directory exists
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Construct filename with prefix and suffix
+    filename = f"sub-{subject}_ses-{session}_epo.fif"
+    if prefix:
+        filename = f"{prefix}_{filename}"
+    if suffix:
+        filename = f"{filename}_{suffix}"
+
+    file_path = os.path.join(output_dir, filename)
+
+    # Save the epochs
+    epochs.save(file_path, overwrite=True)
+
+    print(f"Saved epochs to: {file_path}")
+    return file_path
 
 if __name__ == "__main__":
     print("Helper functions loaded successfully.")

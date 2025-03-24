@@ -9,4 +9,5 @@ class DatasetConfig:
     mapping_non_eeg: dict
     event_id_map: dict
     event_classes: dict
+    path: str = None
     extra_info: dict = None  # Optional for additional dataset-specific info

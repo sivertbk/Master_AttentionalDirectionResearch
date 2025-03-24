@@ -7,8 +7,8 @@ from utils.dataset_config import DatasetConfig
 #                 Jin et al. (2019) EEG Dataset Configuration
 # =============================================================================
 
-subjects = list(range(1, 31))
-sessions = [1, 2]
+subjects = list(range(1, 31)) # All 30 subjects
+sessions = [1, 2] # Both sessions
 
 # Dataframe for file localizations (encapsulate creation in function)
 def create_subject_session_dataframe(subjects, sessions):
@@ -132,10 +132,6 @@ event_classes = {
     'sart/OT': [111, 112]
 }
 
-
-
-
-
 # Construct dataset-specific configuration object
 jin2019_config = DatasetConfig(
     name="Jin et al. (2019)",
@@ -145,7 +141,9 @@ jin2019_config = DatasetConfig(
     mapping_non_eeg=mapping_non_eeg,
     event_id_map=event_id_map,
     event_classes=event_classes,
+    path=None,
     extra_info={
         "subject_session_df": create_subject_session_dataframe(subjects, sessions)
     }
 )
+
