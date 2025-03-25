@@ -9,6 +9,7 @@ from utils.dataset_config import DatasetConfig
 
 subjects = list(range(1, 31)) # All 30 subjects
 sessions = [1, 2] # Both sessions
+task_orientation = "external"
 
 # Dataframe for file localizations (encapsulate creation in function)
 def create_subject_session_dataframe(subjects, sessions):
@@ -86,8 +87,6 @@ mapping_64_to_128 ={'Fp1':'C29',
 # Invert the dictionary and add 'temp_'
 mapping_128_to_64 = {'temp_' + v: k for k, v in mapping_64_to_128.items()}
 
-### Non-EEG channels ###
-
 # Create a mapping for non-EEG channels
 mapping_non_eeg = {'EXG1': 'sacc_EOG1',
                 'EXG2': 'sacc_EOG2',
@@ -135,13 +134,26 @@ event_classes = {
 # Construct dataset-specific configuration object
 jin2019_config = DatasetConfig(
     name="Jin et al. (2019)",
+    f_name="jin2019",
     subjects=subjects,
     sessions=sessions,
     mapping_channels=mapping_128_to_64,
     mapping_non_eeg=mapping_non_eeg,
     event_id_map=event_id_map,
-    event_classes=event_classes,
-    path=None,
+    event_classes={
+        'vs/MW': [103, 105],
+        'sart/MW': [113, 115],
+        'vs/OT': [101, 102],
+        'sart/OT': [111, 112]
+    },
+    state_classes={
+        "focused": event_classes["vs/OT"] + event_classes["sart/OT"],
+        "mind-wandering": event_classes["vs/MW"] + event_classes["sart/MW"],
+    },
+    task_classes={
+        "visual_search": event_classes["vs/MW"] + event_classes["vs/OT"],
+        "SART": event_classes["sart/MW"] + event_classes["sart/OT"],
+    },
     extra_info={
         "subject_session_df": create_subject_session_dataframe(subjects, sessions)
     }

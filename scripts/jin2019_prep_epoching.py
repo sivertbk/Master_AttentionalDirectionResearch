@@ -10,32 +10,34 @@ import json
 
 import utils.config as config
 from utils.config import DATASETS
-from utils.helpers import save_epochs
+from utils.file_io import save_epochs
 
 
 
 ### Defining constants and preparing stuff ###
 
-bids_root = os.path.join(DATASETS["Jin2019"].path, "study1/raw/eeg/")
-path_events = os.path.join(DATASETS["Jin2019"].path, "study1/raw/beh/new_events/")
+DATASET = DATASETS["jin2019"]
+
+bids_root = DATASET.path_raw
+path_events = os.path.join(config.DATASETS_PATH, DATASET.f_name,"study1/raw/beh/new_events/")
 path_bad_channels = config.PREPROCESSING_LOG_PATH
-path_epochs = os.path.join(config.EPOCHS_PATH, "external_task/jin2019/")
+path_epochs = DATASET.path_epochs
 # df used to localize .bdf files
-df_subject_data = DATASETS["Jin2019"].extra_info["subject_session_df"]
+df_subject_data = DATASET.extra_info["subject_session_df"]
 
 # EEG settings
-subjects = DATASETS["Jin2019"].subjects
-sessions = DATASETS["Jin2019"].sessions
+subjects = DATASET.subjects
+sessions = DATASET.sessions
 tmin = config.EEG_SETTINGS["EPOCH_START_SEC"]
 tmax = tmin + config.EEG_SETTINGS["EPOCH_LENGTH_SEC"]
 sfreq = config.EEG_SETTINGS["SAMPLING_RATE"]
 h_cut = config.EEG_SETTINGS["HIGH_CUTOFF_HZ"]
 l_cut = config.EEG_SETTINGS["LOW_CUTOFF_HZ"]
 reject_threshold = config.EEG_SETTINGS["REJECT_THRESHOLD"]
-mapping_128_to_64 = DATASETS["Jin2019"].mapping_channels
-mapping_non_eeg = DATASETS["Jin2019"].mapping_non_eeg
-event_id_map = DATASETS["Jin2019"].event_id_map
-event_classes = DATASETS["Jin2019"].event_classes
+mapping_128_to_64 = DATASET.mapping_channels
+mapping_non_eeg = DATASET.mapping_non_eeg
+event_id_map = DATASET.event_id_map
+event_classes = DATASET.event_classes
 montage = mne.channels.make_standard_montage('biosemi64')
 
 
@@ -93,7 +95,7 @@ def decode_event(event_id, event_info):
     return {event_info[0]: event_id // 100, event_info[1]: event_id % 10, event_info[2]: (event_id % 100) // 10}
 
 
-def log_warning(subject, session, msg, path="./logs/warnings.log"):
+def log_warning(subject, session, msg, path=os.path.join(config.PREPROCESSING_LOG_PATH, "warnings.log")):
     """
     Log warnings to a specified file.
 
@@ -106,7 +108,7 @@ def log_warning(subject, session, msg, path="./logs/warnings.log"):
     msg : str
         Warning message to log.
     path : str, optional
-        Path to the log file. Defaults to "./logs/warnings.log".
+        Path to the log file. Defaults to config.PREPROCESSING_LOG_PATH/warnings.log.
     """
     # Ensure the log directory exists
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -121,7 +123,7 @@ def log_warning(subject, session, msg, path="./logs/warnings.log"):
     print(f"Logged warning for Subject {subject}, Session {session}: {msg}")
 
 
-def log_msg(subject, session, msg, path="./logs/info.log"):
+def log_msg(subject, session, msg, path=os.path.join(config.PREPROCESSING_LOG_PATH, "info.log")):
     """
     Log messages to a specified file.
 
@@ -134,7 +136,7 @@ def log_msg(subject, session, msg, path="./logs/info.log"):
     msg : str
         Message to log.
     path : str, optional
-        Path to the log file. Defaults to "./logs/info.log".
+        Path to the log file. Defaults to config.PREPROCESSING_LOG_PATH/info.log.
     """
     # Ensure the log directory exists
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -159,7 +161,7 @@ if __name__ == "__main__":
     # Loop through subjects and sessions
     for subject in subjects:
         for session in sessions:
-            bids_path = bids_root + df_subject_data.iloc[subject - 1, session - 1] + ".bdf"
+            bids_path = os.path.join(bids_root,df_subject_data.iloc[subject - 1, session - 1] + ".bdf")
             if not os.path.exists(bids_path):
                 log_warning(subject, session, f"File not found: {bids_path}")
                 continue
@@ -357,7 +359,7 @@ if __name__ == "__main__":
             # save the plot
             output_dir = os.path.join(config.PLOTS_PATH, "autoreject/")
             os.makedirs(output_dir, exist_ok=True)
-            plt.savefig(os.path.join(output_dir,f"{DATASETS["Jin2019"].name}_sub-{subject}-ses-{session}_epoch_averages_before_after.png"))
+            plt.savefig(os.path.join(output_dir,f"{DATASET.f_name}_sub-{subject}-ses-{session}_epoch_averages_before_after.png"))
 
             print('\n##### Class balance after auto-rejection #####')
 
@@ -390,7 +392,7 @@ if __name__ == "__main__":
             # save the plot
             output_dir = os.path.join(config.PLOTS_PATH, "class_balance/")
             os.makedirs(output_dir, exist_ok=True)
-            fig.savefig(os.path.join(output_dir, f'{DATASETS["Jin2019"].name}_Class_balance_sub{subject}_sess{session}.png'))
+            fig.savefig(os.path.join(output_dir, f'{DATASET.f_name}_Class_balance_sub{subject}_sess{session}.png'))
 
             # Find the ratio of MW vs OT in the data
             ratio_vs = epochs_MW_vs_counts / (epochs['vs'].__len__())
@@ -401,7 +403,7 @@ if __name__ == "__main__":
                     f"\n Ratio of MW vs OT in SART epochs: {ratio_sart:.2f}")
 
             # Save the cleaned epochs
-            save_epochs(epochs, path_epochs, subject=subject, session=session)
+            save_epochs(epochs, path_epochs, subject=subject, session=session, subfolder="preprocessed")
 
             del raw, preprocessed_data, epochs
             gc.collect()

@@ -7,14 +7,15 @@ from autoreject import AutoReject, Ransac, get_rejection_threshold
 
 import utils.config as config
 from utils.config import DATASETS
-from utils.helpers import save_epochs
+from utils.file_io import save_epochs
+from utils.helpers import format_numbers
 
 ### Defining constants and preparing stuff ###
 
-DATASET = DATASETS["Braboszcz2017"]
+DATASET = DATASETS["braboszcz2017"]
 
-bids_root = os.path.join(DATASET.path, "study1/raw/eeg/")
-path_epochs = os.path.join(config.EPOCHS_PATH, "internal_task/braboszcz2017/")
+bids_root = DATASET.path_raw
+path_epochs = DATASET.path_epochs
 
 # EEG settings
 subjects = DATASET.subjects
@@ -310,4 +311,4 @@ for subject_id in subjects:
     epochs_combined = mne.concatenate_epochs([epochs_med, epochs_mw])
 
 
-    save_epochs(epochs_combined, path_epochs, subject_id)
+    save_epochs(epochs_combined, path_epochs, subject_id, subfolder="preprocessed")

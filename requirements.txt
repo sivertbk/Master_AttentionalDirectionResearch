@@ -19,6 +19,7 @@ jupyter
 
 # Logging and utilities
 tqdm
+joblib  
 
 # Ensure compatibility with Python 3.8+
 python>=3.8

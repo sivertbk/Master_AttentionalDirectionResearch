@@ -1,12 +1,14 @@
 from utils.dataset_config import DatasetConfig
+from utils.helpers import format_numbers
 
 
 # =============================================================================
 #               Braboszcz et al. (2017) EEG Dataset Configuration
 # =============================================================================
 
-subjects = list(range(60, 79)) # All 30 subjects
+subjects = format_numbers(list(range(60, 79)),3)  # convert to list of strings with leading zeros like ["060", "061", ...]
 sessions = [1] # Only one session
+task_orientation = "internal"
 
 
 # Initialize an empty dictionary for subject grouping
@@ -38,13 +40,36 @@ event_id = {'htr/med1':1, 'htr/med2':2, 'htr/think1':3, 'htr/think2':4,
 
 braboszcz2017_config = DatasetConfig(
     name="Braboszcz et al. (2017)",
+    f_name="braboszcz2017",
     subjects=subjects,
-    sessions=sessions,  # or define explicitly if relevant
-    mapping_channels={},  # specify if available
-    mapping_non_eeg={},   # specify if available
+    sessions=sessions,  
+    mapping_channels={},  
+    mapping_non_eeg={},   
     event_id_map=event_id,
-    event_classes=None,   # specify if needed
-    path=None,            # specify if available
+    state_classes={
+        "focused": [event_id['htr/med1'], event_id['htr/med2'],
+                    event_id['ctr/med1'], event_id['ctr/med2'],
+                    event_id['tm/med1'], event_id['tm/med2'],
+                    event_id['vip/med1'], event_id['vip/med2'],
+                    event_id['sny/med1'], event_id['sny/med2']],
+        "mind-wandering": [event_id['htr/think1'], event_id['htr/think2'],
+                           event_id['ctr/think1'], event_id['ctr/think2'],
+                           event_id['tm/think1'], event_id['tm/think2'],
+                           event_id['vip/think1'], event_id['vip/think2'],
+                           event_id['sny/think1'], event_id['sny/think2']],
+    },
+    task_classes={
+        "breath_counting": [event_id['htr/med1'], event_id['ctr/med1'],
+                            event_id['tm/med1'], event_id['vip/med1'],
+                            event_id['sny/med1'], event_id['ctr/med2']], # control group performed breath counting in both med1 and med2
+        "meditation": [event_id['htr/med2'], event_id['tm/med2'], 
+                       event_id['vip/med2'], event_id['sny/med2']],
+        "thinking": [event_id['htr/think1'], event_id['htr/think2'],
+                     event_id['ctr/think1'], event_id['ctr/think2'],
+                     event_id['tm/think1'], event_id['tm/think2'],
+                     event_id['vip/think1'], event_id['vip/think2'],
+                     event_id['sny/think1'], event_id['sny/think2']],
+    },
     extra_info={
         "subject_groups": subject_groups
     }
