@@ -8,7 +8,7 @@ import pickle
 from utils.config import DATASETS
 import utils.config as config
 
-def load_epochs(epochs_dir, subject, session=1, preload=True):
+def load_epochs(epochs_dir, subject, session=1, preload=True, verbose=True):
     """
     Load MNE epochs from a file with structured filename.
 
@@ -22,6 +22,8 @@ def load_epochs(epochs_dir, subject, session=1, preload=True):
         Session identifier. Defaults to 1 assumes only one session.
     preload : bool, optional
         If True, preload the data into memory. Defaults to True.
+    verbose : bool, optional
+        If True, print detailed information. Defaults to True.
 
     Returns:
     --------
@@ -32,13 +34,15 @@ def load_epochs(epochs_dir, subject, session=1, preload=True):
     filename = f"sub-{subject}_ses-{session}_epo.fif"
     file_path = os.path.join(epochs_dir, filename)
     if not os.path.exists(file_path):
-        print(f"File not found: {file_path}")
+        if verbose:
+            print(f"File not found: {file_path}")
         return None
 
     # Load the epochs
-    epochs = mne.read_epochs(file_path, preload=preload)
+    epochs = mne.read_epochs(file_path, preload=preload, verbose=verbose)
 
-    print(f"Loaded epochs from: {file_path}")
+    if verbose:
+        print(f"Loaded epochs from: {file_path}")
     return epochs
 
 def save_epochs(epochs, output_dir, subject, session=1, subfolder=None):

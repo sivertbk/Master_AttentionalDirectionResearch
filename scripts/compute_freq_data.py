@@ -10,37 +10,39 @@ from joblib import cpu_count
 import utils.config as config
 from utils.config import DATASETS, EEG_SETTINGS
 from utils.file_io import save_psd_data, load_epochs
+from utils.helpers import remap_events_to_original, generate_metadata_df
 
 
 # Specify the subfolder for the epochs path
 EPOCHS_SUBFOLDER = "ica_cleaned"
 
-def detect_data_to_compute(dataset_name):
-    """
-    Detect and return list of subject files to compute PSD for.
-    Currently, this is a placeholder that returns all subjects.
 
-    Returns:
-        list: list of subject identifiers to process
+def save_psd_data(psds, freqs, channels, metadata_df, output_dir, fname_prefix):
     """
-    dataset_config = DATASETS[dataset_name]
-    return dataset_config.subjects
-
-def separate_epochs_by_class(epochs, event_classes):
-    """
-    Separate epochs by event classes.
+    Save PSD data and metadata explicitly to the given directory.
 
     Parameters:
-        epochs (mne.Epochs): EEG epochs data
-        event_classes (dict): Dictionary mapping class names to event IDs
-
-    Returns:
-        dict: Dictionary with class names as keys and corresponding epochs as values
+        psds (ndarray): PSD data (epochs × channels × frequencies).
+        freqs (ndarray): Frequency values.
+        channels (list[str]): Channel names.
+        metadata_df (pd.DataFrame): Metadata DataFrame.
+        output_dir (str): Path to the directory to save files.
+        fname_prefix (str): Filename prefix for saved files (without extension).
     """
-    epochs_by_class = {}
-    for class_name, event_ids in event_classes.items():
-        epochs_by_class[class_name] = epochs[event_ids]
-    return epochs_by_class
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    np.savez_compressed(
+        os.path.join(output_dir, f"{fname_prefix}_psd.npz"),
+        psd=psds,
+        freqs=freqs,
+        channels=channels
+    )
+
+    metadata_df.to_csv(
+        os.path.join(output_dir, f"{fname_prefix}_metadata.csv"),
+        index=False
+    )
 
 def compute_psd(epochs, fmin=EEG_SETTINGS["PSD_FMIN"], fmax=EEG_SETTINGS["PSD_FMAX"], 
                 n_fft=EEG_SETTINGS["PSD_N_FFT"], n_overlap=EEG_SETTINGS["PSD_N_OVERLAP"], 
@@ -58,66 +60,64 @@ def compute_psd(epochs, fmin=EEG_SETTINGS["PSD_FMIN"], fmax=EEG_SETTINGS["PSD_FM
         tuple: PSD array (epochs x channels x frequencies), frequency array
     """
     n_jobs = cpu_count()  # Determine the number of jobs based on CPU cores
+    data = epochs.get_data()
+    sfreq = epochs.info['sfreq']
 
     psd, freqs = mne.time_frequency.psd_array_welch(
-        epochs,
-        sfreq=epochs.info['sfreq'],
+        data,
+        sfreq=sfreq,
         fmin=fmin,
         fmax=fmax,
         n_fft=n_fft,
         n_overlap=n_overlap,
         window=window,
-        average='mean',
-        picks='eeg',
+        average=None,
         output='power',
         n_jobs=n_jobs,
-        remove_dc=remove_dc  
+        remove_dc=remove_dc,
+        verbose=False  
     )
 
     return psd, freqs
 
+from tqdm import tqdm
+
 def compute_psd_data(dataset_name):
     """
-    Compute the PSD data for all subjects in a given dataset.
+    Compute the PSD data for all subjects in a given dataset, showing a progress bar.
 
     Parameters:
         dataset_name (str): Identifier for dataset configuration.
     """
     dataset_config = DATASETS[dataset_name]
-    subjects = detect_data_to_compute(dataset_name)
 
-    for subject in subjects:
-        for session in dataset_config.sessions:
-            print(f"Processing subject {subject}, session {session}")
+    # Create a clearly structured iteration list
+    subject_session_pairs = [
+        (subject, session)
+        for subject in dataset_config.subjects
+        for session in dataset_config.sessions
+    ]
 
-            # Load epochs
-            epochs_path = os.path.join(dataset_config.path_epochs, EPOCHS_SUBFOLDER)
-            epochs = load_epochs(epochs_path, subject, session)
+    for subject, session in tqdm(subject_session_pairs, desc="Computing PSD", unit="subject-session"):
+        epochs_path = os.path.join(dataset_config.path_epochs, EPOCHS_SUBFOLDER)
+        epochs = load_epochs(epochs_path, subject, session, verbose=False)
 
-            if epochs is None:
-                continue
+        if epochs is None:
+            continue
 
-            # Separate epochs by class
-            epochs_by_class = separate_epochs_by_class(epochs, dataset_config.event_classes)
+        channels = epochs.ch_names
 
-            # Compute PSD for each class
-            psd_data = {}
-            for class_name, class_epochs in epochs_by_class.items():
-                psd, freqs = compute_psd(class_epochs)
-                psd_data[class_name] = psd
+        metadata_df = generate_metadata_df(epochs, dataset_config, subject, session)
 
-            # Save computed PSD data
-            save_psd_data(
-                psd_data,
-                dataset_name,
-                subject,
-                freqs,
-                epochs.ch_names,
-                epochs.info['sfreq']
-            )
+        psd, freqs = compute_psd(epochs)
+
+        fname_prefix = f'sub-{subject}_ses-{session}'
+
+        save_psd_data(psd, freqs, channels, metadata_df, dataset_config.path_psd, fname_prefix)
+
 
 def main():
-    dataset_names = ["braboszcz2017"]  # or set dynamically
+    dataset_names = ["jin2019", "braboszcz2017"]  # or set dynamically
     for dataset_name in dataset_names:
         compute_psd_data(dataset_name)
     # compute_spectrograms()  # Implement later

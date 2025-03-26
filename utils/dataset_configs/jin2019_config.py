@@ -135,17 +135,13 @@ event_classes = {
 jin2019_config = DatasetConfig(
     name="Jin et al. (2019)",
     f_name="jin2019",
+    task_orientation=task_orientation,
     subjects=subjects,
     sessions=sessions,
     mapping_channels=mapping_128_to_64,
     mapping_non_eeg=mapping_non_eeg,
     event_id_map=event_id_map,
-    event_classes={
-        'vs/MW': [103, 105],
-        'sart/MW': [113, 115],
-        'vs/OT': [101, 102],
-        'sart/OT': [111, 112]
-    },
+    event_classes=event_classes,
     state_classes={
         "focused": event_classes["vs/OT"] + event_classes["sart/OT"],
         "mind-wandering": event_classes["vs/MW"] + event_classes["sart/MW"],

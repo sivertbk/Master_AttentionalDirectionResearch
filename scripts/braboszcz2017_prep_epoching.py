@@ -95,8 +95,8 @@ def load_task_data(bids_root, subject_id, tasks):
 for subject_id in subjects:
     print(f"\n##### Preprocessing subject {subject_id} #####")
 
-    subject_data = load_task_data(bids_root, f"sub-{subject_id:03d}", tasks)
-    subject_group = subject_groups[f"sub-{subject_id:03d}"]
+    subject_data = load_task_data(bids_root, f"sub-{subject_id}", tasks)
+    subject_group = subject_groups[subject_id]
 
     # Access raw data for a specific task
     raw_med = subject_data['med2']['raw']

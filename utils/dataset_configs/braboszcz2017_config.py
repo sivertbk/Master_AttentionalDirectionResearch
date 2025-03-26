@@ -16,19 +16,19 @@ subject_groups = {}
 
 # Add subjects to the dictionary based on their group
 for i in range(1, 25):
-    subject_groups[f"sub-{i:03d}"] = "htr" #Himalayan
+    subject_groups[format_numbers(i, 3)] = "htr" #Himalayan
 
 for i in range(25, 56):
-    subject_groups[f"sub-{i:03d}"] = "ctr" #Control
+    subject_groups[format_numbers(i, 3)] = "ctr" #Control
 
 for i in range(56, 60):
-    subject_groups[f"sub-{i:03d}"] = "tm" #Transcendental???
+    subject_groups[format_numbers(i, 3)] = "tm" #Transcendental???
 
 for i in range(60, 79):
-    subject_groups[f"sub-{i:03d}"] = "vip" #Vipassana
+    subject_groups[format_numbers(i, 3)] = "vip" #Vipassana
 
 for i in range(79, 99):
-    subject_groups[f"sub-{i:03d}"] = "sny" #Shoonya Yoga
+    subject_groups[format_numbers(i, 3)] = "sny" #Shoonya Yoga
 
 
 # Creating event id for each task and practice
@@ -41,6 +41,7 @@ event_id = {'htr/med1':1, 'htr/med2':2, 'htr/think1':3, 'htr/think2':4,
 braboszcz2017_config = DatasetConfig(
     name="Braboszcz et al. (2017)",
     f_name="braboszcz2017",
+    task_orientation=task_orientation,
     subjects=subjects,
     sessions=sessions,  
     mapping_channels={},  

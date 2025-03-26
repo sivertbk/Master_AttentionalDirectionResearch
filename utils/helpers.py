@@ -178,5 +178,106 @@ def calculate_freq_resolution(epoch_length_sec):
     """
     return 1.0 / epoch_length_sec
 
+def find_class(event_code, class_dict):
+    """
+    Find and return the class name corresponding to a given event code.
+
+    Parameters:
+        event_code (int): The numeric event code to classify.
+        class_dict (dict): A dictionary mapping class names (str) to lists of event codes (list[int]).
+
+    Returns:
+        str: The corresponding class name if the event code is found; otherwise, returns 'undefined'.
+    """
+    for class_name, codes in class_dict.items():
+        if event_code in codes:
+            return class_name
+    return 'undefined'
+
+
+def get_class_array(epochs, class_dict):
+    """
+    Generate an array of class labels for each epoch in an MNE Epochs object.
+
+    Parameters:
+        epochs (mne.Epochs): The epochs object containing event information.
+        class_dict (dict): A dictionary mapping class names (str) to lists of event codes (list[int]).
+
+    Returns:
+        list[str]: List of class labels (one per epoch) corresponding to the epochs' event codes.
+    """
+    tasks = [find_class(code, class_dict) for code in epochs.events[:, 2]]
+    return tasks
+
+def generate_metadata_df(epochs, dataset_config, subject, session):
+    """
+    Generate a metadata DataFrame for the given epochs and dataset configuration.
+
+    Parameters:
+        epochs (mne.Epochs): The epochs object containing event information.
+        dataset_config (DatasetConfig): The dataset configuration object.
+
+    Returns:
+        pd.DataFrame: A DataFrame containing metadata information for each epoch.
+    """
+    # Construct clear metadata DataFrame with explicit columns
+    epoch_metadata = pd.DataFrame({
+        'dataset_name': dataset_config.name,
+        'subject': subject,
+        'session': session,
+        'state': get_class_array(epochs, dataset_config.state_classes),
+        'task': get_class_array(epochs, dataset_config.task_classes), 
+        'task_orientation': dataset_config.task_orientation
+    })
+
+    # Add subject group if available (only for specific datasets)
+    if 'subject_groups' in dataset_config.extra_info:
+        epoch_metadata['subject_group'] = dataset_config.extra_info["subject_groups"].get(subject, "NA")
+
+    return epoch_metadata
+
+
+def remap_events_to_original(epochs):
+    """
+    Remap simplified event codes (1, 2, 3, 4) back to original event codes explicitly.
+
+    Parameters:
+        epochs (mne.Epochs): Epochs object with simplified event codes.
+        dataset_config (DatasetConfig): Dataset configuration containing original event_classes.
+
+    Returns:
+        epochs (mne.Epochs): Same epochs object with updated events and event_id.
+    """
+
+    simplified_event_id = {
+        'vs/MW': 1, 
+        'sart/MW': 2, 
+        'vs/OT': 3, 
+        'sart/OT': 4
+    }
+
+    # Invert simplified mapping clearly
+    simplified_id_to_class = {v: k for k, v in simplified_event_id.items()}
+
+    # Choose representative original event codes explicitly
+    representative_original_codes = { 
+        'vs/MW': 103,  
+        'sart/MW': 113, 
+        'vs/OT': 101,   
+        'sart/OT': 111  
+    }
+
+    # Remap epochs.events in place explicitly
+    for simplified_id, class_label in simplified_id_to_class.items():
+        original_code = representative_original_codes[class_label]
+        epochs.events[epochs.events[:, 2] == simplified_id, 2] = original_code
+
+    # Update event_id explicitly
+    epochs.event_id = representative_original_codes
+
+    return epochs
+
+
+
 if __name__ == "__main__":
     print("Helper functions loaded successfully.")
