@@ -3,7 +3,8 @@ This file contains functions for reading and writing files.
 """
 import mne
 import os
-import pickle
+import numpy as np
+import json
 
 from utils.config import DATASETS
 import utils.config as config
@@ -84,24 +85,40 @@ def save_epochs(epochs, output_dir, subject, session=1, subfolder=None):
     print(f"Saved epochs to: {file_path}")
     return file_path
 
-def save_psd_data(psd_data, dataset_name, subject, session, freqs, ch_names, sfreq):
+def save_psd_data(psds, freqs, channels, metadata_epochs_df, metadata_config, output_root, subject, session, variant):
     """
-    Save PSD data to a file.
+    Save PSD data and split metadata to a structured directory.
 
-    Args:
-        psd_data (dict): The PSD data to save.
-        dataset_name (str): Name of the dataset to save.
-        subject (int): Subject identifier.
-        freqs (array): Frequency array.
-        ch_names (list): Channel names.
-        sfreq (float): Sampling frequency.
+    Parameters:
+        psds (ndarray): PSD data (epochs × channels × frequencies).
+        freqs (ndarray): Frequency values.
+        channels (list[str]): Channel names.
+        metadata_epochs_df (pd.DataFrame): Per-epoch metadata (states, task labels).
+        metadata_config (dict): Global PSD configuration metadata.
+        output_root (str): Root output directory (e.g., 'psd_data/').
+        subject (str or int): Subject identifier.
+        session (str or int): Session identifier.
+        variant (str): Variant name (e.g., 'avg-mean').
     """
-    dataset_config = DATASETS[dataset_name]
-    psd_file = os.path.join(dataset_config.path_psd, f"sub-{subject}_ses-{session}_psd.pkl")
-    with open(psd_file, "wb") as f:
-        pickle.dump({
-            "psd_data": psd_data,
-            "freqs": freqs,
-            "ch_names": ch_names,
-            "sfreq": sfreq
-        }, f)
+    sub = f"sub-{subject}"
+    ses = f"ses-{session}"
+    output_dir = os.path.join(output_root, sub, ses, variant)
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Save PSD data
+    np.savez_compressed(
+        os.path.join(output_dir, "psd.npz"),
+        psd=psds,
+        freqs=freqs,
+        channels=channels
+    )
+
+    # Save per-epoch metadata
+    metadata_epochs_df.to_csv(
+        os.path.join(output_dir, "metadata_epochs.csv"),
+        index=False
+    )
+
+    # Save global config metadata
+    with open(os.path.join(output_dir, "metadata_config.json"), "w") as f:
+        json.dump(metadata_config, f, indent=2)

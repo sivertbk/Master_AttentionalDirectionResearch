@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 from mne.preprocessing import ICA
 import gc
+import datetime
 
 def print_directory_tree(
     root_dir=None,
@@ -165,8 +166,21 @@ def format_numbers(numbers, width=3):
     else:
         raise TypeError("Input must be an int, float, str, or list of these types.")
 
-# Function to calculate frequency resolution based on sampling rate and epoch length
-def calculate_freq_resolution(epoch_length_sec):
+def calculate_freq_resolution(sampling_rate, n_fft):
+    """
+    Calculate frequency resolution based on sampling rate and FFT size.
+
+    Parameters:
+        sampling_rate (float): Sampling rate in Hz.
+        n_fft (int): Number of FFT points.
+
+    Returns:
+        float: Frequency resolution in Hz.
+    """
+    return sampling_rate / n_fft
+
+
+def calculate_rayleigh_freq_resolution(epoch_length_sec):
     """
     Calculate frequency resolution (Rayleigh frequency).
 
@@ -209,32 +223,82 @@ def get_class_array(epochs, class_dict):
     tasks = [find_class(code, class_dict) for code in epochs.events[:, 2]]
     return tasks
 
-def generate_metadata_df(epochs, dataset_config, subject, session):
+
+def generate_metadata_df(epochs, dataset_config, subject, session, eeg_settings, psd_data):
     """
-    Generate a metadata DataFrame for the given epochs and dataset configuration.
+    Generate comprehensive metadata for epochs and PSD configuration.
 
     Parameters:
-        epochs (mne.Epochs): The epochs object containing event information.
-        dataset_config (DatasetConfig): The dataset configuration object.
+        epochs (mne.Epochs): EEG epochs data.
+        dataset_config (DatasetConfig): Configuration object for dataset.
+        subject (str/int): Subject identifier.
+        session (str/int): Session identifier.
+        eeg_settings (dict): Dictionary containing EEG and PSD settings.
+        psd_data (np.ndarray): Computed PSD array (epochs x channels x frequencies).
 
     Returns:
-        pd.DataFrame: A DataFrame containing metadata information for each epoch.
+        pd.DataFrame: Metadata DataFrame per epoch.
     """
-    # Construct clear metadata DataFrame with explicit columns
+    # Basic metadata from configuration
     epoch_metadata = pd.DataFrame({
         'dataset_name': dataset_config.name,
         'subject': subject,
         'session': session,
         'state': get_class_array(epochs, dataset_config.state_classes),
-        'task': get_class_array(epochs, dataset_config.task_classes), 
+        'task': get_class_array(epochs, dataset_config.task_classes),
         'task_orientation': dataset_config.task_orientation
     })
 
-    # Add subject group if available (only for specific datasets)
+    # Add subject group if available
     if 'subject_groups' in dataset_config.extra_info:
         epoch_metadata['subject_group'] = dataset_config.extra_info["subject_groups"].get(subject, "NA")
 
+    # PSD-specific metadata (for reproducibility)
+    unit_suffix = 'µV²/Hz' if eeg_settings["PSD_UNIT_CONVERT"] == 1e12 else 'V²/Hz'
+    epoch_metadata['psd_units'] = unit_suffix
+    epoch_metadata['sampling_rate_hz'] = eeg_settings["SAMPLING_RATE"]
+    epoch_metadata['epoch_duration_sec'] = eeg_settings["EPOCH_LENGTH_SEC"]
+    epoch_metadata['psd_method'] = "Welch"
+    epoch_metadata['psd_n_per_seg'] = eeg_settings["PSD_N_PER_SEG"]
+    epoch_metadata['psd_n_overlap'] = eeg_settings["PSD_N_OVERLAP"]
+    epoch_metadata['psd_n_fft'] = eeg_settings["PSD_N_FFT"]
+    epoch_metadata['psd_freq_resolution_hz'] = eeg_settings["SAMPLING_RATE"] / eeg_settings["PSD_N_FFT"]
+    epoch_metadata['psd_average_method'] = eeg_settings["PSD_AVERAGE_METHOD"]
+    epoch_metadata['psd_freq_range_hz'] = f"{eeg_settings['PSD_FMIN']}-{eeg_settings['PSD_FMAX']} Hz"
+    epoch_metadata['psd_shape'] = [psd_data.shape for _ in range(len(epoch_metadata))]
+    epoch_metadata['psd_computed_time'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
     return epoch_metadata
+
+def generate_metadata_epochs(epochs, dataset_config, subject, session):
+    return pd.DataFrame({
+        'dataset_name': dataset_config.name,
+        'subject': subject,
+        'session': session,
+        'state': get_class_array(epochs, dataset_config.state_classes),
+        'task': get_class_array(epochs, dataset_config.task_classes),
+        'task_orientation': dataset_config.task_orientation,
+        'subject_group': dataset_config.extra_info.get("subject_groups", {}).get(subject, "NA")
+    })
+
+def generate_metadata_config(eeg_settings, psd_data):
+    return {
+        "sampling_rate": eeg_settings["SAMPLING_RATE"],
+        "epoch_duration_sec": eeg_settings["EPOCH_LENGTH_SEC"],
+        "psd_method": "Welch",
+        "psd_window": eeg_settings["PSD_WINDOW"],
+        "psd_output": eeg_settings["PSD_OUTPUT"],
+        "psd_units": "µV²/Hz" if eeg_settings["PSD_UNIT_CONVERT"] == 1e12 else "V²/Hz",
+        "psd_n_fft": eeg_settings["PSD_N_FFT"],
+        "psd_n_per_seg": eeg_settings["PSD_N_PER_SEG"],
+        "psd_n_overlap": eeg_settings["PSD_N_OVERLAP"],
+        "psd_freq_resolution_hz": eeg_settings["SAMPLING_RATE"] / eeg_settings["PSD_N_FFT"],
+        "psd_average_method": eeg_settings["PSD_AVERAGE_METHOD"],
+        "psd_freq_range_hz": f"{eeg_settings['PSD_FMIN']}-{eeg_settings['PSD_FMAX']} Hz",
+        "psd_shape": list(psd_data.shape),
+        "psd_remove_dc": eeg_settings["PSD_REMOVE_DC"],
+        "psd_computed_time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    }
 
 
 def remap_events_to_original(epochs):
@@ -248,7 +312,6 @@ def remap_events_to_original(epochs):
     Returns:
         epochs (mne.Epochs): Same epochs object with updated events and event_id.
     """
-
     simplified_event_id = {
         'vs/MW': 1, 
         'sart/MW': 2, 
@@ -277,7 +340,29 @@ def remap_events_to_original(epochs):
 
     return epochs
 
+def get_available_variants(path_psd, subject_id, session_id):
+    """
+    List all available PSD variants for a given subject-session.
 
+    Parameters:
+        path_psd (str): Root path to the psd_data directory (e.g., dataset_config.path_psd).
+        subject_id (str or int): Subject identifier (e.g., '001').
+        session_id (str or int): Session identifier (e.g., '1').
+
+    Returns:
+        List[str]: List of available variant names (e.g., ['avg-mean', 'avg-median']).
+    """
+    sub_dir = os.path.join(path_psd, f"sub-{subject_id}", f"ses-{session_id}")
+    
+    if not os.path.isdir(sub_dir):
+        return []
+
+    variants = [
+        name for name in os.listdir(sub_dir)
+        if os.path.isdir(os.path.join(sub_dir, name))
+    ]
+
+    return sorted(variants)
 
 if __name__ == "__main__":
     print("Helper functions loaded successfully.")

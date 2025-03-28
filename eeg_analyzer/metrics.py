@@ -18,6 +18,64 @@ class Metrics:
         self.freqs = freqs
         self.channels = channels
 
+    def __repr__(self):
+        return f"Metrics(psd_shape={self.psd.shape}, freqs_shape={self.freqs.shape}, channels={self.channels})"
+
+    def __str__(self):
+        return f"Metrics: {self.psd.shape} PSD, {self.freqs.shape} Frequencies, {len(self.channels)} Channels"
+    
+    def __len__(self):
+        return len(self.psd)
+    
+    def __getitem__(self, idx):
+        """
+        Get the PSD data for a specific epoch.
+
+        Parameters:
+            idx (int): Index of the epoch.
+
+        Returns:
+            ndarray: PSD data for the specified epoch.
+        """
+        if idx < 0 or idx >= len(self.psd):
+            raise IndexError("Index out of range.")
+        return self.psd[idx]
+    
+    def __iter__(self):
+        """
+        Iterate over the PSD data.
+
+        Returns:
+            iterator: An iterator over the PSD data.
+        """
+        self.current_epoch = 0
+        return self
+    
+    def __next__(self):
+        """
+        Get the next epoch of PSD data.
+
+        Returns:
+            ndarray: PSD data for the next epoch.
+
+        Raises:
+            StopIteration: If there are no more epochs to iterate over.
+        """
+        if self.current_epoch >= len(self.psd):
+            raise StopIteration
+        epoch_data = self.psd[self.current_epoch]
+        self.current_epoch += 1
+        return epoch_data
+    
+    def log_power(self):
+        """
+        Compute the logarithm of the PSD data.
+
+        Returns:
+            ndarray: Logarithm of the PSD data.
+        """
+        return np.log(self.psd + 1e-10) # Avoid log(0) by adding a small constant
+
     def mean_power(self):
         """Compute mean PSD across epochs."""
         return np.mean(self.psd, axis=0)
