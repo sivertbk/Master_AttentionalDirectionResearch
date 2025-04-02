@@ -132,7 +132,7 @@ event_classes = {
 }
 
 # Construct dataset-specific configuration object
-jin2019_config = DatasetConfig(
+DATASET_CONFIG = DatasetConfig(
     name="Jin et al. (2019)",
     f_name="jin2019",
     task_orientation=task_orientation,

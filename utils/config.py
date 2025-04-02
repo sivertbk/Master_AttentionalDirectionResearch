@@ -4,7 +4,6 @@ Defines project paths, default settings, and global parameters.
 """
 
 import os
-from dataclasses import dataclass
 from utils.helpers import calculate_freq_resolution
 
 # =============================================================================
@@ -14,10 +13,6 @@ from utils.helpers import calculate_freq_resolution
 ROOT_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 DATA_PATH = os.path.join(ROOT_PATH, "data")
-DATASETS_PATH          = os.path.join(DATA_PATH, "datasets")
-RAW_DATA_PATH          = os.path.join(DATA_PATH, "raw")
-EPOCHS_PATH            = os.path.join(DATA_PATH, "epochs")
-PSD_DATA_PATH          = os.path.join(DATA_PATH, "psd_data")
 
 REPORTS_PATH           = os.path.join(ROOT_PATH, "reports")
 LOGS_PATH              = os.path.join(REPORTS_PATH, "logs")
@@ -200,20 +195,26 @@ scalp_region_coords = {
 #                        DATASET SPECIFIC CONFIGURATIONS
 # =============================================================================
 
-from utils.dataset_configs.jin2019_config import jin2019_config
-from utils.dataset_configs.braboszcz2017_config import braboszcz2017_config
+from utils.dataset_configs import DATASETS
 
-# Set dataset paths dynamically:
-for dataset in [jin2019_config, braboszcz2017_config]:
-    dataset.path_raw    = os.path.join(RAW_DATA_PATH, dataset.f_name)
-    dataset.path_epochs = os.path.join(EPOCHS_PATH, dataset.f_name)
-    dataset.path_psd    = os.path.join(PSD_DATA_PATH, dataset.f_name)
+# Set dataset paths dynamically based on the new per-dataset folder structure
+for dataset in DATASETS.values():
+    dataset_dir = os.path.join(DATA_PATH, dataset.f_name)
 
-DATASETS = {
-    "jin2019": jin2019_config,
-    "braboszcz2017": braboszcz2017_config
-}
+    dataset.path_root   = dataset_dir
+    dataset.path_raw    = os.path.join(dataset_dir, "raw")
+    dataset.path_epochs = os.path.join(dataset_dir, "epochs")
+    dataset.path_psd    = os.path.join(dataset_dir, "psd_data")
+    dataset.path_derivatives = os.path.join(dataset_dir, "derivatives")
+
 
 if __name__ == "__main__":
     print("Global configuration loaded successfully.")
+    for dataset in DATASETS.values():
+        print(f"Dataset: {dataset.name}")
+        print(f"  Root Path: {dataset.path_root}")
+        print(f"  Raw Path: {dataset.path_raw}")
+        print(f"  Epochs Path: {dataset.path_epochs}")
+        print(f"  PSD Path: {dataset.path_psd}")
+        print(f"  Derivatives Path: {dataset.path_derivatives}")
 

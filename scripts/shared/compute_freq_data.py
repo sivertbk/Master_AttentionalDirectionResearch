@@ -75,10 +75,10 @@ def compute_psd_data(dataset_name):
         epochs = epochs.pick_types(eeg=True, verbose=False)
         channels = epochs.ch_names
 
-        for average_method in ['mean', 'median']:
+        for average_method in ['test']:
             variant = f"avg-{average_method}"
             eeg_settings = EEG_SETTINGS.copy()
-            eeg_settings["PSD_AVERAGE_METHOD"] = average_method
+            eeg_settings["PSD_AVERAGE_METHOD"] = 'mean'
 
             psd, freqs = compute_psd(epochs, eeg_settings)
 

@@ -41,10 +41,10 @@ def print_directory_tree(
         root_dir = os.getcwd()
 
     if exclude_dirs is None:
-        exclude_dirs = [".git", "__pycache__"]
+        exclude_dirs = [".git", "__pycache__", ".DS_Store", "Thumbs.db", "attentional_direction_research_workspace.egg-info"]
 
     if skip_folders is None:
-        skip_folders = ["data"]
+        skip_folders = ["raw", "psd_data"]
 
     if output_lines is None:
         output_lines = []

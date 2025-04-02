@@ -13,7 +13,9 @@ class DatasetConfig:
     event_classes: dict = None
     state_classes: dict = None
     task_classes: dict = None
+    path_root: str = None
     path_raw: str = None
     path_epochs: str = None
     path_psd: str = None
+    path_derivatives: str = None
     extra_info: dict = None  # Optional for additional dataset-specific info

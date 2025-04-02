@@ -38,7 +38,7 @@ event_id = {'htr/med1':1, 'htr/med2':2, 'htr/think1':3, 'htr/think2':4,
           'vip/med1':13, 'vip/med2':14, 'vip/think1':15, 'vip/think2':16,
           'sny/med1':17, 'sny/med2':18, 'sny/think1':19, 'sny/think2':20}
 
-braboszcz2017_config = DatasetConfig(
+DATASET_CONFIG = DatasetConfig(
     name="Braboszcz et al. (2017)",
     f_name="braboszcz2017",
     task_orientation=task_orientation,
