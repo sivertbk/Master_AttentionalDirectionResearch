@@ -15,7 +15,8 @@ from utils.helpers import format_numbers
 DATASET = DATASETS["braboszcz2017"]
 
 bids_root = DATASET.path_raw
-path_epochs = DATASET.path_epochs
+path_epochs = os.path.join(DATASET.path_epochs, "preprocessed")
+os.makedirs(path_epochs, exist_ok=True)
 
 # EEG settings
 subjects = DATASET.subjects
