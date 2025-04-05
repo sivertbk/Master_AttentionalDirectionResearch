@@ -32,7 +32,7 @@ ANALYSIS_LOG           = os.path.join(ANALYSIS_LOG_PATH, "analysis.log")
 # =============================================================================
 
 EEG_SETTINGS = {
-    "LOW_CUTOFF_HZ": 1.0,
+    "LOW_CUTOFF_HZ": 0.1,
     "HIGH_CUTOFF_HZ": 40.0,
     "N_ICA_COMPONENTS": 20,
     "EPOCH_LENGTH_SEC": 5.0,

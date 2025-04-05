@@ -188,8 +188,8 @@ for subject_id in subjects:
     preprocessed_data_mw.set_eeg_reference(ref_channels='average', verbose=False)
 
     # Filter out low frequencies and high frequencies
-    preprocessed_data_med.filter(l_freq=l_cut, h_freq=h_cut, verbose=False)
-    preprocessed_data_mw.filter(l_freq=l_cut, h_freq=h_cut, verbose=False)
+    preprocessed_data_med.filter(l_freq=l_cut, h_freq=None, verbose=False)
+    preprocessed_data_mw.filter(l_freq=l_cut, h_freq=None, verbose=False)
 
     # average reference
     preprocessed_data_med.set_eeg_reference(ref_channels='average', verbose=False)
@@ -223,7 +223,7 @@ for subject_id in subjects:
 
     epochs_original_med = epochs_med.copy()
 
-    ar = AutoReject() ################################                                    REMEMBER TO CITE
+    ar = AutoReject(n_interpolate=[1, 4, 8, 12], consensus=np.linspace(0.2, 0.8, 7)) ################################                                    REMEMBER TO CITE
     epochs_med, reject_log = ar.fit_transform(epochs_med, return_log=True)
     get_rejection_threshold(epochs_med)  # Get the rejection threshold dictionary
 
