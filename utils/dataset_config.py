@@ -4,6 +4,7 @@ from dataclasses import dataclass
 class DatasetConfig:
     name: str
     f_name: str # Name of the file containing the data
+    extension: str
     task_orientation: str
     subjects: list
     sessions: list

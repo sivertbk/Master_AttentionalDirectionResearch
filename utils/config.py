@@ -4,6 +4,8 @@ Defines project paths, default settings, and global parameters.
 """
 
 import os
+import matplotlib.pyplot as plt
+
 from utils.helpers import calculate_freq_resolution
 
 # =============================================================================
@@ -32,7 +34,7 @@ ANALYSIS_LOG           = os.path.join(ANALYSIS_LOG_PATH, "analysis.log")
 # =============================================================================
 
 EEG_SETTINGS = {
-    "LOW_CUTOFF_HZ": 0.1,
+    "LOW_CUTOFF_HZ": 0.5, 
     "HIGH_CUTOFF_HZ": 40.0,
     "N_ICA_COMPONENTS": 20,
     "EPOCH_LENGTH_SEC": 5.0,
@@ -57,11 +59,53 @@ EEG_SETTINGS["PSD_FREQ_RESOLUTION"] = calculate_freq_resolution(EEG_SETTINGS["SA
 
 
 
-VISUALIZATION_SETTINGS = {
-    "FIGURE_DPI": 300,
-    "COLOR_PALETTE": "viridis"
-}
+def set_plot_style():
+    plt.rcParams.update({
+        "figure.figsize": (6, 4),  # default figure size
+        "figure.dpi": 100,
+        "savefig.dpi": 300,
+        "savefig.bbox": "tight",
 
+        # Font
+        "font.family": "serif",
+        "font.serif": ["CMU Serif", "Times New Roman", "DejaVu Serif"],  # fallback chain
+        "font.size": 11,
+
+        # Axes
+        "axes.titlesize": 13,
+        "axes.labelsize": 11,
+        "axes.edgecolor": "#333333",
+        "axes.linewidth": 1.0,
+        "axes.spines.top": False,
+        "axes.spines.right": False,
+
+        # Ticks
+        "xtick.labelsize": 9,
+        "ytick.labelsize": 9,
+        "xtick.color": "#333333",
+        "ytick.color": "#333333",
+        "xtick.direction": "out",
+        "ytick.direction": "out",
+
+        # Grid
+        "axes.grid": False,
+        "grid.color": "#dddddd",
+        "grid.linestyle": "--",
+
+        # Legend
+        "legend.fontsize": 10,
+        "legend.frameon": False,
+
+        # Color cycle
+        "axes.prop_cycle": plt.cycler(color=[
+            "#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd",
+            "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"
+        ]),
+
+        # PDF/PS output
+        "pdf.fonttype": 42,
+        "ps.fonttype": 42
+    })
 
 
 

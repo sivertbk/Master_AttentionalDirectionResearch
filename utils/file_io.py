@@ -3,11 +3,79 @@ This file contains functions for reading and writing files.
 """
 import mne
 import os
+from pathlib import Path
 import numpy as np
 import json
+from autoreject import RejectLog
 
 from utils.config import DATASETS
 import utils.config as config
+from utils.dataset_config import DatasetConfig
+
+def _load_braboszcz(dataset: DatasetConfig, subject, task='med2', preload=True):
+    subject_str = f"sub-{int(subject):03d}"
+    fname = f"{subject_str}_task-{task}_eeg.{dataset.extension}"
+    path = os.path.join(dataset.path_raw, subject_str, "eeg", fname)
+    path = Path(path)
+
+    if not path.exists():
+        print(f"File not found: {path}")
+        return None
+
+    return mne.io.read_raw_bdf(path, preload=preload)
+
+def _load_jin(dataset: DatasetConfig, subject, session=1, preload=True):
+    fname = f"sub{int(subject)}_{session}.{dataset.extension}"
+    path = os.path.join(dataset.path_raw, fname)
+    path = Path(path)
+
+    if not path.exists():
+        print(f"File not found: {path}")
+        return None
+
+    return mne.io.read_raw_bdf(path, preload=preload)
+
+def _load_touryan(dataset: DatasetConfig, subject, run=2, preload=True):
+    subject_str = f"sub-{int(subject):02d}"
+    fname = f"{subject_str}_ses-01_task-DriveWithTaskAudio_run-{run}_eeg.{dataset.extension}"
+    path = os.path.join(dataset.path_raw, subject_str, "ses-01", "eeg", fname)
+    path = Path(path)
+
+    if not path.exists():
+        print(f"File not found: {path}")
+        return None
+
+    return mne.io.read_raw_eeglab(path, preload=preload)
+
+
+def load_raw_data(dataset: DatasetConfig, subject, session=1, task=None, run=None, preload=True):
+    """
+    Load MNE raw data from a file with structured filename.
+
+    Parameters:
+    -----------
+    dataset : Dataset
+        The dataset object containing paths and metadata.
+    subject : str or int
+        Subject identifier.
+    session : str or int, optional
+        Session identifier. Defaults to 1 assumes only one session.
+    preload : bool, optional
+        If True, preload the data into memory. Defaults to True.
+
+    Returns:
+    --------
+    mne.io.Raw or None
+        The loaded raw object, or None if the file does not exist.
+    """
+    if dataset.f_name == "braboszcz2017":
+        return _load_braboszcz(dataset, subject, task=task, preload=preload)
+    elif dataset.f_name == "jin2019":
+        return _load_jin(dataset, subject, session=session, preload=preload)
+    elif dataset.f_name == "touryan2022":
+        return _load_touryan(dataset, subject, run=run, preload=preload)
+    else:
+        raise ValueError(f"Unsupported dataset: {dataset.f_name}")
 
 def load_epochs(epochs_dir, subject, session=1, preload=True, verbose=True):
     """
@@ -122,3 +190,140 @@ def save_psd_data(psds, freqs, channels, metadata_epochs_df, metadata_config, ou
     # Save global config metadata
     with open(os.path.join(output_dir, "metadata_config.json"), "w") as f:
         json.dump(metadata_config, f, indent=2)
+
+def update_bad_channels_json(
+    save_dir, dataset, subject, session=None, task=None, run=None, bad_chs=None
+):
+    """
+    Update or create a JSON file with bad channels detected by RANSAC.
+
+    Parameters:
+    - save_dir: str or Path. Directory where the JSON should be stored.
+    - dataset: str. Dataset name (e.g., 'jin2019', 'braboszcz2017').
+    - subject: str. Subject ID (e.g., '001').
+    - session: str or int, optional. Only used for 'jin2019'.
+    - task: str, optional. Only used for 'braboszcz2017'.
+    - run: str or int, optional. Only used for 'touryan2022'.
+    - bad_chs: list of str. Channel names flagged as bad by RANSAC.
+    """
+
+    os.makedirs(save_dir, exist_ok=True)
+    save_path = os.path.join(save_dir, "ransac_bad_channels.json")
+
+    # Load existing file if it exists
+    if os.path.exists(save_path):
+        with open(save_path, "r") as f:
+            bad_chans_data = json.load(f)
+    else:
+        bad_chans_data = {}
+
+    # Build hierarchical key path
+    if dataset not in bad_chans_data:
+        bad_chans_data[dataset] = {}
+
+    subj_key = f"sub-{subject}"
+    if subj_key not in bad_chans_data[dataset]:
+        bad_chans_data[dataset][subj_key] = {}
+
+    # Determine meta key (session/task/run)
+    if dataset == "jin2019" and session is not None:
+        meta_key = f"ses-{session}"
+    elif dataset == "braboszcz2017" and task is not None:
+        meta_key = f"task-{task}"
+    elif dataset == "touryan2022" and run is not None:
+        meta_key = f"run-{run}"
+    else:
+        meta_key = "unknown"
+
+    bad_chans_data[dataset][subj_key][meta_key] = bad_chs or []
+
+    # Write updated JSON
+    with open(save_path, "w") as f:
+        json.dump(bad_chans_data, f, indent=2)
+
+    print(f"[RANSAC JSON] Updated bad channels at: {save_path}")
+
+def load_bad_channels(save_dir, dataset, subject, session=None, task=None, run=None):
+    """
+    Check if bad channels from RANSAC are already saved for a subject/session/task/run.
+
+    Parameters:
+    - save_dir: str or Path. Directory where 'ransac_bad_channels.json' is stored.
+    - dataset: str. Dataset name ('jin2019', 'braboszcz2017', 'touryan2022').
+    - subject: str. Subject ID.
+    - session: str or int, optional. Used for 'jin2019'.
+    - task: str, optional. Used for 'braboszcz2017'.
+    - run: str or int, optional. Used for 'touryan2022'.
+
+    Returns:
+    - bad_chs: list of bad channel names, or None if not found.
+    """
+    save_path = os.path.join(save_dir, "ransac_bad_channels.json")
+    if not os.path.exists(save_path):
+        print("No RANSAC bad channel file found.")
+        return None
+
+    with open(save_path, "r") as f:
+        bad_chans_data = json.load(f)
+
+    subj_key = f"sub-{subject}"
+    if dataset == "jin2019" and session is not None:
+        meta_key = f"ses-{session}"
+    elif dataset == "braboszcz2017" and task is not None:
+        meta_key = f"task-{task}"
+    elif dataset == "touryan2022" and run is not None:
+        meta_key = f"run-{run}"
+    else:
+        meta_key = "unknown"
+
+    try:
+        bad_chs = bad_chans_data[dataset][subj_key][meta_key]
+        print(f"Found existing bad channels for {subj_key} - {meta_key}")
+        return bad_chs
+    except KeyError:
+        print(f"No bad channels found for {subj_key} - {meta_key}")
+        return None
+    
+def save_autoreject(ar, save_path):
+    """
+    Save an AutoReject object only if it has been successfully fitted.
+
+    Parameters:
+    - ar : autoreject.AutoReject instance
+    - save_path : str or Path to .h5 or .hdf5 file
+    """
+    try:
+        # Check for fitted state: threshes_ must exist and not be empty
+        if getattr(ar, "threshes_", None) and len(ar.threshes_) > 0:
+            ar.save(save_path, overwrite=True)
+            print(f"[AutoReject] Model saved at: {save_path}")
+        else:
+            print(f"[AutoReject] Not saving: No thresholds learned (empty model).")
+    except Exception as e:
+        print(f"[AutoReject] Save failed with exception:\n{e}")
+
+def load_reject_log(path, subject, task):
+    """
+    Load a saved RejectLog if it exists at the given path.
+
+    Parameters:
+    - path: str, directory where the file is saved
+    - subject: str or int, subject ID (e.g., '001')
+    - task: str, session/task name (e.g., 'rest' or '01')
+
+    Returns:
+    - reject_log: RejectLog instance if found, otherwise None
+    """
+    fname = os.path.join(path, f"sub-{subject}_ses-{task}_autoreject_log.npz")
+    if os.path.exists(fname):
+        data = np.load(fname, allow_pickle=True)
+        reject_log = RejectLog(
+            bad_epochs=data['bad_epochs'],
+            labels=data['labels'],
+            ch_names=data['ch_names'].tolist()
+        )
+        print(f"Loaded reject log from: {fname}")
+        return reject_log
+    else:
+        print(f"No reject log found at: {fname}")
+        return None

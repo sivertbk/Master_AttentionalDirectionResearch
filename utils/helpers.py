@@ -7,6 +7,10 @@ from pathlib import Path
 from mne.preprocessing import ICA
 import gc
 import datetime
+import json
+from itertools import combinations
+from mne.channels import find_ch_adjacency
+from mne.viz import plot_ch_adjacency
 
 def print_directory_tree(
     root_dir=None,
@@ -109,15 +113,15 @@ def print_directory_tree(
 
     return output_lines
 
-def perform_ica_cleaning(epochs, subject, n_components=20, method='infomax', random_state=97):
+def perform_ica_cleaning(epochs, subject, n_components=0.99, method='infomax', random_state=97):
     """
     Perform ICA on the provided epochs and allow manual selection of components for exclusion.
 
     Parameters:
         epochs (mne.Epochs): The epochs object to clean.
-        n_components (int): Number of ICA components to compute (default: 20).
+        n_components (int): Number of ICA components to compute (default: 0.99 - 99% of variance).
         method (str): ICA method to use ('infomax' by default).
-        random_state (int): Random seed for ICA initialization (default: 42).
+        random_state (int): Random seed for ICA initialization (default: 97).
 
     Returns:
         mne.Epochs: Cleaned epochs after ICA.
@@ -363,6 +367,259 @@ def get_available_variants(path_psd, subject_id, session_id):
     ]
 
     return sorted(variants)
+
+def cleanup_memory(*var_names):
+    """
+    Deletes variables from the caller's local scope (if they exist) and runs garbage collection.
+
+    Parameters
+    ----------
+    var_names : str
+        Names of variables to delete as strings.
+    """
+    import psutil, gc, datetime, inspect
+
+    process = psutil.Process()
+    print(f"[{datetime.datetime.now()}] Memory before cleanup: {process.memory_info().rss / 1e6:.2f} MB")
+
+    caller_locals = inspect.currentframe().f_back.f_locals
+
+    for name in var_names:
+        if name in caller_locals:
+            try:
+                del caller_locals[name]
+            except Exception as e:
+                print(f"⚠️ Could not delete {name}: {e}")
+
+    gc.collect()
+    print(f"[{datetime.datetime.now()}] Memory after cleanup: {process.memory_info().rss / 1e6:.2f} MB")
+    
+def plot_ransac_bad_log(ransac, epochs_hp, subject_id, dataset, meta_info, save_path=None, show=True):
+    """
+    Plot RANSAC bad_log heatmap with channels on Y-axis and trials on X-axis.
+    Highlights bad channels in red and titles the plot with dataset metadata.
+
+    Parameters:
+    - ransac: fitted autoreject.Ransac object
+    - epochs_hp: MNE Epochs object used with RANSAC
+    - subject_id: str or int, e.g. "001"
+    - dataset: str, one of "jin2019", "braboszcz2017", "touryan2022"
+    - meta_info: str/int describing session/task/run depending on dataset
+    - save_path: str or Path or None. If provided, saves the figure to this path.
+    """
+
+    # Transpose bad_log: shape becomes (channels, trials)
+    bad_log_T = ransac.bad_log.T
+
+    # Get channel names for picked indices
+    picked_ch_names = [epochs_hp.ch_names[ii] for ii in ransac.picks]
+
+    # Which channels were flagged as bad overall
+    bad_chs = ransac.bad_chs_
+
+    # Title part
+    label_type = {
+        "Jin et al. (2019)": "Session",
+        "Braboszcz et al. (2017)": "Task",
+        "Touryan e tal. (2022)": "Run"
+    }.get(dataset, "Meta")
+
+    title = f"Bad channels detected with RANSAC  |  Dataset: {dataset} | Subject: {subject_id} | {label_type}: {meta_info}"
+
+    # Plot
+    fig, ax = plt.subplots(figsize=(14, 10), constrained_layout=True)
+    im = ax.imshow(bad_log_T, cmap='Reds', interpolation='nearest', aspect='auto')
+
+    ax.grid(False)
+    ax.set_xlabel('Trials')
+    ax.set_ylabel('Sensors')
+    ax.set_title(title, fontsize=13)
+
+    # Set tick labels
+    yticks = np.arange(len(picked_ch_names))
+    ax.set_yticks(yticks)
+    ax.set_yticklabels(picked_ch_names)
+
+    xticks = np.arange(bad_log_T.shape[1])
+    ax.set_xticks(xticks[::max(1, len(xticks)//20)])  # avoid overcrowding
+    ax.set_xticklabels(xticks[::max(1, len(xticks)//20)])
+
+    # Make bad channels red in y-axis tick labels
+    for tick_label, ch_name in zip(ax.get_yticklabels(), picked_ch_names):
+        if ch_name in bad_chs:
+            tick_label.set_color('red')
+
+    # Save if path is provided
+    if save_path is not None:
+        save_path = str(save_path)
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        fig.savefig(save_path, bbox_inches="tight", dpi=300)
+        print(f"[RANSAC Plot] Saved to: {save_path}")
+
+    if show:
+        plt.show()
+    
+    else:
+        plt.close(fig)  # Prevents figure from being displayed later
+
+
+def get_largest_strict_interp_cluster_sizes(reject_log, info, ch_type='eeg', verbose=True):
+    """
+    Compute the size of the largest strictly connected cluster of interpolated channels per epoch.
+    A strict cluster starts with a fully connected triangle (3 nodes all mutually connected),
+    and grows only by adding nodes that are connected to at least 2 nodes already in the cluster.
+
+    Parameters:
+    - reject_log: instance of autoreject.RejectLog
+    - info: instance of mne.Info
+    - ch_type: str, channel type to consider (default: 'eeg')
+
+    Returns:
+    - cluster_sizes: np.ndarray of shape (n_epochs,)
+    """
+    interp_mask = reject_log.labels == 2  # Interpolated channels
+    adjacency, ch_names = find_ch_adjacency(info, ch_type=ch_type)
+
+    if verbose:
+        print(f"Adjacency matrix shape: {adjacency.shape}")
+        print(f"Interpolated channels shape: {interp_mask.shape}")
+        plot_ch_adjacency(info=info, adjacency=adjacency, ch_names=ch_names)
+
+    adjacency = adjacency.toarray()
+
+    cluster_sizes = []
+
+    for epoch_idx in range(interp_mask.shape[0]):
+        bad_chs = np.where(interp_mask[epoch_idx])[0]
+        if len(bad_chs) < 3:
+            cluster_sizes.append(len(bad_chs))  # No triangle possible
+            continue
+
+        sub_adj = adjacency[np.ix_(bad_chs, bad_chs)]
+        max_cluster = 0
+
+        for combo in combinations(range(len(bad_chs)), 3):
+            i, j, k = combo
+            if sub_adj[i, j] and sub_adj[i, k] and sub_adj[j, k]:
+                cluster = set([i, j, k])
+                changed = True
+                while changed:
+                    changed = False
+                    for n in range(len(bad_chs)):
+                        if n in cluster:
+                            continue
+                        neighbors = [m for m in cluster if sub_adj[n, m]]
+                        if len(neighbors) >= 2:
+                            cluster.add(n)
+                            changed = True
+                max_cluster = max(max_cluster, len(cluster))
+
+        cluster_sizes.append(max_cluster if max_cluster > 0 else 1)
+
+    return np.array(cluster_sizes)
+
+def reject_epochs_with_adjacent_interpolation(epochs, reject_log, max_cluster_size=3, ch_type='eeg', verbose=True):
+    """
+    Reject epochs with interpolated channel clusters larger than max_cluster_size.
+
+    Parameters:
+    - epochs: mne.Epochs object (original or already AutoReject-cleaned)
+    - reject_log: instance of autoreject.RejectLog
+    - max_cluster_size: int, maximum allowed size of adjacent interpolation cluster
+    - ch_type: str, channel type to use for adjacency (default: 'eeg')
+
+    Returns:
+    - cleaned_epochs: mne.Epochs object with offending epochs dropped
+    - rejected_indices: list of rejected epoch indices
+    """
+    cluster_sizes = get_largest_strict_interp_cluster_sizes(reject_log, epochs.info, ch_type=ch_type, verbose=verbose)
+    if verbose:
+        print(f"Cluster sizes: {cluster_sizes}")
+    reject_mask = cluster_sizes > max_cluster_size
+    cleaned_epochs = epochs.copy()[~reject_mask]
+    rejected_indices = np.where(reject_mask)[0].tolist()
+    return cleaned_epochs, rejected_indices
+
+def update_bad_epochs_from_indices(reject_log, rejected_idxs, verbose=True):
+    """
+    Update the bad_epochs array of a RejectLog using a list of rejected indices.
+
+    Parameters:
+    - reject_log: autoreject.RejectLog instance
+    - rejected_idxs: list or array of ints (indices to set as bad)
+    """
+    new_bad_epochs = np.zeros_like(reject_log.bad_epochs, dtype=bool)
+    new_bad_epochs[rejected_idxs] = True
+    reject_log.bad_epochs = new_bad_epochs
+    if verbose:
+        print(f"Updated reject_log.bad_epochs with {len(rejected_idxs)} rejected epochs.")
+
+
+def plot_rejected_epochs_by_cluster(epochs, rejected_indices, ch_type="eeg", n_epochs_to_plot=None):
+    """
+    Plot rejected epochs due to spatially adjacent interpolations.
+
+    Parameters:
+    - epochs: mne.Epochs object (should contain the rejected epochs)
+    - rejected_indices: list of indices for rejected epochs
+    - ch_type: str, channel type to plot (default: 'eeg')
+    - n_epochs_to_plot: int or None, how many rejected epochs to plot (default: all)
+    """
+    if not rejected_indices:
+        print("No rejected epochs to plot.")
+        return
+
+    if n_epochs_to_plot is None:
+        plot_indices = rejected_indices
+    else:
+        plot_indices = rejected_indices[:n_epochs_to_plot]
+
+    fig = plt.figure(figsize=(12, 2.5 * len(plot_indices)))
+    for i, idx in enumerate(plot_indices):
+        ax = fig.add_subplot(len(plot_indices), 1, i + 1)
+        epochs[idx].plot(picks=ch_type, axes=ax, show=False, title=f"Rejected Epoch {idx}")
+    plt.tight_layout()
+    plt.show()
+
+def plot_dropped_epochs_by_cluster(epochs, reject_log, rejected_indices, scalings=dict(eeg=2e-3), title="Dropped epochs due to adjacent interpolation"):
+    """
+    Plot epochs that were rejected due to clustered interpolation, styled similarly to RejectLog.plot_epochs.
+
+    Parameters:
+    - epochs: mne.Epochs object (should include the rejected epochs)
+    - reject_log: instance of autoreject.RejectLog
+    - rejected_indices: list of indices of rejected epochs
+    - scalings: dict or None, passed to epochs.plot
+    - title: str, plot title
+
+    Returns:
+    - fig: matplotlib.figure.Figure
+    """
+    import matplotlib.pyplot as plt
+    from mne.viz import plot_epochs as plot_mne_epochs
+
+    labels = reject_log.labels
+    color_map = {0: 'k', 1: 'r', 2: 'b'}
+    epoch_colors = []
+
+    for idx in rejected_indices:
+        label_epoch = labels[idx]
+        color_row = [
+            color_map[int(lbl)] if not np.isnan(lbl) else 'k'
+            for lbl in label_epoch
+        ]
+        epoch_colors.append(color_row)
+
+    epochs_subset = epochs[rejected_indices]
+    fig = plot_mne_epochs(
+        epochs=epochs_subset,
+        events=epochs_subset.events,
+        epoch_colors=epoch_colors,
+        scalings=scalings,
+        title=title
+    )
+    return fig
+
 
 if __name__ == "__main__":
     print("Helper functions loaded successfully.")

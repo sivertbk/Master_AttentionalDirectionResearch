@@ -28,7 +28,7 @@ for i in range(60, 79):
     subject_groups[format_numbers(i, 3)] = "vip" #Vipassana
 
 for i in range(79, 99):
-    subject_groups[format_numbers(i, 3)] = "sny" #Shoonya Yoga
+    subject_groups[format_numbers(i, 3)] = "sny" #Isha Shoonya Yoga
 
 
 # Creating event id for each task and practice
@@ -41,6 +41,7 @@ event_id = {'htr/med1':1, 'htr/med2':2, 'htr/think1':3, 'htr/think2':4,
 DATASET_CONFIG = DatasetConfig(
     name="Braboszcz et al. (2017)",
     f_name="braboszcz2017",
+    extension="bdf",
     task_orientation=task_orientation,
     subjects=subjects,
     sessions=sessions,  

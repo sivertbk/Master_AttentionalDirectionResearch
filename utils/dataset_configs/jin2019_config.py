@@ -135,6 +135,7 @@ event_classes = {
 DATASET_CONFIG = DatasetConfig(
     name="Jin et al. (2019)",
     f_name="jin2019",
+    extension="bdf",
     task_orientation=task_orientation,
     subjects=subjects,
     sessions=sessions,

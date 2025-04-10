@@ -19,7 +19,6 @@ events = mne.read_events(event_fname)
 raw.info['bads'] = []
 
 raw.del_proj()  # remove proj, don't proj while interpolating
-raw.set_eeg_reference('average')  # Re-reference to average of all EEG channels
 epochs = Epochs(raw, events, event_id, tmin, tmax,
                 baseline=(None, 0), reject=None,
                 verbose=False, detrend=0, preload=True)
@@ -32,27 +31,15 @@ from autoreject import Ransac  # noqa
 from autoreject.utils import interpolate_bads  # noqa
 
 ransac = Ransac(verbose=True, picks=picks, n_jobs=1)
-epochs_clean = ransac.fit_transform(raw)
+epochs_clean = ransac.fit_transform(epochs)
 
 print('\n'.join(ransac.bad_chs_))
 
 evoked = epochs.average()
 evoked_clean = epochs_clean.average()
 
-evoked.info['bads'] = ['EEG 004',
-                        'EEG 008',
-                        'EEG 009',
-                        'EEG 018',
-                        'EEG 023',
-                        'EEG 024',
-                        'EEG 053']
-evoked_clean.info['bads'] = ['EEG 004',
-                        'EEG 008',
-                        'EEG 009',
-                        'EEG 018',
-                        'EEG 023',
-                        'EEG 024',
-                        'EEG 053']
+evoked.info['bads'] = ransac.bad_chs_
+evoked_clean.info['bads'] = ransac.bad_chs_
 
 
 from autoreject.utils import set_matplotlib_defaults  # noqa
