@@ -421,7 +421,7 @@ def plot_ransac_bad_log(ransac, epochs_hp, subject_id, dataset, meta_info, save_
     label_type = {
         "Jin et al. (2019)": "Session",
         "Braboszcz et al. (2017)": "Task",
-        "Touryan e tal. (2022)": "Run"
+        "Touryan et tal. (2022)": "Run"
     }.get(dataset, "Meta")
 
     title = f"Bad channels detected with RANSAC  |  Dataset: {dataset} | Subject: {subject_id} | {label_type}: {meta_info}"

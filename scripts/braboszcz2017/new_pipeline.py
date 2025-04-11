@@ -49,12 +49,12 @@ montage = mne.channels.make_standard_montage('biosemi64')
 set_plot_style()
 
 # Run options
-USE_CACHED_RANSAC = False           # Load RANSAC bad channels from JSON if available
+USE_CACHED_RANSAC = True           # Load RANSAC bad channels from JSON if available
 USE_CACHED_PRE_AUTOREJECT = True   # Load autoreject log (.npz) if available
 USE_CACHED_POST_AUTOREJECT = True  # Load autoreject log (.npz) if available
 
 SAVE_PLOTS = True                  # Whether to save generated plots
-SHOW_PLOTS = False                  # Whether to show generated plots
+SHOW_PLOTS = True                  # Whether to show generated plots
 VERBOSE = False                     # Toggle verbose outputs/logs
 DEBUG = False                      # Toggle debug plots, cluster checks, etc.
 
@@ -189,9 +189,25 @@ if bad_chs is None:
     RESULTS:
     - Cleaned raw object with interpolated channels
 '''
+# plot the bad channels
+picks_bads = mne.pick_types(raw.info, meg=False, eeg=True, stim=False, eog=False, include=bad_chs, exclude=[])
+fig = raw.plot(highpass=l_cut, picks=picks_bads, scalings=dict(eeg=100e-6), title=f"Bad channels for subject {subject} - task  {task}", show=SHOW_PLOTS, block=SHOW_PLOTS)
+if SAVE_PLOTS:
+    fig.savefig(os.path.join(path_plots, "bad_chans", f"sub-{subject}_task-{task}_bad_chans.png"))
+raw.info['bads'] = bad_chs
+fig = raw.plot_sensors(show_names=True, kind="topomap", show=SHOW_PLOTS, block=SHOW_PLOTS)
+if SAVE_PLOTS:
+    fig.savefig(os.path.join(path_plots, "bad_chans", f"sub-{subject}_task-{task}_sensors.png"))
 
 raw.info['bads'] = bad_chs
 raw.interpolate_bads(reset_bads=True)
+
+# plot the interpolated channels
+picks_bads = mne.pick_types(raw.info, meg=False, eeg=True, stim=False, eog=False, include=bad_chs, exclude=[])
+fig = raw.plot(highpass=l_cut, picks=picks_bads, scalings=dict(eeg=100e-6), title=f"Interpolated channels for subject {subject} - task  {task}", show=SHOW_PLOTS, block=SHOW_PLOTS)
+if SAVE_PLOTS:
+    fig.savefig(os.path.join(path_plots, "bad_chans", f"sub-{subject}_task-{task}_interpolated_chans.png"))
+
 
 ##----------------------------------------------------------------------------##
 #        4. CREATE NEW SYNTHETIC EPOCHS AND DETECT BAD EPOCHS (AR)             #
@@ -253,8 +269,8 @@ else:
 
 if reject_log is None:
     ar = AutoReject(
-        n_interpolate=np.array([1, 4, 8, 12, 16]),     # Try several interpolation levels
-        consensus=np.linspace(0.2, 0.8, 7),        # Require some agreement, not too harsh
+        n_interpolate=np.array([1, 2, 3, 4]),     # Try several interpolation levels
+        consensus=np.linspace(0.25, 0.75, 11),        # Require some agreement, not too harsh
         thresh_method='bayesian_optimization',
         cv=10,                                     # cross validation: K-fold
         picks=eeg_picks,

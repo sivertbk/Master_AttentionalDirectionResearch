@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 import numpy as np
 import json
-from autoreject import RejectLog
+
 
 from utils.config import DATASETS
 import utils.config as config
@@ -302,28 +302,34 @@ def save_autoreject(ar, save_path):
     except Exception as e:
         print(f"[AutoReject] Save failed with exception:\n{e}")
 
-def load_reject_log(path, subject, task):
+def load_reject_log(path, subject, session=None, task=None, run=None):
     """
-    Load a saved RejectLog if it exists at the given path.
+    Load a saved RejectLog if it exists at the given path using read_reject_log().
 
     Parameters:
     - path: str, directory where the file is saved
     - subject: str or int, subject ID (e.g., '001')
-    - task: str, session/task name (e.g., 'rest' or '01')
+    - session: str or int, used for datasets like jin2019
+    - task: str, used for datasets like braboszcz2017
+    - run: str or int, used for datasets like touryan2022
 
     Returns:
     - reject_log: RejectLog instance if found, otherwise None
     """
-    fname = os.path.join(path, f"sub-{subject}_ses-{task}_autoreject_log.npz")
+    from autoreject import read_reject_log
+    if session is not None:
+        fname = os.path.join(path, f"sub-{subject}_ses-{session}_autoreject_log.npz")
+    elif task is not None:
+        fname = os.path.join(path, f"sub-{subject}_task-{task}_autoreject_log.npz")
+    elif run is not None:
+        fname = os.path.join(path, f"sub-{subject}_run-{run}_autoreject_log.npz")
+    else:
+        raise ValueError("Either session, task, or run must be provided.")
+
     if os.path.exists(fname):
-        data = np.load(fname, allow_pickle=True)
-        reject_log = RejectLog(
-            bad_epochs=data['bad_epochs'],
-            labels=data['labels'],
-            ch_names=data['ch_names'].tolist()
-        )
-        print(f"Loaded reject log from: {fname}")
+        reject_log = read_reject_log(fname)
+        print(f"[AutoReject] Loaded reject log from: {fname}")
         return reject_log
     else:
-        print(f"No reject log found at: {fname}")
+        print(f"[AutoReject] No reject log found at: {fname}")
         return None
