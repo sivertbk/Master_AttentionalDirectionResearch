@@ -58,7 +58,7 @@ DEBUG = False                      # Toggle debug plots, cluster checks, etc.
 
 # Temporary defs
 subject = 8
-session = 2
+session = 1
 task = None
 run = None
 
@@ -191,7 +191,7 @@ if bad_chs is None:
     - Cleaned raw object with interpolated channels
 '''
 # plot the bad channels
-picks_bads = mne.pick_types(raw.info, meg=False, eeg=True, stim=False, eog=False, include=bad_chs, exclude=[])
+picks_bads = mne.pick_channels(raw.info['ch_names'], include=bad_chs)
 fig = raw.plot(highpass=l_cut, picks=picks_bads, scalings=dict(eeg=100e-6), title=f"Bad channels for subject {subject} - session  {session}", show=SHOW_PLOTS, block=SHOW_PLOTS)
 if SAVE_PLOTS:
     fig.savefig(os.path.join(path_plots, "bad_chans", f"sub-{subject}_ses-{session}_bad_chans.png"))
@@ -205,7 +205,6 @@ raw.info['bads'] = bad_chs
 raw.interpolate_bads(reset_bads=True)
 
 # plot the interpolated channels
-picks_bads = mne.pick_types(raw.info, meg=False, eeg=True, stim=False, eog=False, include=bad_chs, exclude=[])
 fig = raw.plot(highpass=l_cut, picks=picks_bads, scalings=dict(eeg=100e-6), title=f"Interpolated channels for subject {subject} - session  {session}", show=SHOW_PLOTS, block=SHOW_PLOTS)
 if SAVE_PLOTS:
     fig.savefig(os.path.join(path_plots, "bad_chans", f"sub-{subject}_ses-{session}_interpolated_chans.png"))
@@ -251,13 +250,15 @@ epochs_to_ica.pick(picks_ica)
 
 
 if USE_CACHED_PRE_AUTOREJECT:
-    # Load the autoreject object
-    ar = read_auto_reject(
-        os.path.join(path_derivatives, "pre_ica_autoreject_objects", f"sub-{subject}_ses-{session}_autoreject_pre.h5")
-    )
-    # Check if the autoreject object is None
-    if ar is None:
-        print(f"AutoReject object not found for subject {subject}.")
+    # Load the autoreject object if it exists
+    try:
+        ar = read_auto_reject(
+            os.path.join(path_derivatives, "pre_ica_autoreject_objects", f"sub-{subject}_ses-{session}_autoreject_pre.h5")
+        )
+    except FileNotFoundError:
+        print(f"AutoReject object not found for subject {subject} - session {session}.")
+        ar = None
+        
 
     # Load the autoreject log
     reject_log = load_reject_log(
@@ -303,7 +304,7 @@ if reject_log is None:
     )
 
     # Fit AutoReject to the epochs
-    ar.fit(epochs_to_ar[:min(len(epochs_to_ar),400)])
+    ar.fit(epochs_to_ar[:min(len(epochs_to_ar),500)])
 
     # transform epochs and get the reject log
     epochs_ar, reject_log = ar.transform(epochs_to_ar.copy(), return_log=True)
