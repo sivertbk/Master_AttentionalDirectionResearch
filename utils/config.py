@@ -53,6 +53,7 @@ EEG_SETTINGS = {
     "PSD_FMIN": 4.0,
     "PSD_FMAX": 40.0,
     "PSD_REMOVE_DC": True,
+    "MONTAGE": "biosemi64",
 }
 
 EEG_SETTINGS["PSD_FREQ_RESOLUTION"] = calculate_freq_resolution(EEG_SETTINGS["SAMPLING_RATE"], EEG_SETTINGS["PSD_N_FFT"])

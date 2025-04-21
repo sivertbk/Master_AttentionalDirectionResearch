@@ -7,7 +7,6 @@ from utils.helpers import format_numbers
 # =============================================================================
 
 subjects = format_numbers(list(range(60, 79)),3)  # convert to list of strings with leading zeros like ["060", "061", ...]
-sessions = [1] # Only one session
 task_orientation = "internal"
 
 
@@ -44,7 +43,7 @@ DATASET_CONFIG = DatasetConfig(
     extension="bdf",
     task_orientation=task_orientation,
     subjects=subjects,
-    sessions=sessions,  
+    tasks=["med2", "think2"], 
     mapping_channels={},  
     mapping_non_eeg={},   
     event_id_map=event_id,

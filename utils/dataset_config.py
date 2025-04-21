@@ -7,10 +7,12 @@ class DatasetConfig:
     extension: str
     task_orientation: str
     subjects: list
-    sessions: list
-    mapping_channels: dict
-    mapping_non_eeg: dict
-    event_id_map: dict
+    sessions: list = None
+    tasks: list = None
+    runs: list = None
+    mapping_channels: dict = None
+    mapping_non_eeg: dict = None
+    event_id_map: dict = None
     event_classes: dict = None
     state_classes: dict = None
     task_classes: dict = None

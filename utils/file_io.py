@@ -192,7 +192,7 @@ def save_psd_data(psds, freqs, channels, metadata_epochs_df, metadata_config, ou
         json.dump(metadata_config, f, indent=2)
 
 def update_bad_channels_json(
-    save_dir, dataset, subject, session=None, task=None, run=None, bad_chs=None
+    save_dir, dataset, subject, session=None, task=None, run=None, bad_chs=None, mode='ransac'
 ):
     """
     Update or create a JSON file with bad channels detected by RANSAC.
@@ -205,10 +205,14 @@ def update_bad_channels_json(
     - task: str, optional. Only used for 'braboszcz2017'.
     - run: str or int, optional. Only used for 'touryan2022'.
     - bad_chs: list of str. Channel names flagged as bad by RANSAC.
+    - mode: str. Mode of operation ('ransac' or 'inspect').
     """
 
+    if mode not in ['ransac', 'inspect']:
+        raise ValueError("Mode must be 'ransac' or 'inspect'.")
+    
     os.makedirs(save_dir, exist_ok=True)
-    save_path = os.path.join(save_dir, "ransac_bad_channels.json")
+    save_path = os.path.join(save_dir, f"{mode}_bad_channels.json")
 
     # Load existing file if it exists
     if os.path.exists(save_path):
@@ -241,7 +245,7 @@ def update_bad_channels_json(
     with open(save_path, "w") as f:
         json.dump(bad_chans_data, f, indent=2)
 
-    print(f"[RANSAC JSON] Updated bad channels at: {save_path}")
+    print(f"[BAD CHS UPDATE] Updated bad channels at: {save_path}")
 
 def load_bad_channels(save_dir, dataset, subject, session=None, task=None, run=None):
     """
