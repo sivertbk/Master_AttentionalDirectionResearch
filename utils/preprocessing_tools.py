@@ -1,6 +1,8 @@
 import mne
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+from matplotlib.colors import ListedColormap
 import pandas as pd
 import os
 import psutil
@@ -327,10 +329,6 @@ def get_bad_epochs_mask(epochs, channel_thresholds):
 
     return bad_epochs_mask
 
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-import numpy as np
-from matplotlib.colors import ListedColormap
 
 def plot_bad_epochs_mask(epochs, bad_epochs_mask, orientation='vertical', show_names='auto',
                          aspect='equal', show=True, ax=None):
