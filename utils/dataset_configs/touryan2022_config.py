@@ -6,8 +6,7 @@ from utils.helpers import format_numbers
 #               Touryan et al. (2022) EEG Dataset Configuration
 # =============================================================================
 
-subjects = format_numbers(list(range(1, 21)),2)  # convert to list of strings with leading zeros like ["01", "02", ...]
-sessions = [1] # Only one session
+subjects = format_numbers(list(range(1, 22)),2)  # convert to list of strings with leading zeros like ["01", "02", ...]
 task_orientation = "external"
 
 

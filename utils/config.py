@@ -39,6 +39,7 @@ EEG_SETTINGS = {
     "N_ICA_COMPONENTS": 20,
     "EPOCH_LENGTH_SEC": 5.0,
     "EPOCH_START_SEC": -5.0,
+    "SYNTHETIC_LENGTH": 2,
     "PSD_NORMALIZATION": "z-score",
     "Z_SCORE_THRESHOLD": 3.0,
     "SAMPLING_RATE": 128.0,
@@ -54,6 +55,7 @@ EEG_SETTINGS = {
     "PSD_FMAX": 40.0,
     "PSD_REMOVE_DC": True,
     "MONTAGE": "biosemi64",
+    "AR_MAX_TRAINING": 500 # Maximum number of epochs to train autoreject. Set to inf to use all epochs.
 }
 
 EEG_SETTINGS["PSD_FREQ_RESOLUTION"] = calculate_freq_resolution(EEG_SETTINGS["SAMPLING_RATE"], EEG_SETTINGS["PSD_N_FFT"])

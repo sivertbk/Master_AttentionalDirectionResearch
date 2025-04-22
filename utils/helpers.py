@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import mne
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 from pathlib import Path
 from mne.preprocessing import ICA
 import gc
@@ -421,7 +422,7 @@ def plot_ransac_bad_log(ransac, epochs_hp, subject_id, dataset, meta_info, save_
     label_type = {
         "Jin et al. (2019)": "Session",
         "Braboszcz et al. (2017)": "Task",
-        "Touryan et tal. (2022)": "Run"
+        "Touryan et al. (2022)": "Run"
     }.get(dataset, "Meta")
 
     title = f"Bad channels detected with RANSAC  |  Dataset: {dataset} | Subject: {subject_id} | {label_type}: {meta_info}"
@@ -619,6 +620,37 @@ def plot_dropped_epochs_by_cluster(epochs, reject_log, rejected_indices, scaling
         title=title
     )
     return fig
+
+
+def iterate_dataset_items(datasets, desc="Datasets"):
+    """
+    Iterate through datasets and their items (subjects, tasks, sessions, runs).
+    Yields:
+        dataset, subject, label, item, kwargs
+    """
+    for dataset in tqdm(datasets.values(), desc=desc):
+        tqdm.write(f"[DATASET PROGRESSION] Processing dataset: {dataset.name}")
+
+        # Determine iteration axis
+        if dataset.f_name == "braboszcz2017":
+            iter_keys = [('task', dataset.tasks)]
+        elif dataset.f_name == "jin2019":
+            iter_keys = [('session', dataset.sessions)]
+        elif dataset.f_name == "touryan2022":
+            iter_keys = [('run', dataset.runs)]
+        else:
+            raise ValueError(f"Unknown dataset: {dataset.f_name}")
+
+        # Loop through subjects
+        for subject in tqdm(dataset.subjects, desc=f"{dataset.name} Subjects", leave=True):
+            tqdm.write(f"[SUBJECT PROGRESSION] Processing subject: {subject}")
+
+            for label, values in iter_keys:
+                for item in tqdm(values, desc=f"{subject} {label}", leave=False):
+                    tqdm.write(f"[ ITEM  PROGRESSION ] Processing {label}: {item}")
+                    kwargs = {label: item}
+                    yield dataset, subject, label, item, kwargs
+
 
 
 if __name__ == "__main__":

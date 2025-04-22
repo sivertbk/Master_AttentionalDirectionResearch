@@ -6,9 +6,14 @@ from utils.helpers import format_numbers
 #               Braboszcz et al. (2017) EEG Dataset Configuration
 # =============================================================================
 
-subjects = format_numbers(list(range(60, 79)),3)  # convert to list of strings with leading zeros like ["060", "061", ...]
+subjects = []
+subjects.extend(range(1, 25))
+subjects.extend(range(25, 56))
+subjects.extend(range(56, 60))
+subjects.extend(range(60, 79))
+subjects.extend(range(79, 99))
+subjects = format_numbers(subjects,3)  # convert to list of strings with leading zeros like ["060", "061", ...]
 task_orientation = "internal"
-
 
 # Initialize an empty dictionary for subject grouping
 subject_groups = {}

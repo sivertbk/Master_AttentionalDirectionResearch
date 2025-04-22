@@ -12,7 +12,7 @@ from utils.config import DATASETS
 import utils.config as config
 from utils.dataset_config import DatasetConfig
 
-def _load_braboszcz(dataset: DatasetConfig, subject, task='med2', preload=True):
+def _load_braboszcz(dataset: DatasetConfig, subject, task='med2', preload=True, verbose=True):
     subject_str = f"sub-{int(subject):03d}"
     fname = f"{subject_str}_task-{task}_eeg.{dataset.extension}"
     path = os.path.join(dataset.path_raw, subject_str, "eeg", fname)
@@ -22,9 +22,9 @@ def _load_braboszcz(dataset: DatasetConfig, subject, task='med2', preload=True):
         print(f"File not found: {path}")
         return None
 
-    return mne.io.read_raw_bdf(path, preload=preload)
+    return mne.io.read_raw_bdf(path, preload=preload, verbose=verbose)
 
-def _load_jin(dataset: DatasetConfig, subject, session=1, preload=True):
+def _load_jin(dataset: DatasetConfig, subject, session=1, preload=True, verbose=True):
     fname = f"sub{int(subject)}_{session}.{dataset.extension}"
     path = os.path.join(dataset.path_raw, fname)
     path = Path(path)
@@ -33,9 +33,9 @@ def _load_jin(dataset: DatasetConfig, subject, session=1, preload=True):
         print(f"File not found: {path}")
         return None
 
-    return mne.io.read_raw_bdf(path, preload=preload)
+    return mne.io.read_raw_bdf(path, preload=preload, verbose=verbose)
 
-def _load_touryan(dataset: DatasetConfig, subject, run=2, preload=True):
+def _load_touryan(dataset: DatasetConfig, subject, run=2, preload=True, verbose=True):
     subject_str = f"sub-{int(subject):02d}"
     fname = f"{subject_str}_ses-01_task-DriveWithTaskAudio_run-{run}_eeg.{dataset.extension}"
     path = os.path.join(dataset.path_raw, subject_str, "ses-01", "eeg", fname)
@@ -45,10 +45,10 @@ def _load_touryan(dataset: DatasetConfig, subject, run=2, preload=True):
         print(f"File not found: {path}")
         return None
 
-    return mne.io.read_raw_eeglab(path, preload=preload)
+    return mne.io.read_raw_eeglab(path, preload=preload, verbose=verbose)
 
 
-def load_raw_data(dataset: DatasetConfig, subject, session=1, task=None, run=None, preload=True):
+def load_raw_data(dataset: DatasetConfig, subject, session=1, task=None, run=None, preload=True, verbose=True):
     """
     Load MNE raw data from a file with structured filename.
 
@@ -62,6 +62,8 @@ def load_raw_data(dataset: DatasetConfig, subject, session=1, task=None, run=Non
         Session identifier. Defaults to 1 assumes only one session.
     preload : bool, optional
         If True, preload the data into memory. Defaults to True.
+    verbose : bool, optional
+        If True, print detailed information. Defaults to True.
 
     Returns:
     --------
@@ -69,11 +71,11 @@ def load_raw_data(dataset: DatasetConfig, subject, session=1, task=None, run=Non
         The loaded raw object, or None if the file does not exist.
     """
     if dataset.f_name == "braboszcz2017":
-        return _load_braboszcz(dataset, subject, task=task, preload=preload)
+        return _load_braboszcz(dataset, subject, task=task, preload=preload, verbose=verbose)
     elif dataset.f_name == "jin2019":
-        return _load_jin(dataset, subject, session=session, preload=preload)
+        return _load_jin(dataset, subject, session=session, preload=preload, verbose=verbose)
     elif dataset.f_name == "touryan2022":
-        return _load_touryan(dataset, subject, run=run, preload=preload)
+        return _load_touryan(dataset, subject, run=run, preload=preload, verbose=verbose)
     else:
         raise ValueError(f"Unsupported dataset: {dataset.f_name}")
 
@@ -249,10 +251,10 @@ def update_bad_channels_json(
 
 def load_bad_channels(save_dir, dataset, subject, session=None, task=None, run=None):
     """
-    Check if bad channels from RANSAC are already saved for a subject/session/task/run.
+    Load the json of bad channels for interpolation for a subject/session/task/run.
 
     Parameters:
-    - save_dir: str or Path. Directory where 'ransac_bad_channels.json' is stored.
+    - save_dir: str or Path. Directory where 'inspect_bad_channels.json' is stored.
     - dataset: str. Dataset name ('jin2019', 'braboszcz2017', 'touryan2022').
     - subject: str. Subject ID.
     - session: str or int, optional. Used for 'jin2019'.
@@ -262,7 +264,7 @@ def load_bad_channels(save_dir, dataset, subject, session=None, task=None, run=N
     Returns:
     - bad_chs: list of bad channel names, or None if not found.
     """
-    save_path = os.path.join(save_dir, "ransac_bad_channels.json")
+    save_path = os.path.join(save_dir, "inspect_bad_channels.json")
     if not os.path.exists(save_path):
         print("No RANSAC bad channel file found.")
         return None
