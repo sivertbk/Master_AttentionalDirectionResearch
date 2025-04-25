@@ -2,7 +2,7 @@ import os
 
 from tqdm import tqdm
 
-from utils.helpers import iterate_dataset_items
+from utils.helpers import iterate_dataset_items, format_numbers
 from utils.preprocessing_tools import prepare_raw_data, fix_bad_channels, autoreject_raw
 from utils.file_io import load_raw_data, save_autoreject
 from utils.config import DATASETS, set_plot_style, EEG_SETTINGS
@@ -10,6 +10,9 @@ from utils.config import DATASETS, set_plot_style, EEG_SETTINGS
 set_plot_style()
 
 VERBOSE = True
+
+DATASETS['braboszcz2017'].subjects = []
+DATASETS['jin2019'].subjects = []
 
 
 for dataset, subject, label, item, kwargs in iterate_dataset_items(DATASETS):
@@ -22,6 +25,9 @@ for dataset, subject, label, item, kwargs in iterate_dataset_items(DATASETS):
 
     # Fix bad channels in the raw data
     raw = fix_bad_channels(raw, dataset, subject, **kwargs, verbose=VERBOSE)
+
+    # Average reference
+    raw.set_eeg_reference(ref_channels='average', projection=False)
 
     # Fit autoreject
     ar = autoreject_raw(

@@ -6,8 +6,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from joblib import cpu_count
 
-from utils.preprocessing_tools import prepare_raw_data, fix_bad_channels, get_bad_epochs_mask, plot_bad_epochs_mask
-from utils.file_io import load_raw_data, save_autoreject
+from utils.preprocessing_tools import prepare_raw_data, fix_bad_channels, get_bad_epochs_mask
+from utils.file_io import load_raw_data, load_ar
 from utils.config import DATASETS, set_plot_style, EEG_SETTINGS, PLOTS_PATH
 from utils.helpers import cleanup_memory, iterate_dataset_items
 
@@ -89,17 +89,11 @@ def plot_autoreject_validation_curve(epochs, subject, dataset_name, label, item,
 
 
 for dataset, subject, label, item, kwargs in iterate_dataset_items(DATASETS):
-    # Get Autoreject model
-    ar_model_path = os.path.join(
-        dataset.path_derivatives,
-        "pre_ica_autoreject_models",
-        f"sub-{subject}_{label}-{item}_autoreject_pre_ica.h5"
-    )
-
-    if not os.path.exists(ar_model_path):
-        tqdm.write(f"No Autoreject model exists for subject {subject} with {label} {item}.")
+    ar = load_ar(dataset, subject, label, item, verbose=VERBOSE)
+    if ar is None:
         continue
-
+    
+    # Load and prepare raw data
     raw = load_raw_data(dataset, subject, **kwargs, verbose=VERBOSE)
     if raw is None:
         tqdm.write(f"    No data found for subject {subject} with {label} {item}.")
@@ -116,17 +110,19 @@ for dataset, subject, label, item, kwargs in iterate_dataset_items(DATASETS):
     # Fix bad channels in the raw data
     raw = fix_bad_channels(raw, dataset, subject, **kwargs, verbose=VERBOSE)
 
+    # Filter the raw data
     raw.filter(l_freq=EEG_SETTINGS['LOW_CUTOFF_HZ'], h_freq=None, n_jobs=cpu_count())
 
     epochs = mne.make_fixed_length_epochs(
         raw, 
-        duration=EEG_SETTINGS["EPOCH_LENGTH_SEC"], 
+        duration=EEG_SETTINGS["SYNTHETIC_LENGTH"], 
         preload=True)
 
-    # Load the autoreject model
-    ar = read_auto_reject(ar_model_path)
-
     epochs_ar, reject_log = ar.transform(epochs, return_log=True)
+    tqdm.write(f"[THRESHOLD] {ar.threshes_}")
+
+    # Get the bad epochs mask based on channel thresholds
+    bad_epochs_mask = get_bad_epochs_mask(epochs, ar.threshes_)
 
     # Save the autoreject performance
 
@@ -148,23 +144,30 @@ for dataset, subject, label, item, kwargs in iterate_dataset_items(DATASETS):
     # else:
     #     tqdm.write(f"No bad epochs to plot for subject {subject} | {label}: {item}.")
 
-    bad_epochs_mask = get_bad_epochs_mask(epochs, ar.threshes_)
-    fig = plot_bad_epochs_mask(epochs, ~bad_epochs_mask, orientation='horizontal', show=True)
+    # plot_bad_epochs_mask(epochs, bad_epochs_mask, orientation='horizontal', show=SHOW_PLOTS)
 
-    save_path = os.path.join(path_plots, "bad_epochs_pre_ICA_matrix")
-    os.makedirs(save_path, exist_ok=True)
-    fig_ar_matrix_before_ica = reject_log.plot(orientation="horizontal", show=SHOW_PLOTS)
-    fig_ar_matrix_before_ica.axes[0].set_title(f"AutoReject bad/interpolated epochs pre ICA | Dataset: {dataset.name} | Subject: {subject} | {label}: {item}.")
-    fig_ar_matrix_before_ica.savefig(os.path.join(save_path , f"sub-{subject}_{label}-{item}_bad_epochs_pre_ICA_matrix.png"))
 
-    save_path = os.path.join(path_plots, "validation_curves")
-    plot_autoreject_validation_curve(
-        epochs,
-        subject=subject,
-        dataset_name=dataset.name,
-        label=label,
-        item=item,
-        save_dir=save_path,
-        manual_threshold=140e-6,
-        show=SHOW_PLOTS
-    )
+    # reject_log.plot_epochs(epochs, scalings=dict(eeg=100e-6))
+
+    # save_path = os.path.join(path_plots, "bad_epochs_pre_ICA_matrix")
+    # os.makedirs(save_path, exist_ok=True)
+    # fig_ar_matrix_before_ica = reject_log.plot(orientation="horizontal", show=SHOW_PLOTS)
+    # fig_ar_matrix_before_ica.axes[0].set_title(f"AutoReject bad/interpolated epochs pre ICA | Dataset: {dataset.name} | Subject: {subject} | {label}: {item}.")
+    # fig_ar_matrix_before_ica.savefig(os.path.join(save_path , f"sub-{subject}_{label}-{item}_bad_epochs_pre_ICA_matrix.png"))
+
+    # save_path = os.path.join(path_plots, "validation_curves")
+    # plot_autoreject_validation_curve(
+    #     epochs,
+    #     subject=subject,
+    #     dataset_name=dataset.name,
+    #     label=label,
+    #     item=item,
+    #     save_dir=save_path,
+    #     manual_threshold=140e-6,
+    #     show=SHOW_PLOTS
+    # )
+
+    # # save reject log to derivatives
+    # save_path = os.path.join(dataset.path_derivatives, "pre_ica_autoreject_logs")
+    # os.makedirs(save_path, exist_ok=True)
+    # reject_log.save(os.path.join(save_path, f"sub-{subject}_{label}-{item}_autoreject_log.npz"), overwrite=True)

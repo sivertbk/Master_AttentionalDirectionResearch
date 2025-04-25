@@ -7,11 +7,11 @@ from utils.helpers import format_numbers
 # =============================================================================
 
 subjects = []
-subjects.extend(range(1, 25))
+#subjects.extend(range(1, 25))
 subjects.extend(range(25, 56))
-subjects.extend(range(56, 60))
+#subjects.extend(range(56, 60))
 subjects.extend(range(60, 79))
-subjects.extend(range(79, 99))
+#subjects.extend(range(79, 99))
 subjects = format_numbers(subjects,3)  # convert to list of strings with leading zeros like ["060", "061", ...]
 task_orientation = "internal"
 

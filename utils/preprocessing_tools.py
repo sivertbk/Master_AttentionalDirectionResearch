@@ -5,17 +5,15 @@ import matplotlib.patches as patches
 from matplotlib.colors import ListedColormap
 import pandas as pd
 import os
-import psutil
-import gc
 from joblib import cpu_count
 from autoreject import AutoReject, Ransac, get_rejection_threshold
-from autoreject.utils import set_matplotlib_defaults
-from scipy.signal import detrend
 from mne.preprocessing import ICA
+from mne.viz import plot_epochs as plot_mne_epochs
+from datetime import datetime
 
 import utils.config as config
 from utils.config import DATASETS, set_plot_style
-from utils.file_io import load_raw_data, save_epochs, load_bad_channels, update_bad_channels_json, save_autoreject, load_reject_log
+from utils.file_io import load_bad_channels, update_bad_channels_json, log_dropped_epochs, log_reject_threshold
 from utils.helpers import format_numbers, cleanup_memory, plot_ransac_bad_log, reject_epochs_with_adjacent_interpolation, plot_rejected_epochs_by_cluster, plot_dropped_epochs_by_cluster, update_bad_epochs_from_indices
 
 
@@ -66,6 +64,9 @@ def _prepare_braboszcz2017(raw, dataset, eeg_settings):
     # Set only the types for present channels
     raw.set_channel_types(existing_types)
 
+    # pick only EEG channels
+    raw.pick('eeg')
+
     # Downsample
     raw.resample(eeg_settings["SAMPLING_RATE"])
 
@@ -96,10 +97,10 @@ def _prepare_jin2019(raw, dataset, eeg_settings):
 
     # Set the channel types for the EXG channels
     raw.set_channel_types({
-        'sacc_EOG1': 'eog',
-        'sacc_EOG2': 'eog',
-        'blink_EOG1': 'eog',
-        'blink_EOG2': 'eog',
+        'UVEOG': 'eog',
+        'LVEOG': 'eog',
+        'LHEOG': 'eog',
+        'RHEOG': 'eog',
         'EXG5': 'misc',  # Could be a mastoid, set as misc
         'EXG6': 'misc',  # Could be a mastoid, set as misc
         'EXG7': 'misc',  # Could be a mastoid, set as misc
@@ -137,7 +138,7 @@ def _prepare_touryan2022(raw, dataset, eeg_settings):
     })
     
     # Drop all non-eeg/eog channels (misc, mastoid, etc.)
-    raw.pick_types(eeg=True, eog=True)
+    raw.pick(['eeg', 'eog'])
     # Resample and apply montage
     raw.resample(eeg_settings["SAMPLING_RATE"])
     raw.set_montage(eeg_settings["MONTAGE"])
@@ -235,7 +236,7 @@ def fix_bad_channels(raw, dataset, subject, session=None, task=None, run=None, v
     path = dataset.path_derivatives
 
     # Load the bad channels from the JSON file
-    bad_channels = load_bad_channels(path, dataset.f_name, subject, session=session, task=task, run=run)
+    bad_channels = load_bad_channels(path, dataset.f_name, subject, session=session, task=task, run=run, mode='inspect')
     
     if bad_channels is None or len(bad_channels) == 0:
         if verbose:
@@ -269,19 +270,20 @@ def autoreject_raw(raw, eeg_settings, verbose=True):
         The fitted AutoReject object.
     """
     epochs = mne.make_fixed_length_epochs(
-        raw.copy().filter(l_freq=eeg_settings['LOW_CUTOFF_HZ'], h_freq=None), 
+        raw.copy().filter(l_freq=eeg_settings['LOW_CUTOFF_HZ'], h_freq=None, verbose=verbose, n_jobs=cpu_count()), 
         duration=eeg_settings["SYNTHETIC_LENGTH"], 
-        preload=True)
+        preload=True,
+        verbose=verbose)
     
     picks_eeg = mne.pick_types(raw.info, meg=False, eeg=True,
                         stim=False, eog=False,
                         include=[], exclude=[])
     
-    epochs = epochs.copy().pick(picks_eeg)
+    epochs = epochs.copy().pick(picks_eeg, verbose=verbose)
 
     ar = AutoReject(
-        n_interpolate=np.array([12]),              # Try only one interpolation as it always uses the highest n_interpolate
-        consensus=np.linspace(0.3, 0.7, 7),        # Require some agreement, not too harsh
+        n_interpolate=np.array([4]),               # Try only one interpolation as it always uses the highest n_interpolate
+        consensus=np.linspace(0.7, 0.9, 7),        # Require some agreement, not too harsh
         thresh_method='bayesian_optimization',     # Use default method
         cv=10,                                     # cross validation: K-fold
         picks=picks_eeg,                           # Only use EEG channels
@@ -299,9 +301,9 @@ def autoreject_raw(raw, eeg_settings, verbose=True):
 
     return ar
 
-def get_bad_epochs_mask(epochs, channel_thresholds):
+def get_bad_epochs_mask(epochs, channel_thresholds, min_bad_channels=3):
     """
-    Identify bad epochs based on per-channel peak-to-peak thresholds.
+    Identify bad epochs based on how many channels exceed their peak-to-peak threshold.
 
     Parameters
     ----------
@@ -309,23 +311,26 @@ def get_bad_epochs_mask(epochs, channel_thresholds):
         The epoched EEG data.
     channel_thresholds : dict
         Dictionary mapping channel names to peak-to-peak thresholds (in Volts).
+    min_bad_channels : int
+        Minimum number of channels that must exceed their threshold in an epoch
+        for that epoch to be marked as bad.
 
     Returns
     -------
     bad_epochs_mask : np.ndarray of bool
         Boolean array where True indicates a bad epoch.
     """
-    # Extract EEG data: shape = (n_epochs, n_channels, n_times)
-    data = epochs.get_data()
+    data = epochs.get_data()  # shape: (n_epochs, n_channels, n_times)
+    ptp = data.ptp(axis=2)  # peak-to-peak amplitude per epoch/channel
 
-    # Compute peak-to-peak amplitude for each channel in each epoch
-    ptp = data.ptp(axis=2)  # shape = (n_epochs, n_channels)
-
-    # Align threshold values with channel order in epochs
+    # Get thresholds in the same channel order
     thresh_array = np.array([channel_thresholds[ch] for ch in epochs.ch_names])
 
-    # Create boolean mask: True if any channel in an epoch exceeds its threshold
-    bad_epochs_mask = (ptp > thresh_array).any(axis=1)
+    # Count how many channels exceed their threshold in each epoch
+    bad_channel_counts = (ptp > thresh_array).sum(axis=1)  # shape: (n_epochs,)
+
+    # Mark epochs as bad if bad channels ≥ min_bad_channels
+    bad_epochs_mask = bad_channel_counts >= min_bad_channels
 
     return bad_epochs_mask
 
@@ -414,4 +419,200 @@ def plot_bad_epochs_mask(epochs, bad_epochs_mask, orientation='vertical', show_n
         plt.show()
     return fig
 
+def prepare_ica_epochs(raw, dataset, eeg_settings, subject, session=None, task=None, run=None, min_threshold=300e-6, verbose=True):
+    """
+    Prepare epochs for ICA. This function takes raw, untouched data and creates epochs for ICA.
+    The function:
+     - downsampels the data
+     - sets the montage
+     - sets the channel types
+     - sets the channel names
+     - sets the bad channels based on premade JSON containing the bad channels
+     - interpolates bads
+     - filters the data
+     - creates synthetic epochs
+     - removes the bad epochs based on threshold
+     - fits ICA to the epochs
+     - returns the epochs object
+    Parameters
+    ----------
+    raw : mne.io.Raw
+        The raw data object to prepare for ICA.
+    dataset : DatasetConfig
+        The dataset configuration object.
+    eeg_settings : dict
+        The EEG settings dictionary defined in config containing parameters
+    subject : str
+        The subject identifier.
+    session : str, optional
+        The session identifier (default is None).
+    task : str, optional
+        The task identifier (default is None).
+    run : str, optional
+        The run identifier (default is None).
+    threshold : float, optional
+        The threshold for rejecting epochs (default is None, which uses the value from eeg_settings).
+    verbose : bool, optional
+        If True, print additional information (default is True).
 
+    Returns
+    -----------
+    epochs : mne.Epochs
+        The prepared epochs object for ICA.
+    reject : dict
+        The rejection thresholds for the epochs.
+    """
+    # Prepare raw data
+    raw = prepare_raw_data(raw, dataset, eeg_settings)
+
+    # Fix bad channels
+    raw = fix_bad_channels(raw, dataset, subject=subject, session=session, task=task, run=run, verbose=verbose)
+
+    # Filter the raw data
+    raw.filter(l_freq=eeg_settings['LOW_CUTOFF_HZ'],
+                h_freq=None, 
+                n_jobs=cpu_count(), 
+                picks=['eeg', 'eog'],
+                verbose=verbose)
+
+    # Create synthetic epochs
+    epochs = mne.make_fixed_length_epochs(
+        raw,
+        duration=eeg_settings["SYNTHETIC_LENGTH"],
+        preload=True,
+        verbose=verbose
+    )
+    epochs.pick(picks=['eeg', 'eog'], verbose=verbose)
+
+    # Average reference
+    epochs.set_eeg_reference(ref_channels='average', ch_type='eeg', projection=False, verbose=verbose)
+
+    reject = get_rejection_threshold(
+        epochs,
+        random_state=42069,
+        ch_types='eeg',
+        verbose=verbose
+    )
+    
+    reject = {key: val * 2 for key, val in reject.items()}  # Increase the threshold by 100%
+
+    # If threhold is too low, set it to min_threshold
+    if reject['eeg'] < min_threshold:
+        reject = {key: min_threshold for key in reject.keys()}
+
+    if verbose:
+        print(f"[REJECT THRESHOLD] {reject}")
+
+    # Log the rejection threshold
+    log_reject_threshold(
+        reject=reject,
+        dataset=dataset,
+        subject=subject,
+        session=session,
+        task=task,
+        run=run,
+        verbose=verbose
+    )
+
+    # Remove bad epochs based on rejection threshold
+    epochs.drop_bad(reject, verbose=verbose)
+
+    log_dropped_epochs(
+        epochs=epochs,
+        dataset=dataset,
+        subject=subject,
+        log_root=config.PREPROCESSING_LOG_PATH,
+        stage='pre_ica',
+        session=session,
+        task=task,
+        run=run,
+        threshold=reject['eeg'],
+        verbose=verbose
+    )
+
+    return epochs
+
+def ica_fit(epochs, eeg_settings, random_state=42069, verbose=True):
+    """
+    Fit ICA to the epochs. This function applies ICA to the epochs and returns the fitted ICA object.
+    
+    Parameters
+    ----------
+    raw : mne.io.Epochs
+        The epochs data object to fit ICA.
+    eeg_settings : dict
+        The EEG settings dictionary defined in config containing parameters
+    n_components : int | None
+        Number of components to use for ICA. If None, it will be set to 0.95 of the number of channels.
+    random_state : int
+        Random state for reproducibility.
+    verbose : bool, optional
+        If True, print additional information (default is True).
+    
+    Returns
+    -----------
+    ica : mne.preprocessing.ICA
+        The fitted ICA object.
+    """
+        
+    # Apply ICA to the raw data
+    ica = ICA(n_components=eeg_settings["N_ICA_COMPONENTS"], 
+              random_state=random_state, 
+              max_iter=600,
+              method='infomax',
+              verbose=verbose,
+    )
+
+
+
+    ica.fit(epochs)
+    
+    return ica
+
+# def plot_bad_epochs_only(epochs, bad_epochs_mask, scalings=None, title='Bad Epochs Only'):
+#     """
+#     Plot only the epochs marked as bad using a boolean mask.
+
+#     Parameters
+#     ----------
+#     epochs : mne.Epochs
+#         The full epochs object.
+#     bad_epochs_mask : np.ndarray of bool
+#         Boolean array where True indicates a bad epoch.
+#     scalings : dict | None
+#         Scaling factors for the traces.
+#     title : str
+#         Title for the plot.
+
+#     Returns
+#     -------
+#     fig : matplotlib.figure.Figure
+#         The matplotlib figure with plotted traces.
+#     """
+#     if len(bad_epochs_mask) != len(epochs):
+#         raise ValueError("bad_epochs_mask must be the same length as the number of epochs.")
+
+#     bad_epoch_indices = np.where(bad_epochs_mask)[0]
+
+#     if len(bad_epoch_indices) == 0:
+#         print("No bad epochs to plot.")
+#         return None
+
+#     # Select only bad epochs
+#     bad_epochs = epochs[bad_epoch_indices]
+
+#     # Create red colors for all traces in each bad epoch
+#     n_channels = len(bad_epochs.ch_names)
+#     epoch_colors = [['r'] * n_channels for _ in range(len(bad_epochs))]
+
+#     # Plot using MNE's internal plot_epochs
+#     fig = plot_mne_epochs(
+#         epochs=bad_epochs,
+#         events=bad_epochs.events,
+#         epoch_colors=epoch_colors,
+#         scalings=scalings,
+#         title=title,
+#         block=True
+#     )
+
+#     return fig

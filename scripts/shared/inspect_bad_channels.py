@@ -1,7 +1,7 @@
 import os
 import matplotlib.pyplot as plt
 
-from utils.helpers import cleanup_memory, iterate_dataset_items
+from utils.helpers import cleanup_memory, iterate_dataset_items, format_numbers
 from utils.file_io import load_raw_data, load_bad_channels, update_bad_channels_json
 from utils.preprocessing_tools import prepare_raw_data
 from utils.config import DATASETS, set_plot_style, EEG_SETTINGS
@@ -9,9 +9,14 @@ import utils.config as config
 
 set_plot_style()
 
-DATASETS['braboszcz2017'].subjects = ['001','002']
-DATASETS['jin2019'].subjects = []
-DATASETS['touryan2022'].subjects = ['01', '02']
+# Subjects to inspect in braboszcz2017 dataset
+subjects = []
+subjects.extend(range(25, 56)) # control group
+subjects.extend(range(60, 79)) # vipassana group
+subjects = format_numbers(subjects, 3)  # convert to list of strings with leading zeros like ["060", "061", ...]
+
+DATASETS['braboszcz2017'].subjects = []
+DATASETS['braboszcz2017'].subjects.extend(subjects)
 
 
 for dataset, subject, label, item, kwargs in iterate_dataset_items(DATASETS):

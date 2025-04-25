@@ -88,10 +88,10 @@ mapping_64_to_128 ={'Fp1':'C29',
 mapping_128_to_64 = {'temp_' + v: k for k, v in mapping_64_to_128.items()}
 
 # Create a mapping for non-EEG channels
-mapping_non_eeg = {'EXG1': 'sacc_EOG1',
-                'EXG2': 'sacc_EOG2',
-                'EXG3': 'blink_EOG1',
-                'EXG4': 'blink_EOG2'}
+mapping_non_eeg = {'EXG1': 'LHEOG',
+                'EXG2': 'RHEOG',
+                'EXG3': 'UVEOG',
+                'EXG4': 'LVEOG'}
 
 # create event id dictionary
 event_id_map = {'probe_off/vs/0/undefined': 0,

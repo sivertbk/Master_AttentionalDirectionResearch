@@ -6,6 +6,9 @@ import os
 from pathlib import Path
 import numpy as np
 import json
+from mne.preprocessing import ICA, read_ica
+from autoreject import read_auto_reject
+from datetime import datetime
 
 
 from utils.config import DATASETS
@@ -197,7 +200,7 @@ def update_bad_channels_json(
     save_dir, dataset, subject, session=None, task=None, run=None, bad_chs=None, mode='ransac'
 ):
     """
-    Update or create a JSON file with bad channels detected by RANSAC.
+    Update or create a JSON file with bad channels detected by RANSAC or INSPECT.
 
     Parameters:
     - save_dir: str or Path. Directory where the JSON should be stored.
@@ -206,7 +209,7 @@ def update_bad_channels_json(
     - session: str or int, optional. Only used for 'jin2019'.
     - task: str, optional. Only used for 'braboszcz2017'.
     - run: str or int, optional. Only used for 'touryan2022'.
-    - bad_chs: list of str. Channel names flagged as bad by RANSAC.
+    - bad_chs: list of str. Channel names flagged as bad by RANSAC or INSPECT.
     - mode: str. Mode of operation ('ransac' or 'inspect').
     """
 
@@ -222,6 +225,15 @@ def update_bad_channels_json(
             bad_chans_data = json.load(f)
     else:
         bad_chans_data = {}
+
+    # If mode is 'inspect', load the ransac JSON file as a base
+    if mode == 'inspect':
+        ransac_path = os.path.join(save_dir, "ransac_bad_channels.json")
+        if os.path.exists(ransac_path):
+            with open(ransac_path, "r") as f:
+                ransac_data = json.load(f)
+            # Merge ransac data into inspect data
+            bad_chans_data = {**ransac_data, **bad_chans_data}
 
     # Build hierarchical key path
     if dataset not in bad_chans_data:
@@ -249,7 +261,7 @@ def update_bad_channels_json(
 
     print(f"[BAD CHS UPDATE] Updated bad channels at: {save_path}")
 
-def load_bad_channels(save_dir, dataset, subject, session=None, task=None, run=None):
+def load_bad_channels(save_dir, dataset, subject, session=None, task=None, run=None, mode='ransac'):
     """
     Load the json of bad channels for interpolation for a subject/session/task/run.
 
@@ -264,7 +276,10 @@ def load_bad_channels(save_dir, dataset, subject, session=None, task=None, run=N
     Returns:
     - bad_chs: list of bad channel names, or None if not found.
     """
-    save_path = os.path.join(save_dir, "inspect_bad_channels.json")
+    if mode not in ['ransac', 'inspect']:
+        raise ValueError("Mode must be 'ransac' or 'inspect'.")
+    
+    save_path = os.path.join(save_dir, f"{mode}_bad_channels.json")
     if not os.path.exists(save_path):
         print("No RANSAC bad channel file found.")
         return None
@@ -308,6 +323,44 @@ def save_autoreject(ar, save_path):
     except Exception as e:
         print(f"[AutoReject] Save failed with exception:\n{e}")
 
+def load_ar(dataset, subject, label, item, verbose=True):
+    """
+    Load a saved AutoReject model for a specific subject and item.
+
+    Parameters
+    ----------
+    dataset : DatasetConfig
+        The dataset configuration object.
+    subject : str or int
+        Subject identifier.
+    label : str
+        The iteration label ('session', 'task', or 'run').
+    item : str or int
+        The iteration value corresponding to the label.
+    verbose : bool, optional
+        If True, prints status messages.
+
+    Returns
+    -------
+    ar : autoreject.AutoReject or None
+        The loaded AutoReject model, or None if not found.
+    """
+    fname = f"sub-{subject}_{label}-{item}_autoreject_pre_ica.h5"
+    ar_model_path = os.path.join(
+        dataset.path_derivatives,
+        "pre_ica_autoreject_models",
+        fname
+    )
+
+    if not os.path.exists(ar_model_path):
+        if verbose:
+            print(f"[AutoReject] Model not found: {ar_model_path}")
+        return None
+
+    if verbose:
+        print(f"[AutoReject] Loading model: {ar_model_path}")
+    return read_auto_reject(ar_model_path)
+
 def load_reject_log(path, subject, session=None, task=None, run=None):
     """
     Load a saved RejectLog if it exists at the given path using read_reject_log().
@@ -339,3 +392,194 @@ def load_reject_log(path, subject, session=None, task=None, run=None):
     else:
         print(f"[AutoReject] No reject log found at: {fname}")
         return None
+
+def save_ica(ica, dataset, subject, session=None, task=None, run=None, verbose=True):
+    if dataset.f_name == "braboszcz2017":
+        fname = f"sub-{subject}_task-{task}_ica.fif"
+    elif dataset.f_name == "jin2019":
+        fname = f"sub{subject}_{session}_ica.fif"
+    elif dataset.f_name == "touryan2022":
+        fname = f"sub-{subject}_ses-01_task-DriveWithTaskAudio_run-{run}_ica.fif"
+    else:
+        raise ValueError(f"Unsupported dataset: {dataset.f_name}")
+
+    save_dir = os.path.join(dataset.path_derivatives, "ica")
+    os.makedirs(save_dir, exist_ok=True)
+
+    path = os.path.join(save_dir, fname)
+    ica.save(path, overwrite=True, verbose=verbose)
+
+    if verbose:
+        print(f"[ICA] Saved ICA to: {path}")
+    return path
+
+def load_ica(dataset, subject, session=None, task=None, run=None, verbose=True):
+    if dataset.f_name == "braboszcz2017":
+        fname = f"sub-{subject}_task-{task}_ica.fif"
+    elif dataset.f_name == "jin2019":
+        fname = f"sub{subject}_{session}_ica.fif"
+    elif dataset.f_name == "touryan2022":
+        fname = f"sub-{subject}_ses-01_task-DriveWithTaskAudio_run-{run}_ica.fif"
+    else:
+        raise ValueError(f"Unsupported dataset: {dataset.f_name}")
+
+    ica_dir = os.path.join(dataset.path_derivatives, "ica")
+    path = os.path.join(ica_dir, fname)
+
+    if not os.path.exists(path):
+        print(f"[ICA] File not found: {path}")
+        return None
+
+    ica = read_ica(path, verbose=verbose)
+
+    if verbose:
+        print(f"[ICA] Loaded ICA from: {path}")
+    return ica
+
+def log_dropped_epochs(epochs, dataset, subject, log_root, stage='pre_ica',
+                       session=None, task=None, run=None, threshold=None, verbose=True):
+    """
+    Log the number of dropped epochs for a given subject/task/run to a file.
+
+    Parameters
+    ----------
+    epochs : mne.Epochs
+        The epochs object after `drop_bad()` has been applied.
+    dataset : DatasetConfig
+        The dataset config object with .f_name.
+    subject : str or int
+        Subject identifier.
+    log_root : str
+        Root directory where logs are saved.
+    stage : str
+        Identifier for the processing stage (e.g., 'pre_ica').
+    session : str or int, optional
+        Session identifier.
+    task : str, optional
+        Task identifier.
+    run : str or int, optional
+        Run identifier.
+    threshold : float, optional
+        Threshold used for rejection (in Volts).
+    verbose : bool
+        Whether to print the log line to stdout.
+    """
+    n_total = len(epochs.drop_log)
+    n_dropped = sum(len(e) > 0 for e in epochs.drop_log)
+    n_kept = n_total - n_dropped
+
+    # Construct log directory and filename
+    log_dir = os.path.join(log_root, f"{stage}_dropped_epochs")
+    os.makedirs(log_dir, exist_ok=True)
+
+    filename = f"{dataset.f_name}_dropped_epochs_pre_ica.log"
+
+    log_path = os.path.join(log_dir, filename)
+    threshold_str = f"{threshold * 1e6:.1f} µV" if threshold is not None else "N/A"
+
+    log_line = (
+        f"{datetime.now().isoformat()} | "
+        f"Subject: {subject}, Session: {session}, Task: {task}, Run: {run} | "
+        f"Dropped: {n_dropped}/{n_total} epochs (Kept: {n_kept}) | "
+        f"Threshold: {threshold_str}\n"
+    )
+
+    with open(log_path, "a") as f:
+        f.write(log_line)
+
+    if verbose:
+        print(f"[EPOCH DROP LOG] {log_line.strip()}")
+
+def log_reject_threshold(reject, dataset, subject, save_dir=config.PREPROCESSING_LOG_PATH, stage='pre_ica',
+                         session=None, task=None, run=None, verbose=True):
+    """
+    Log a single subject's reject threshold into a shared JSON file.
+
+    Parameters
+    ----------
+    reject : dict
+        Dictionary with thresholds per channel type (e.g., {'eeg': 0.00034}).
+    dataset : DatasetConfig
+        Dataset configuration object with `.f_name`.
+    subject : str or int
+        Subject ID.
+    save_dir : str
+        Root directory where threshold logs should be stored.
+    stage : str
+        Processing stage, used in filename.
+    session : str or int, optional
+        Session ID (only used if present).
+    task : str, optional
+        Task label (only used if present).
+    run : str or int, optional
+        Run number (only used if present).
+    verbose : bool
+        If True, print status messages.
+    """
+    thresholds_dir = os.path.join(save_dir, "reject_thresholds", dataset.f_name)
+    os.makedirs(thresholds_dir, exist_ok=True)
+
+    filename = f"{stage}_reject_thresholds.json"
+    path = os.path.join(thresholds_dir, filename)
+
+    key = f"sub-{subject}"
+    if session is not None:
+        key += f"_ses-{session}"
+    if task is not None:
+        key += f"_task-{task}"
+    if run is not None:
+        key += f"_run-{run}"
+
+    # Load existing JSON (if exists)
+    if os.path.exists(path):
+        with open(path, "r") as f:
+            all_thresholds = json.load(f)
+    else:
+        all_thresholds = {}
+
+    # Update with new entry (ensure JSON-safe float)
+    all_thresholds[key] = {k: float(v) for k, v in reject.items()}
+
+    # Save back to file
+    with open(path, "w") as f:
+        json.dump(all_thresholds, f, indent=2)
+
+    if verbose:
+        print(f"[REJECTION] Logged threshold for {key} to {path}")
+
+def load_reject_threshold(dataset, subject, label, item, save_dir, stage='pre_ica'):
+    """
+    Load the reject threshold for a specific subject+item from the dataset JSON file.
+
+    Parameters
+    ----------
+    dataset : DatasetConfig
+        Dataset object with .f_name
+    subject : str or int
+        Subject ID
+    label : str
+        Type of iteration ('task', 'run', etc.)
+    item : str or int
+        Item value (e.g., 2)
+    save_dir : str
+        Base path where the thresholds file is saved
+    stage : str
+        Stage name (used in filename)
+
+    Returns
+    -------
+    dict or None
+        The reject dict (e.g., {"eeg": 0.00034}) or None if not found
+    """
+    fname = f"{stage}_reject_thresholds.json"
+    path = os.path.join(save_dir, "reject_thresholds", dataset.f_name, fname)
+
+    if not os.path.exists(path):
+        print(f"[WARN] No threshold file found: {path}")
+        return None
+
+    with open(path, "r") as f:
+        thresholds_all = json.load(f)
+
+    key = f"sub-{subject}_{label}-{item}"
+    return thresholds_all.get(key, None)
