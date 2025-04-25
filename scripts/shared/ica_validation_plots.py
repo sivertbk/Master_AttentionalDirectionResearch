@@ -86,10 +86,65 @@ for dataset, subject, label, item, kwargs in iterate_dataset_items(DATASETS):
         fig.tight_layout()
 
         # Save or show
-        save_dir = os.path.join(PLOTS_PATH, dataset.f_name, 'ica_scores')
+        save_dir = os.path.join(PLOTS_PATH, dataset.f_name, 'ica_scores_blinks')
         os.makedirs(save_dir, exist_ok=True)
         fig.savefig(os.path.join(save_dir, f"sub-{subject}_{label}-{item}_blink_scores.png"))
         plt.close(fig)
+
+    spread_threshold = 5  # adjust if needed
+    z_scores = (blink_scores - np.mean(blink_scores)) / np.std(blink_scores)
+    high_z = np.where(z_scores > 2.5)[0]  # components with notable blink-related signal
+
+    if len(high_z) > spread_threshold:
+        print(f"  [SKIPPED] Blink scores too spread across components ({len(high_z)} > {spread_threshold})")
+        
+        # Optional: log to file
+        # with open("skipped_blink_detection.txt", "a") as log_file:
+        #     log_file.write(f"{dataset.name}, sub-{subject}, {label}-{item}, blink score spread ({len(high_z)} components over z>2.5)\n")
+
+        continue  # skip this subject for now
+
+    # --- Analyze saccade score distribution
+    if saccade_scores is not None:
+        z_scores = (saccade_scores - np.mean(saccade_scores)) / np.std(saccade_scores)
+        print(f"  Max saccade score: {np.max(saccade_scores):.3f}")
+        print(f"  Max saccade z-score: {np.max(z_scores):.3f}")
+
+        # Show what would be detected at lower threshold (e.g., 4.5)
+        lower_thresh = 4.5
+        saccade_inds_lo_thresh = list(np.where(z_scores > lower_thresh)[0])
+        print(f"  Components at z > {lower_thresh}: {saccade_inds_lo_thresh}")
+
+        # --- Plot saccade scores
+        fig, ax = plt.subplots(figsize=(10, 3))
+        bars = ax.bar(np.arange(len(saccade_scores)), saccade_scores, color='gray', edgecolor='black')
+        for i in saccade_inds:
+            bars[i].set_color('red')
+        ax.set_xlabel('ICA components')
+        ax.set_ylabel('score')
+        ax.set_title(f'{dataset.name} | Sub-{subject} | {label}-{item} | Saccade Scores')
+        ax.axhline(y=np.mean(saccade_scores) + 4.5 * np.std(saccade_scores), linestyle='--', color='red', label='threshold')
+        ax.legend()
+        fig.tight_layout()
+
+        # Save or show
+        save_dir = os.path.join(PLOTS_PATH, dataset.f_name, 'ica_scores_saccades')
+        os.makedirs(save_dir, exist_ok=True)
+        fig.savefig(os.path.join(save_dir, f"sub-{subject}_{label}-{item}_saccade_scores.png"))
+        plt.close(fig)
+
+    # --- Check if blink and saccade components are too spread
+    spread_threshold = 5  # adjust if needed
+    z_scores = (saccade_scores - np.mean(saccade_scores)) / np.std(saccade_scores)
+    high_z = np.where(z_scores > 2.5)[0]  # components with notable saccade-related signal
+    if len(high_z) > spread_threshold:
+        print(f"  [SKIPPED] Saccade scores too spread across components ({len(high_z)} > {spread_threshold})")
+        
+        # Optional: log to file
+        # with open("skipped_saccade_detection.txt", "a") as log_file:
+        #     log_file.write(f"{dataset.name}, sub-{subject}, {label}-{item}, saccade score spread ({len(high_z)} components over z>2.5)\n")
+
+        continue
 
     # --- Make a Raw object from epochs
     raw = epochs_to_raw(epochs)
