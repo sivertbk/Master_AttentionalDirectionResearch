@@ -1,7 +1,16 @@
 # Ignore all files in plots, backups, and data directories
-plots/
 backups/
-data/
+data/braboszcz2017/raw/
+data/braboszcz2017/epochs/
+data/braboszcz2017/psd_data/
+data/jin2019/raw/
+data/jin2019/author_folder/
+data/jin2019/epochs/
+data/jin2019/psd_data/
+data/touryan2022/raw/
+data/touryan2022/author_folder/
+data/touryan2022/epochs/
+data/touryan2022/psd_data/
 attentional_direction_research_workspace.egg-info/
 
 # Ignore hidden system files

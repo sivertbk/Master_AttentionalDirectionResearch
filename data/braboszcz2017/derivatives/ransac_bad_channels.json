@@ -1,0 +1,1701 @@
+{
+  "braboszcz2017": {
+    "sub-075": {
+      "task-med2": [
+        "Fp1",
+        "PO7",
+        "PO3",
+        "O1",
+        "POz",
+        "PO4"
+      ],
+      "task-think2": [
+        "Fp1",
+        "PO3",
+        "O1",
+        "POz",
+        "PO4"
+      ]
+    },
+    "sub-069": {
+      "task-med2": [
+        "Fp1",
+        "PO3",
+        "O1",
+        "POz",
+        "PO8",
+        "PO4",
+        "O2"
+      ],
+      "task-think2": [
+        "Fp1",
+        "FC3",
+        "PO3",
+        "O1",
+        "POz",
+        "F4",
+        "F8",
+        "FT8",
+        "FC2",
+        "P10",
+        "PO8",
+        "PO4",
+        "O2"
+      ]
+    },
+    "sub-077": {
+      "task-med2": [
+        "Fp1",
+        "P1",
+        "PO3",
+        "POz",
+        "Pz",
+        "P2",
+        "PO4",
+        "O2"
+      ],
+      "task-think2": [
+        "Fp1",
+        "P1",
+        "PO3",
+        "POz",
+        "Pz",
+        "P2",
+        "PO4",
+        "O2"
+      ]
+    },
+    "sub-001": {
+      "task-med2": [
+        "Fp1"
+      ],
+      "task-think2": [
+        "Fp1"
+      ]
+    },
+    "sub-002": {
+      "task-med2": [
+        "Fp1"
+      ],
+      "task-think2": [
+        "Fp1"
+      ]
+    },
+    "sub-003": {
+      "task-med2": [
+        "Fp1",
+        "FC5",
+        "FC3",
+        "TP7",
+        "CP3",
+        "P1",
+        "P3",
+        "POz",
+        "CPz",
+        "AFz",
+        "F2",
+        "FC6",
+        "C4",
+        "P4",
+        "PO4"
+      ],
+      "task-think2": [
+        "Fp1",
+        "P3",
+        "POz",
+        "FC6"
+      ]
+    },
+    "sub-004": {
+      "task-med2": [
+        "Fp1",
+        "AF3",
+        "PO7",
+        "Iz",
+        "F4"
+      ],
+      "task-think2": [
+        "Fp1",
+        "P3",
+        "Iz",
+        "T8"
+      ]
+    },
+    "sub-005": {
+      "task-med2": [
+        "Fp1",
+        "AF3",
+        "F5",
+        "F7",
+        "FT7",
+        "FC3",
+        "T7",
+        "O1",
+        "Iz",
+        "Oz",
+        "POz",
+        "F6",
+        "F8",
+        "FC6",
+        "C6",
+        "P6",
+        "P8",
+        "P10",
+        "PO4",
+        "O2"
+      ],
+      "task-think2": [
+        "Fp1",
+        "F5",
+        "FC3",
+        "CP1",
+        "P1",
+        "P3",
+        "P7",
+        "P9",
+        "O1",
+        "Oz",
+        "POz",
+        "Pz",
+        "F4",
+        "F8",
+        "P4",
+        "P6",
+        "PO4"
+      ]
+    },
+    "sub-006": {
+      "task-med2": [
+        "Fp1",
+        "AF3",
+        "P1",
+        "PO7",
+        "O1",
+        "POz",
+        "AF4",
+        "TP8"
+      ],
+      "task-think2": [
+        "Fp1"
+      ]
+    },
+    "sub-007": {
+      "task-med2": [
+        "Fp1",
+        "FC5",
+        "PO3",
+        "POz",
+        "F6"
+      ],
+      "task-think2": [
+        "Fp1",
+        "POz",
+        "F6",
+        "F8",
+        "FT8"
+      ]
+    },
+    "sub-008": {
+      "task-med2": [
+        "Fp1"
+      ],
+      "task-think2": [
+        "Fp1"
+      ]
+    },
+    "sub-009": {
+      "task-med2": [
+        "Fp1",
+        "TP7"
+      ],
+      "task-think2": [
+        "Fp1",
+        "TP7"
+      ]
+    },
+    "sub-010": {
+      "task-med2": [
+        "Fp1",
+        "FC3",
+        "C5",
+        "T7",
+        "CP5",
+        "CP3",
+        "P1",
+        "P5",
+        "P7",
+        "PO7",
+        "PO3",
+        "O1",
+        "Oz",
+        "PO4"
+      ],
+      "task-think2": [
+        "Fp1",
+        "FC3",
+        "C3",
+        "C5",
+        "T7",
+        "CP5",
+        "CP3",
+        "P1",
+        "P5",
+        "P7",
+        "PO7",
+        "PO3",
+        "O1",
+        "TP8",
+        "P6",
+        "PO4",
+        "O2"
+      ]
+    },
+    "sub-011": {
+      "task-med2": [
+        "Fp1"
+      ],
+      "task-think2": [
+        "Fp1"
+      ]
+    },
+    "sub-012": {
+      "task-med2": [
+        "Fp1"
+      ],
+      "task-think2": [
+        "Fp1",
+        "AF3",
+        "P10"
+      ]
+    },
+    "sub-013": {
+      "task-med2": [
+        "Fp1",
+        "O1"
+      ],
+      "task-think2": [
+        "Fp1"
+      ]
+    },
+    "sub-014": {
+      "task-med2": [
+        "Fp1",
+        "P9"
+      ],
+      "task-think2": [
+        "Fp1",
+        "FT7",
+        "P9",
+        "Pz",
+        "CPz",
+        "C6",
+        "T8",
+        "TP8",
+        "P8",
+        "PO8"
+      ]
+    },
+    "sub-015": {
+      "task-med2": [
+        "Fp1",
+        "P7",
+        "PO7",
+        "POz"
+      ],
+      "task-think2": [
+        "Fp1",
+        "PO7"
+      ]
+    },
+    "sub-016": {
+      "task-med2": [
+        "Fp1",
+        "T7",
+        "CP3",
+        "P1",
+        "P3",
+        "P7",
+        "P9",
+        "PO7",
+        "O1",
+        "Iz",
+        "Oz",
+        "POz",
+        "Pz",
+        "FT8",
+        "FC6",
+        "C6",
+        "T8",
+        "TP8",
+        "CP6",
+        "P2",
+        "P6",
+        "P10",
+        "PO4",
+        "O2"
+      ],
+      "task-think2": [
+        "Fp1",
+        "FT7",
+        "C5",
+        "T7",
+        "TP7",
+        "P1",
+        "P9",
+        "PO7",
+        "O1",
+        "Oz",
+        "POz",
+        "Pz",
+        "FT8",
+        "C6",
+        "T8",
+        "CP6",
+        "P6",
+        "P10",
+        "PO8",
+        "PO4",
+        "O2"
+      ]
+    },
+    "sub-017": {
+      "task-med2": [
+        "Fp1",
+        "AF7",
+        "AF3",
+        "F7",
+        "Fpz",
+        "Fp2",
+        "AF8",
+        "AF4",
+        "AFz",
+        "F8",
+        "P10"
+      ],
+      "task-think2": [
+        "Fp1",
+        "AF7",
+        "AF3",
+        "F5",
+        "F7",
+        "Fpz",
+        "Fp2",
+        "AF8",
+        "AF4",
+        "F6",
+        "F8",
+        "P10"
+      ]
+    },
+    "sub-018": {
+      "task-med2": [
+        "Fp1"
+      ],
+      "task-think2": [
+        "Fp1",
+        "CP5"
+      ]
+    },
+    "sub-019": {
+      "task-med2": [
+        "Fp1",
+        "FT7",
+        "FC3",
+        "P1",
+        "POz"
+      ],
+      "task-think2": [
+        "Fp1",
+        "P1",
+        "POz"
+      ]
+    },
+    "sub-020": {
+      "task-med2": [
+        "Fp1",
+        "TP7"
+      ],
+      "task-think2": [
+        "Fp1"
+      ]
+    },
+    "sub-021": {
+      "task-med2": [
+        "Fp1",
+        "Oz",
+        "POz",
+        "AF8",
+        "AF4",
+        "F4",
+        "F6",
+        "FC6",
+        "FC4",
+        "P8",
+        "PO4",
+        "O2"
+      ],
+      "task-think2": [
+        "Fp1",
+        "TP7",
+        "Oz",
+        "POz",
+        "AF8",
+        "AF4",
+        "F4",
+        "F6",
+        "FC6",
+        "PO4",
+        "O2"
+      ]
+    },
+    "sub-022": {
+      "task-med2": [
+        "Fp1",
+        "PO3",
+        "POz"
+      ],
+      "task-think2": [
+        "Fp1",
+        "POz",
+        "PO4"
+      ]
+    },
+    "sub-023": {
+      "task-med2": [
+        "Fp1",
+        "AF7",
+        "FT7",
+        "P7",
+        "PO7",
+        "O1",
+        "Oz",
+        "POz",
+        "Pz",
+        "AF8",
+        "F8",
+        "FT8",
+        "CP6",
+        "P6",
+        "PO8"
+      ],
+      "task-think2": [
+        "Fp1",
+        "POz",
+        "Pz",
+        "FT8",
+        "P6"
+      ]
+    },
+    "sub-024": {
+      "task-med2": [
+        "Fp1",
+        "F7",
+        "P7",
+        "FT8",
+        "FC6",
+        "C2",
+        "P2",
+        "P6",
+        "PO8"
+      ],
+      "task-think2": [
+        "Fp1",
+        "AF7",
+        "F7",
+        "FT7",
+        "P7",
+        "P9",
+        "PO7",
+        "O1",
+        "Oz",
+        "Pz",
+        "P10",
+        "PO8"
+      ]
+    },
+    "sub-025": {
+      "task-med2": [
+        "Fp1",
+        "PO3",
+        "POz",
+        "PO4"
+      ],
+      "task-think2": [
+        "Fp1",
+        "PO3",
+        "O1",
+        "POz"
+      ]
+    },
+    "sub-026": {
+      "task-med2": [
+        "Fp1",
+        "P1",
+        "PO3",
+        "POz",
+        "FC2",
+        "CP2",
+        "PO4"
+      ],
+      "task-think2": [
+        "Fp1",
+        "P1",
+        "PO3",
+        "POz",
+        "CP2"
+      ]
+    },
+    "sub-027": {
+      "task-med2": [
+        "Fp1",
+        "PO3",
+        "O1",
+        "POz",
+        "PO4"
+      ],
+      "task-think2": [
+        "Fp1",
+        "F3",
+        "P9",
+        "PO3",
+        "POz",
+        "P6",
+        "PO4"
+      ]
+    },
+    "sub-028": {
+      "task-med2": [
+        "Fp1",
+        "P3",
+        "P5",
+        "PO3",
+        "O1",
+        "POz",
+        "F6",
+        "FC6",
+        "CP6",
+        "P8",
+        "PO4"
+      ],
+      "task-think2": [
+        "Fp1",
+        "TP7",
+        "P3",
+        "PO7",
+        "PO3",
+        "POz",
+        "F8",
+        "PO8"
+      ]
+    },
+    "sub-029": {
+      "task-med2": [
+        "Fp1",
+        "P9",
+        "PO3",
+        "POz"
+      ],
+      "task-think2": [
+        "Fp1",
+        "P3",
+        "POz"
+      ]
+    },
+    "sub-030": {
+      "task-med2": [
+        "Fp1",
+        "POz",
+        "PO4"
+      ],
+      "task-think2": [
+        "Fp1",
+        "POz",
+        "PO4"
+      ]
+    },
+    "sub-031": {
+      "task-med2": [
+        "Fp1",
+        "POz",
+        "P10"
+      ],
+      "task-think2": [
+        "Fp1",
+        "FC1",
+        "P3",
+        "PO7",
+        "POz",
+        "F4"
+      ]
+    },
+    "sub-032": {
+      "task-med2": [
+        "Fp1",
+        "P9",
+        "PO3",
+        "O1",
+        "POz",
+        "PO4"
+      ],
+      "task-think2": [
+        "Fp1",
+        "P9",
+        "PO3",
+        "POz",
+        "PO4"
+      ]
+    },
+    "sub-033": {
+      "task-med2": [
+        "Fp1",
+        "POz"
+      ],
+      "task-think2": [
+        "Fp1"
+      ]
+    },
+    "sub-034": {
+      "task-med2": [
+        "Fp1",
+        "POz"
+      ],
+      "task-think2": [
+        "Fp1",
+        "POz"
+      ]
+    },
+    "sub-035": {
+      "task-med2": [
+        "Fp1"
+      ],
+      "task-think2": [
+        "Fp1"
+      ]
+    },
+    "sub-036": {
+      "task-med2": [
+        "Fp1",
+        "F3",
+        "FC1",
+        "P5",
+        "P7",
+        "PO7",
+        "O1",
+        "Oz",
+        "POz",
+        "AF8",
+        "AF4",
+        "F8",
+        "FC4",
+        "FC2",
+        "FCz",
+        "C4",
+        "CP4",
+        "CP2",
+        "P2",
+        "P8",
+        "P10",
+        "PO4"
+      ],
+      "task-think2": [
+        "Fp1",
+        "FC1",
+        "PO7",
+        "O1",
+        "POz",
+        "F8",
+        "FC2",
+        "CP2",
+        "P2",
+        "PO4"
+      ]
+    },
+    "sub-037": {
+      "task-med2": [
+        "Fp1",
+        "Iz",
+        "PO4"
+      ],
+      "task-think2": [
+        "Fp1",
+        "P2",
+        "P4",
+        "PO4",
+        "O2"
+      ]
+    },
+    "sub-038": {
+      "task-med2": [
+        "Fp1"
+      ],
+      "task-think2": [
+        "Fp1",
+        "F3",
+        "F7",
+        "P9",
+        "O1",
+        "Oz",
+        "F6",
+        "F8",
+        "TP8",
+        "P6",
+        "P8"
+      ]
+    },
+    "sub-039": {
+      "task-med2": [
+        "Fp1",
+        "O2"
+      ],
+      "task-think2": [
+        "Fp1",
+        "O2"
+      ]
+    },
+    "sub-040": {
+      "task-med2": [
+        "Fp1",
+        "POz",
+        "AF8",
+        "F8"
+      ],
+      "task-think2": [
+        "Fp1",
+        "POz",
+        "Pz"
+      ]
+    },
+    "sub-041": {
+      "task-med2": [
+        "Fp1",
+        "POz"
+      ],
+      "task-think2": [
+        "Fp1",
+        "FC3"
+      ]
+    },
+    "sub-042": {
+      "task-med2": [
+        "Fp1",
+        "F1",
+        "F3",
+        "TP7",
+        "CP5",
+        "P9",
+        "F2",
+        "C6",
+        "T8",
+        "CP6"
+      ],
+      "task-think2": [
+        "Fp1",
+        "T7",
+        "P9",
+        "C6",
+        "T8"
+      ]
+    },
+    "sub-043": {
+      "task-med2": [
+        "Fp1",
+        "POz",
+        "PO4"
+      ],
+      "task-think2": [
+        "Fp1",
+        "POz",
+        "PO4"
+      ]
+    },
+    "sub-044": {
+      "task-med2": [
+        "Fp1",
+        "FC5",
+        "TP7",
+        "PO7",
+        "PO3",
+        "O1",
+        "PO8"
+      ],
+      "task-think2": [
+        "Fp1",
+        "FC5",
+        "P1",
+        "P3",
+        "PO7",
+        "PO3",
+        "O1",
+        "Iz",
+        "POz",
+        "FC6",
+        "PO4"
+      ]
+    },
+    "sub-045": {
+      "task-med2": [
+        "Fp1",
+        "P3",
+        "P7"
+      ],
+      "task-think2": [
+        "Fp1",
+        "P3",
+        "P7",
+        "POz"
+      ]
+    },
+    "sub-046": {
+      "task-med2": [
+        "Fp1",
+        "AF7",
+        "C3",
+        "P1",
+        "Iz",
+        "Oz",
+        "POz",
+        "Pz",
+        "Fpz",
+        "Fp2",
+        "C4",
+        "PO4"
+      ],
+      "task-think2": [
+        "Fp1",
+        "C1",
+        "CP1",
+        "P7",
+        "PO7",
+        "PO3",
+        "O1",
+        "Iz",
+        "Oz",
+        "CPz",
+        "Fz",
+        "FC2",
+        "C4",
+        "C6",
+        "CP4",
+        "PO4"
+      ]
+    },
+    "sub-047": {
+      "task-med2": [
+        "Fp1",
+        "CP1",
+        "P7",
+        "PO7",
+        "T8",
+        "P6",
+        "P8",
+        "P10"
+      ],
+      "task-think2": [
+        "Fp1",
+        "P8"
+      ]
+    },
+    "sub-048": {
+      "task-med2": [
+        "Fp1",
+        "T7",
+        "TP7"
+      ],
+      "task-think2": [
+        "Fp1",
+        "FC3",
+        "C1",
+        "T7",
+        "T8",
+        "P8"
+      ]
+    },
+    "sub-049": {
+      "task-med2": [
+        "Fp1",
+        "P1",
+        "P3",
+        "PO7",
+        "PO3",
+        "Oz",
+        "POz",
+        "Pz"
+      ],
+      "task-think2": [
+        "Fp1",
+        "FC5",
+        "CP3",
+        "P1",
+        "P3",
+        "PO7",
+        "PO3",
+        "POz",
+        "Pz",
+        "C4",
+        "P4",
+        "P6",
+        "P10"
+      ]
+    },
+    "sub-050": {
+      "task-med2": [
+        "Fp1",
+        "AF7",
+        "F1",
+        "F3",
+        "F7",
+        "FT7",
+        "FC3",
+        "C1",
+        "TP7",
+        "P1",
+        "P3",
+        "P5",
+        "P7",
+        "PO7",
+        "PO3",
+        "O1",
+        "Iz",
+        "Oz",
+        "POz",
+        "Fpz",
+        "Fp2",
+        "AFz",
+        "F4",
+        "FC6",
+        "CP4",
+        "P2",
+        "P4",
+        "P6",
+        "P8",
+        "PO4"
+      ],
+      "task-think2": [
+        "Fp1",
+        "AF7",
+        "F3",
+        "F5",
+        "F7",
+        "FT7",
+        "C1",
+        "CP5",
+        "P1",
+        "P5",
+        "PO7",
+        "PO3",
+        "O1",
+        "Fp2",
+        "AFz",
+        "F4",
+        "FC6",
+        "P4",
+        "P8",
+        "PO8",
+        "PO4"
+      ]
+    },
+    "sub-051": {
+      "task-med2": [
+        "Fp1",
+        "AF3",
+        "CP3",
+        "O1",
+        "T8",
+        "CP6",
+        "P8",
+        "PO4"
+      ],
+      "task-think2": [
+        "Fp1",
+        "C3",
+        "CP3",
+        "POz"
+      ]
+    },
+    "sub-052": {
+      "task-med2": [
+        "Fp1",
+        "TP7",
+        "P3",
+        "PO3",
+        "POz",
+        "CPz",
+        "Fpz",
+        "Fp2",
+        "AFz"
+      ],
+      "task-think2": [
+        "Fp1",
+        "C1",
+        "TP7",
+        "CP1",
+        "P1",
+        "P3",
+        "Fpz",
+        "Fp2",
+        "FC2",
+        "C6",
+        "P2",
+        "P4",
+        "PO4",
+        "O2"
+      ]
+    },
+    "sub-053": {
+      "task-med2": [
+        "Fp1"
+      ],
+      "task-think2": [
+        "Fp1",
+        "Oz",
+        "POz"
+      ]
+    },
+    "sub-054": {
+      "task-med2": [
+        "Fp1",
+        "PO3",
+        "P2",
+        "PO4",
+        "O2"
+      ],
+      "task-think2": [
+        "Fp1",
+        "P3",
+        "PO3",
+        "POz",
+        "PO8",
+        "PO4",
+        "O2"
+      ]
+    },
+    "sub-055": {
+      "task-med2": [
+        "Fp1",
+        "FT7",
+        "FC5",
+        "C5",
+        "T7",
+        "PO7",
+        "PO3",
+        "O1",
+        "F8",
+        "FC6",
+        "P10",
+        "O2"
+      ],
+      "task-think2": [
+        "Fp1",
+        "FC5",
+        "O1",
+        "POz",
+        "F8",
+        "FC6",
+        "PO4"
+      ]
+    },
+    "sub-056": {
+      "task-med2": [
+        "Fp1",
+        "P9",
+        "PO7",
+        "AF8",
+        "T8",
+        "PO4"
+      ],
+      "task-think2": [
+        "Fp1",
+        "PO7",
+        "T8",
+        "PO8"
+      ]
+    },
+    "sub-057": {
+      "task-med2": [
+        "Fp1",
+        "Fp2",
+        "AF8",
+        "T8"
+      ],
+      "task-think2": [
+        "Fp1",
+        "T7",
+        "P7",
+        "Fp2",
+        "T8"
+      ]
+    },
+    "sub-058": {
+      "task-med2": [
+        "Fp1",
+        "T8",
+        "P10",
+        "PO8"
+      ],
+      "task-think2": [
+        "Fp1",
+        "T8",
+        "P4",
+        "P10"
+      ]
+    },
+    "sub-059": {
+      "task-med2": [
+        "Fp1",
+        "P1",
+        "P5",
+        "POz",
+        "P8"
+      ],
+      "task-think2": [
+        "Fp1",
+        "CP1",
+        "P1",
+        "P5",
+        "PO3",
+        "POz",
+        "C2",
+        "P8"
+      ]
+    },
+    "sub-060": {
+      "task-med2": [
+        "Fp1"
+      ],
+      "task-think2": [
+        "Fp1",
+        "AF7",
+        "PO4"
+      ]
+    },
+    "sub-061": {
+      "task-med2": [
+        "Fp1",
+        "PO3",
+        "POz",
+        "P10",
+        "PO4"
+      ],
+      "task-think2": [
+        "Fp1",
+        "PO3",
+        "POz",
+        "PO4"
+      ]
+    },
+    "sub-062": {
+      "task-med2": [
+        "Fp1",
+        "PO4"
+      ],
+      "task-think2": [
+        "Fp1",
+        "C1",
+        "T7",
+        "T8",
+        "PO4"
+      ]
+    },
+    "sub-063": {
+      "task-med2": [
+        "Fp1",
+        "F5",
+        "P1",
+        "P3",
+        "P5",
+        "PO3",
+        "POz",
+        "Fpz",
+        "AF4"
+      ],
+      "task-think2": [
+        "Fp1",
+        "PO3",
+        "F2"
+      ]
+    },
+    "sub-064": {
+      "task-med2": [
+        "Fp1",
+        "C3",
+        "PO7",
+        "PO3",
+        "P10",
+        "PO8",
+        "PO4"
+      ],
+      "task-think2": [
+        "Fp1",
+        "T7",
+        "P9",
+        "PO7",
+        "PO3",
+        "POz",
+        "P10",
+        "PO8",
+        "PO4"
+      ]
+    },
+    "sub-065": {
+      "task-med2": [
+        "Fp1",
+        "P7"
+      ],
+      "task-think2": [
+        "Fp1",
+        "P7"
+      ]
+    },
+    "sub-066": {
+      "task-med2": [
+        "Fp1",
+        "Oz"
+      ],
+      "task-think2": [
+        "Fp1",
+        "P3"
+      ]
+    },
+    "sub-067": {
+      "task-med2": [
+        "Fp1",
+        "PO7"
+      ],
+      "task-think2": [
+        "Fp1",
+        "PO7",
+        "FC4"
+      ]
+    },
+    "sub-068": {
+      "task-med2": [
+        "Fp1",
+        "F4"
+      ],
+      "task-think2": [
+        "Fp1",
+        "PO3",
+        "POz",
+        "T8"
+      ]
+    },
+    "sub-070": {
+      "task-med2": [
+        "Fp1"
+      ],
+      "task-think2": [
+        "Fp1",
+        "PO3",
+        "POz",
+        "PO4"
+      ]
+    },
+    "sub-071": {
+      "task-med2": [
+        "Fp1"
+      ],
+      "task-think2": [
+        "Fp1",
+        "Pz"
+      ]
+    },
+    "sub-072": {
+      "task-med2": [
+        "Fp1",
+        "PO3",
+        "O1",
+        "Iz",
+        "Oz",
+        "POz",
+        "PO4"
+      ],
+      "task-think2": [
+        "Fp1",
+        "PO3",
+        "O1",
+        "Iz",
+        "POz",
+        "PO4"
+      ]
+    },
+    "sub-073": {
+      "task-med2": [
+        "Fp1",
+        "O1"
+      ],
+      "task-think2": [
+        "Fp1",
+        "P7",
+        "PO3",
+        "O1",
+        "Oz"
+      ]
+    },
+    "sub-074": {
+      "task-med2": [
+        "Fp1",
+        "F5",
+        "PO3",
+        "POz",
+        "FCz",
+        "P4",
+        "PO4"
+      ],
+      "task-think2": [
+        "Fp1",
+        "PO3",
+        "POz"
+      ]
+    },
+    "sub-076": {
+      "task-med2": [
+        "Fp1",
+        "C5",
+        "P3",
+        "PO3",
+        "POz",
+        "FT8",
+        "P2",
+        "P4",
+        "P8",
+        "PO8",
+        "PO4"
+      ],
+      "task-think2": [
+        "Fp1",
+        "CP1",
+        "P3",
+        "POz",
+        "F4",
+        "C2",
+        "T8",
+        "P8",
+        "O2"
+      ]
+    },
+    "sub-078": {
+      "task-med2": [
+        "Fp1"
+      ],
+      "task-think2": [
+        "Fp1"
+      ]
+    },
+    "sub-079": {
+      "task-med2": [
+        "Fp1",
+        "CP3",
+        "P3",
+        "P5",
+        "PO3",
+        "POz",
+        "P6",
+        "PO4"
+      ],
+      "task-think2": [
+        "Fp1",
+        "PO3",
+        "POz",
+        "P10",
+        "PO4"
+      ]
+    },
+    "sub-080": {
+      "task-med2": [
+        "Fp1",
+        "P1",
+        "POz",
+        "PO4"
+      ],
+      "task-think2": [
+        "Fp1"
+      ]
+    },
+    "sub-081": {
+      "task-med2": [
+        "Fp1"
+      ],
+      "task-think2": [
+        "Fp1"
+      ]
+    },
+    "sub-082": {
+      "task-med2": [
+        "Fp1",
+        "POz"
+      ],
+      "task-think2": [
+        "Fp1"
+      ]
+    },
+    "sub-083": {
+      "task-med2": [
+        "Fp1",
+        "FC6"
+      ],
+      "task-think2": [
+        "Fp1"
+      ]
+    },
+    "sub-084": {
+      "task-med2": [
+        "Fp1",
+        "PO3",
+        "POz"
+      ],
+      "task-think2": [
+        "Fp1",
+        "PO3",
+        "POz"
+      ]
+    },
+    "sub-085": {
+      "task-med2": [
+        "Fp1"
+      ],
+      "task-think2": [
+        "Fp1",
+        "P7",
+        "PO8"
+      ]
+    },
+    "sub-086": {
+      "task-med2": [
+        "Fp1",
+        "PO3"
+      ],
+      "task-think2": [
+        "Fp1",
+        "POz"
+      ]
+    },
+    "sub-087": {
+      "task-med2": [
+        "Fp1"
+      ],
+      "task-think2": [
+        "Fp1"
+      ]
+    },
+    "sub-088": {
+      "task-med2": [
+        "Fp1",
+        "F7",
+        "P1",
+        "PO3",
+        "O1",
+        "POz",
+        "F6",
+        "F8",
+        "T8",
+        "P2",
+        "P6",
+        "PO4"
+      ],
+      "task-think2": [
+        "Fp1",
+        "PO3",
+        "POz",
+        "P2",
+        "P6",
+        "PO4"
+      ]
+    },
+    "sub-089": {
+      "task-med2": [
+        "Fp1",
+        "FC5"
+      ],
+      "task-think2": [
+        "Fp1",
+        "O2"
+      ]
+    },
+    "sub-090": {
+      "task-med2": [
+        "Fp1",
+        "PO3",
+        "PO4"
+      ],
+      "task-think2": [
+        "Fp1",
+        "PO3",
+        "PO4"
+      ]
+    },
+    "sub-091": {
+      "task-med2": [
+        "Fp1"
+      ],
+      "task-think2": [
+        "Fp1",
+        "PO3"
+      ]
+    },
+    "sub-092": {
+      "task-med2": [
+        "Fp1",
+        "P1",
+        "POz"
+      ],
+      "task-think2": [
+        "Fp1"
+      ]
+    },
+    "sub-093": {
+      "task-med2": [
+        "Fp1",
+        "AF7",
+        "AF3",
+        "F1",
+        "F5",
+        "F7",
+        "FT7",
+        "FC3",
+        "T7",
+        "TP7",
+        "PO3",
+        "Oz",
+        "POz",
+        "AFz",
+        "F4",
+        "FC6",
+        "FCz",
+        "T8",
+        "P8",
+        "PO4",
+        "O2"
+      ],
+      "task-think2": [
+        "Fp1",
+        "PO7",
+        "Fp2",
+        "AF8",
+        "PO4"
+      ]
+    },
+    "sub-094": {
+      "task-med2": [
+        "Fp1",
+        "T7",
+        "PO3",
+        "O1",
+        "POz",
+        "P10"
+      ],
+      "task-think2": [
+        "Fp1",
+        "T7",
+        "P9",
+        "PO7",
+        "P10"
+      ]
+    },
+    "sub-095": {
+      "task-med2": [
+        "Fp1",
+        "P3",
+        "AFz",
+        "PO4"
+      ],
+      "task-think2": [
+        "Fp1",
+        "T7",
+        "PO3",
+        "POz",
+        "PO4",
+        "O2"
+      ]
+    },
+    "sub-096": {
+      "task-med2": [
+        "Fp1"
+      ],
+      "task-think2": [
+        "Fp1",
+        "F1",
+        "T8",
+        "PO4"
+      ]
+    },
+    "sub-097": {
+      "task-med2": [
+        "Fp1",
+        "AF7",
+        "F7",
+        "FT7",
+        "FC5",
+        "FC1",
+        "C3",
+        "C5",
+        "T7",
+        "TP7",
+        "CP5",
+        "CP3",
+        "P1",
+        "P3",
+        "P5",
+        "P7",
+        "P9",
+        "PO7",
+        "PO3",
+        "O1",
+        "Iz",
+        "Oz",
+        "POz",
+        "Pz",
+        "AF8",
+        "F8",
+        "FT8",
+        "FC6",
+        "C6",
+        "TP8",
+        "CP6",
+        "P2",
+        "P4",
+        "P6",
+        "PO4",
+        "O2"
+      ],
+      "task-think2": [
+        "Fp1",
+        "AF7",
+        "F5",
+        "F7",
+        "FT7",
+        "FC5",
+        "FC3",
+        "C3",
+        "C5",
+        "T7",
+        "TP7",
+        "CP5",
+        "CP3",
+        "CP1",
+        "P1",
+        "P3",
+        "P5",
+        "P7",
+        "P9",
+        "PO7",
+        "PO3",
+        "POz",
+        "Pz",
+        "FT8",
+        "C6",
+        "TP8",
+        "P2",
+        "P10"
+      ]
+    },
+    "sub-098": {
+      "task-med2": [
+        "Fp1",
+        "P8"
+      ],
+      "task-think2": [
+        "Fp1"
+      ]
+    }
+  }
+}

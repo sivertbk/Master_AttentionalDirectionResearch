@@ -1,0 +1,874 @@
+{
+    "jin2019": {
+        "subject-1": {
+            "session-1": {
+                "blink_components": [
+                    0,
+                    1,
+                    3
+                ],
+                "saccade_components": [
+                    2
+                ],
+                "all_excluded": [
+                    0,
+                    1,
+                    2,
+                    3
+                ]
+            },
+            "session-2": {
+                "blink_components": [
+                    0,
+                    3
+                ],
+                "saccade_components": [
+                    1
+                ],
+                "all_excluded": [
+                    0,
+                    1,
+                    3
+                ]
+            }
+        },
+        "subject-2": {
+            "session-1": {
+                "blink_components": [
+                    1,
+                    3
+                ],
+                "saccade_components": [
+                    0
+                ],
+                "all_excluded": [
+                    0,
+                    1,
+                    3
+                ]
+            },
+            "session-2": {
+                "blink_components": [
+                    0,
+                    1
+                ],
+                "saccade_components": [
+                    1
+                ],
+                "all_excluded": [
+                    0,
+                    1
+                ]
+            }
+        },
+        "subject-3": {
+            "session-1": {
+                "blink_components": [
+                    0,
+                    2
+                ],
+                "saccade_components": [
+                    1,
+                    2
+                ],
+                "all_excluded": [
+                    0,
+                    1,
+                    2
+                ]
+            }
+        },
+        "subject-4": {
+            "session-1": {
+                "blink_components": [],
+                "saccade_components": [
+                    4,
+                    3
+                ],
+                "all_excluded": [
+                    3,
+                    4
+                ]
+            },
+            "session-2": {
+                "blink_components": [
+                    0
+                ],
+                "saccade_components": [
+                    1,
+                    0
+                ],
+                "all_excluded": [
+                    0,
+                    1
+                ]
+            }
+        },
+        "subject-5": {
+            "session-1": {
+                "blink_components": [
+                    0,
+                    2
+                ],
+                "saccade_components": [
+                    1,
+                    2
+                ],
+                "all_excluded": [
+                    0,
+                    1,
+                    2
+                ]
+            },
+            "session-2": {
+                "blink_components": [
+                    0,
+                    3
+                ],
+                "saccade_components": [
+                    1
+                ],
+                "all_excluded": [
+                    0,
+                    1,
+                    3
+                ]
+            }
+        },
+        "subject-6": {
+            "session-1": {
+                "blink_components": [
+                    0,
+                    1
+                ],
+                "saccade_components": [
+                    1,
+                    0
+                ],
+                "all_excluded": [
+                    0,
+                    1
+                ]
+            },
+            "session-2": {
+                "blink_components": [
+                    0,
+                    1
+                ],
+                "saccade_components": [
+                    1,
+                    0
+                ],
+                "all_excluded": [
+                    0,
+                    1
+                ]
+            }
+        },
+        "subject-7": {
+            "session-1": {
+                "blink_components": [
+                    0,
+                    1
+                ],
+                "saccade_components": [
+                    2,
+                    0
+                ],
+                "all_excluded": [
+                    0,
+                    1,
+                    2
+                ]
+            },
+            "session-2": {
+                "blink_components": [
+                    0,
+                    1
+                ],
+                "saccade_components": [
+                    2,
+                    1
+                ],
+                "all_excluded": [
+                    0,
+                    1,
+                    2
+                ]
+            }
+        },
+        "subject-8": {
+            "session-1": {
+                "blink_components": [
+                    0,
+                    3
+                ],
+                "saccade_components": [
+                    2,
+                    48
+                ],
+                "all_excluded": [
+                    0,
+                    2,
+                    3,
+                    48
+                ]
+            },
+            "session-2": {
+                "blink_components": [
+                    0,
+                    1
+                ],
+                "saccade_components": [
+                    2
+                ],
+                "all_excluded": [
+                    0,
+                    1,
+                    2
+                ]
+            }
+        },
+        "subject-9": {
+            "session-1": {
+                "blink_components": [
+                    0
+                ],
+                "saccade_components": [
+                    1
+                ],
+                "all_excluded": [
+                    0,
+                    1
+                ]
+            },
+            "session-2": {
+                "blink_components": [
+                    0
+                ],
+                "saccade_components": [
+                    1
+                ],
+                "all_excluded": [
+                    0,
+                    1
+                ]
+            }
+        },
+        "subject-10": {
+            "session-1": {
+                "blink_components": [
+                    0,
+                    1
+                ],
+                "saccade_components": [
+                    2,
+                    0
+                ],
+                "all_excluded": [
+                    0,
+                    1,
+                    2
+                ]
+            },
+            "session-2": {
+                "blink_components": [
+                    0
+                ],
+                "saccade_components": [
+                    2,
+                    0
+                ],
+                "all_excluded": [
+                    0,
+                    2
+                ]
+            }
+        },
+        "subject-11": {
+            "session-1": {
+                "blink_components": [
+                    0,
+                    1
+                ],
+                "saccade_components": [
+                    2,
+                    0
+                ],
+                "all_excluded": [
+                    0,
+                    1,
+                    2
+                ]
+            },
+            "session-2": {
+                "blink_components": [
+                    0,
+                    1
+                ],
+                "saccade_components": [
+                    2,
+                    5
+                ],
+                "all_excluded": [
+                    0,
+                    1,
+                    2,
+                    5
+                ]
+            }
+        },
+        "subject-12": {
+            "session-1": {
+                "blink_components": [
+                    0,
+                    1
+                ],
+                "saccade_components": [
+                    1
+                ],
+                "all_excluded": [
+                    0,
+                    1
+                ]
+            },
+            "session-2": {
+                "blink_components": [
+                    0,
+                    2
+                ],
+                "saccade_components": [
+                    2,
+                    0
+                ],
+                "all_excluded": [
+                    0,
+                    2
+                ]
+            }
+        },
+        "subject-13": {
+            "session-1": {
+                "blink_components": [
+                    0,
+                    1
+                ],
+                "saccade_components": [
+                    1,
+                    0
+                ],
+                "all_excluded": [
+                    0,
+                    1
+                ]
+            },
+            "session-2": {
+                "blink_components": [
+                    0,
+                    1
+                ],
+                "saccade_components": [
+                    2
+                ],
+                "all_excluded": [
+                    0,
+                    1,
+                    2
+                ]
+            }
+        },
+        "subject-14": {
+            "session-1": {
+                "blink_components": [
+                    0,
+                    1
+                ],
+                "saccade_components": [
+                    2,
+                    3
+                ],
+                "all_excluded": [
+                    0,
+                    1,
+                    2,
+                    3
+                ]
+            },
+            "session-2": {
+                "blink_components": [
+                    0,
+                    1,
+                    4
+                ],
+                "saccade_components": [
+                    2,
+                    15
+                ],
+                "all_excluded": [
+                    0,
+                    1,
+                    2,
+                    4,
+                    15
+                ]
+            }
+        },
+        "subject-15": {
+            "session-1": {
+                "blink_components": [
+                    0,
+                    1
+                ],
+                "saccade_components": [
+                    2
+                ],
+                "all_excluded": [
+                    0,
+                    1,
+                    2
+                ]
+            },
+            "session-2": {
+                "blink_components": [
+                    0,
+                    2
+                ],
+                "saccade_components": [
+                    3
+                ],
+                "all_excluded": [
+                    0,
+                    2,
+                    3
+                ]
+            }
+        },
+        "subject-16": {
+            "session-1": {
+                "blink_components": [
+                    0
+                ],
+                "saccade_components": [
+                    2
+                ],
+                "all_excluded": [
+                    0,
+                    2
+                ]
+            },
+            "session-2": {
+                "blink_components": [
+                    0
+                ],
+                "saccade_components": [
+                    3
+                ],
+                "all_excluded": [
+                    0,
+                    3
+                ]
+            }
+        },
+        "subject-17": {
+            "session-2": {
+                "blink_components": [],
+                "saccade_components": [
+                    5
+                ],
+                "all_excluded": [
+                    5
+                ]
+            }
+        },
+        "subject-18": {
+            "session-1": {
+                "blink_components": [
+                    1,
+                    0,
+                    2
+                ],
+                "saccade_components": [
+                    2
+                ],
+                "all_excluded": [
+                    0,
+                    1,
+                    2
+                ]
+            },
+            "session-2": {
+                "blink_components": [
+                    0,
+                    1
+                ],
+                "saccade_components": [
+                    2
+                ],
+                "all_excluded": [
+                    0,
+                    1,
+                    2
+                ]
+            }
+        },
+        "subject-19": {
+            "session-1": {
+                "blink_components": [
+                    0
+                ],
+                "saccade_components": [
+                    1,
+                    0
+                ],
+                "all_excluded": [
+                    0,
+                    1
+                ]
+            },
+            "session-2": {
+                "blink_components": [
+                    0,
+                    4
+                ],
+                "saccade_components": [
+                    1
+                ],
+                "all_excluded": [
+                    0,
+                    1,
+                    4
+                ]
+            }
+        },
+        "subject-20": {
+            "session-1": {
+                "blink_components": [
+                    0,
+                    1
+                ],
+                "saccade_components": [
+                    1,
+                    2
+                ],
+                "all_excluded": [
+                    0,
+                    1,
+                    2
+                ]
+            },
+            "session-2": {
+                "blink_components": [
+                    0,
+                    1
+                ],
+                "saccade_components": [
+                    1,
+                    3
+                ],
+                "all_excluded": [
+                    0,
+                    1,
+                    3
+                ]
+            }
+        },
+        "subject-21": {
+            "session-1": {
+                "blink_components": [
+                    0,
+                    1
+                ],
+                "saccade_components": [
+                    2,
+                    1
+                ],
+                "all_excluded": [
+                    0,
+                    1,
+                    2
+                ]
+            },
+            "session-2": {
+                "blink_components": [
+                    0,
+                    2
+                ],
+                "saccade_components": [
+                    1,
+                    0
+                ],
+                "all_excluded": [
+                    0,
+                    1,
+                    2
+                ]
+            }
+        },
+        "subject-22": {
+            "session-1": {
+                "blink_components": [
+                    0,
+                    2
+                ],
+                "saccade_components": [
+                    3
+                ],
+                "all_excluded": [
+                    0,
+                    2,
+                    3
+                ]
+            },
+            "session-2": {
+                "blink_components": [
+                    0,
+                    2
+                ],
+                "saccade_components": [
+                    2,
+                    0
+                ],
+                "all_excluded": [
+                    0,
+                    2
+                ]
+            }
+        },
+        "subject-23": {
+            "session-1": {
+                "blink_components": [
+                    0,
+                    1
+                ],
+                "saccade_components": [
+                    1,
+                    0
+                ],
+                "all_excluded": [
+                    0,
+                    1
+                ]
+            },
+            "session-2": {
+                "blink_components": [
+                    0,
+                    1
+                ],
+                "saccade_components": [
+                    1,
+                    4
+                ],
+                "all_excluded": [
+                    0,
+                    1,
+                    4
+                ]
+            }
+        },
+        "subject-24": {
+            "session-1": {
+                "blink_components": [
+                    0,
+                    2
+                ],
+                "saccade_components": [
+                    1,
+                    2
+                ],
+                "all_excluded": [
+                    0,
+                    1,
+                    2
+                ]
+            },
+            "session-2": {
+                "blink_components": [
+                    0,
+                    2
+                ],
+                "saccade_components": [
+                    1,
+                    2
+                ],
+                "all_excluded": [
+                    0,
+                    1,
+                    2
+                ]
+            }
+        },
+        "subject-25": {
+            "session-1": {
+                "blink_components": [
+                    0
+                ],
+                "saccade_components": [
+                    1,
+                    0
+                ],
+                "all_excluded": [
+                    0,
+                    1
+                ]
+            },
+            "session-2": {
+                "blink_components": [
+                    0
+                ],
+                "saccade_components": [
+                    1
+                ],
+                "all_excluded": [
+                    0,
+                    1
+                ]
+            }
+        },
+        "subject-26": {
+            "session-1": {
+                "blink_components": [
+                    0,
+                    1
+                ],
+                "saccade_components": [
+                    1,
+                    0
+                ],
+                "all_excluded": [
+                    0,
+                    1
+                ]
+            },
+            "session-2": {
+                "blink_components": [
+                    0,
+                    1
+                ],
+                "saccade_components": [
+                    1,
+                    0
+                ],
+                "all_excluded": [
+                    0,
+                    1
+                ]
+            }
+        },
+        "subject-27": {
+            "session-1": {
+                "blink_components": [
+                    1,
+                    5,
+                    0
+                ],
+                "saccade_components": [
+                    0,
+                    1
+                ],
+                "all_excluded": [
+                    0,
+                    1,
+                    5
+                ]
+            },
+            "session-2": {
+                "blink_components": [
+                    0,
+                    1
+                ],
+                "saccade_components": [
+                    1
+                ],
+                "all_excluded": [
+                    0,
+                    1
+                ]
+            }
+        },
+        "subject-28": {
+            "session-1": {
+                "blink_components": [
+                    0,
+                    1
+                ],
+                "saccade_components": [
+                    1
+                ],
+                "all_excluded": [
+                    0,
+                    1
+                ]
+            },
+            "session-2": {
+                "blink_components": [
+                    0,
+                    1
+                ],
+                "saccade_components": [
+                    1
+                ],
+                "all_excluded": [
+                    0,
+                    1
+                ]
+            }
+        },
+        "subject-29": {
+            "session-1": {
+                "blink_components": [],
+                "saccade_components": [
+                    4,
+                    2
+                ],
+                "all_excluded": [
+                    2,
+                    4
+                ]
+            },
+            "session-2": {
+                "blink_components": [
+                    0
+                ],
+                "saccade_components": [
+                    1,
+                    0
+                ],
+                "all_excluded": [
+                    0,
+                    1
+                ]
+            }
+        },
+        "subject-30": {
+            "session-1": {
+                "blink_components": [
+                    0,
+                    1
+                ],
+                "saccade_components": [
+                    2,
+                    0
+                ],
+                "all_excluded": [
+                    0,
+                    1,
+                    2
+                ]
+            },
+            "session-2": {
+                "blink_components": [
+                    0,
+                    2
+                ],
+                "saccade_components": [
+                    1
+                ],
+                "all_excluded": [
+                    0,
+                    1,
+                    2
+                ]
+            }
+        }
+    }
+}

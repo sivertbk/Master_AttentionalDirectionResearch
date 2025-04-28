@@ -1,0 +1,290 @@
+{
+    "touryan2022": {
+        "subject-01": {
+            "run-2": {
+                "blink_components": [
+                    0
+                ],
+                "saccade_components": [
+                    2
+                ],
+                "all_excluded": [
+                    0,
+                    2
+                ]
+            }
+        },
+        "subject-02": {
+            "run-2": {
+                "blink_components": [
+                    0,
+                    11
+                ],
+                "saccade_components": [
+                    7
+                ],
+                "all_excluded": [
+                    0,
+                    7,
+                    11
+                ]
+            }
+        },
+        "subject-03": {
+            "run-2": {
+                "blink_components": [
+                    0
+                ],
+                "saccade_components": [],
+                "all_excluded": [
+                    0
+                ]
+            }
+        },
+        "subject-04": {
+            "run-2": {
+                "blink_components": [
+                    1,
+                    0
+                ],
+                "saccade_components": [
+                    5
+                ],
+                "all_excluded": [
+                    0,
+                    1,
+                    5
+                ]
+            }
+        },
+        "subject-05": {
+            "run-2": {
+                "blink_components": [
+                    0,
+                    2
+                ],
+                "saccade_components": [
+                    1
+                ],
+                "all_excluded": [
+                    0,
+                    1,
+                    2
+                ]
+            }
+        },
+        "subject-06": {
+            "run-2": {
+                "blink_components": [
+                    0
+                ],
+                "saccade_components": [],
+                "all_excluded": [
+                    0
+                ]
+            }
+        },
+        "subject-07": {
+            "run-2": {
+                "blink_components": [
+                    0
+                ],
+                "saccade_components": [
+                    2
+                ],
+                "all_excluded": [
+                    0,
+                    2
+                ]
+            }
+        },
+        "subject-08": {
+            "run-2": {
+                "blink_components": [
+                    0
+                ],
+                "saccade_components": [
+                    1
+                ],
+                "all_excluded": [
+                    0,
+                    1
+                ]
+            }
+        },
+        "subject-09": {
+            "run-2": {
+                "blink_components": [
+                    0
+                ],
+                "saccade_components": [],
+                "all_excluded": [
+                    0
+                ]
+            }
+        },
+        "subject-11": {
+            "run-2": {
+                "blink_components": [
+                    0,
+                    1
+                ],
+                "saccade_components": [
+                    1
+                ],
+                "all_excluded": [
+                    0,
+                    1
+                ]
+            }
+        },
+        "subject-12": {
+            "run-2": {
+                "blink_components": [
+                    0
+                ],
+                "saccade_components": [
+                    2
+                ],
+                "all_excluded": [
+                    0,
+                    2
+                ]
+            }
+        },
+        "subject-13": {
+            "run-2": {
+                "blink_components": [
+                    0
+                ],
+                "saccade_components": [
+                    2,
+                    0
+                ],
+                "all_excluded": [
+                    0,
+                    2
+                ]
+            }
+        },
+        "subject-14": {
+            "run-2": {
+                "blink_components": [
+                    0
+                ],
+                "saccade_components": [
+                    1
+                ],
+                "all_excluded": [
+                    0,
+                    1
+                ]
+            }
+        },
+        "subject-15": {
+            "run-2": {
+                "blink_components": [
+                    0
+                ],
+                "saccade_components": [
+                    2
+                ],
+                "all_excluded": [
+                    0,
+                    2
+                ]
+            }
+        },
+        "subject-16": {
+            "run-2": {
+                "blink_components": [
+                    0
+                ],
+                "saccade_components": [
+                    1
+                ],
+                "all_excluded": [
+                    0,
+                    1
+                ]
+            }
+        },
+        "subject-17": {
+            "run-2": {
+                "blink_components": [
+                    0,
+                    4
+                ],
+                "saccade_components": [
+                    1
+                ],
+                "all_excluded": [
+                    0,
+                    1,
+                    4
+                ]
+            }
+        },
+        "subject-18": {
+            "run-2": {
+                "blink_components": [
+                    0,
+                    3
+                ],
+                "saccade_components": [
+                    2,
+                    0
+                ],
+                "all_excluded": [
+                    0,
+                    2,
+                    3
+                ]
+            }
+        },
+        "subject-19": {
+            "run-2": {
+                "blink_components": [
+                    0
+                ],
+                "saccade_components": [
+                    1
+                ],
+                "all_excluded": [
+                    0,
+                    1
+                ]
+            }
+        },
+        "subject-20": {
+            "run-2": {
+                "blink_components": [
+                    0
+                ],
+                "saccade_components": [
+                    1
+                ],
+                "all_excluded": [
+                    0,
+                    1
+                ]
+            }
+        },
+        "subject-21": {
+            "run-2": {
+                "blink_components": [
+                    0,
+                    6
+                ],
+                "saccade_components": [
+                    1
+                ],
+                "all_excluded": [
+                    0,
+                    1,
+                    6
+                ]
+            }
+        }
+    }
+}
