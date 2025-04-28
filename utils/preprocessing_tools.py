@@ -13,8 +13,8 @@ from datetime import datetime
 
 import utils.config as config
 from utils.config import DATASETS, set_plot_style
-from utils.file_io import load_bad_channels, update_bad_channels_json, log_dropped_epochs, log_reject_threshold
-from utils.helpers import format_numbers, cleanup_memory, plot_ransac_bad_log, reject_epochs_with_adjacent_interpolation, plot_rejected_epochs_by_cluster, plot_dropped_epochs_by_cluster, update_bad_epochs_from_indices
+from utils.file_io import load_bad_channels, update_bad_channels_json, log_dropped_epochs, log_reject_threshold, load_new_events
+from utils.helpers import plot_ransac_bad_log, encode_events, decode_events
 
 
 def prepare_raw_data(raw, dataset, eeg_settings):
@@ -419,7 +419,7 @@ def plot_bad_epochs_mask(epochs, bad_epochs_mask, orientation='vertical', show_n
         plt.show()
     return fig
 
-def prepare_ica_epochs(raw, dataset, eeg_settings, subject, session=None, task=None, run=None, min_threshold=300e-6, verbose=True):
+def prepare_ica_epochs(raw, dataset, eeg_settings, subject, session=None, task=None, run=None, min_threshold=300e-6, reject_scale_factor=2, verbose=True):
     """
     Prepare epochs for ICA. This function takes raw, untouched data and creates epochs for ICA.
     The function:
@@ -450,8 +450,10 @@ def prepare_ica_epochs(raw, dataset, eeg_settings, subject, session=None, task=N
         The task identifier (default is None).
     run : str, optional
         The run identifier (default is None).
-    threshold : float, optional
-        The threshold for rejecting epochs (default is None, which uses the value from eeg_settings).
+    min_threshold : float, optional
+        The minimum threshold for rejecting epochs (default is 300e-6).
+    reject_scale_factor : float, optional
+        The scale factor to increase the rejection threshold (default is 2).
     verbose : bool, optional
         If True, print additional information (default is True).
 
@@ -494,7 +496,7 @@ def prepare_ica_epochs(raw, dataset, eeg_settings, subject, session=None, task=N
         verbose=verbose
     )
     
-    reject = {key: val * 2 for key, val in reject.items()}  # Increase the threshold by 100%
+    reject = {key: val * reject_scale_factor for key, val in reject.items()}  # Increase the threshold by 100%
 
     # If threhold is too low, set it to min_threshold
     if reject['eeg'] < min_threshold:
@@ -616,3 +618,111 @@ def ica_fit(epochs, eeg_settings, random_state=42069, verbose=True):
 #     )
 
 #     return fig
+
+
+def create_analysis_epochs(raw, dataset, eeg_settings, subject, item=None, verbose=True):
+    """
+    Create analysis epochs from the raw data. This function creates epochs for analysis and returns the epochs object.
+    
+    Parameters
+    ----------
+    raw : mne.io.Raw
+        The raw data object to create analysis epochs.
+    dataset : DatasetConfig
+        The dataset configuration object.
+    eeg_settings : dict
+        The EEG settings dictionary defined in config containing parameters
+    subject : str
+        The subject identifier.
+    item : str, optional
+        The item identifier (i.e., session, task or run).
+    verbose : bool, optional
+        If True, print additional information (default is True).
+    
+    Returns
+    -----------
+    epochs : mne.Epochs
+        The created analysis epochs object.
+    """
+
+    if dataset.f_name == 'braboszcz2017':
+        return _create_analysis_epochs_braboszcz2017(raw, dataset, eeg_settings, subject, task=item, verbose=verbose)
+    elif dataset.f_name == 'jin2019':
+        return _create_analysis_epochs_jin2019(raw, dataset, eeg_settings, subject, session=item, verbose=verbose)
+    elif dataset.f_name == 'touryan2022':
+        return _create_analysis_epochs_touryan2022(raw, dataset, eeg_settings, subject, run=item, verbose=verbose)
+    else:
+        raise ValueError(f"Unknown dataset: {dataset.f_name}")
+    
+def _create_analysis_epochs_braboszcz2017(raw, dataset, eeg_settings, subject, task=None, verbose=True):
+    # Subject group
+    subject_group = dataset.extra_info.subject_groups[subject]
+    
+    # creating fixed-length epochs
+    return mne.make_fixed_length_epochs(
+        raw,
+        duration=eeg_settings["EPOCH_LENGTH_SEC"],
+        preload=True,
+        id=dataset.event_id_map[f'{subject_group}/{task}'],
+        verbose=verbose
+    )
+    
+def _create_analysis_epochs_jin2019(raw, dataset, eeg_settings, subject, session=None, verbose=True):
+    # create events with stimuli channel
+    events_old = mne.find_events(raw, stim_channel='Status', verbose=False)
+
+    # Load the dataframes
+    new_events, event_info = load_new_events(os.path.join(dataset.path_derivatives, 'events'), subject, session)
+
+    # Encode and decode the new events
+    encoded_new_events = encode_events(new_events)
+    decoded_new_events = decode_events(encoded_new_events)
+
+    try:
+        # Verify that the decoded events match the original new events
+        assert np.array_equal(new_events, decoded_new_events), "ERROR: Decoded events do not match the original events"
+
+        # Filter events to keep only IDs in range 9–22
+        filtered_events = events_old[(events_old[:, 2] >= 10) & (events_old[:, 2] <= 21)]
+
+        # Verify alignment
+        assert len(filtered_events) == len(encoded_new_events), "ERROR: Mismatch between filtered events and CSV rows"
+    except AssertionError as e:
+        print(subject, session, str(e))
+
+    # Replace the third column in the filtered events array
+    filtered_events[:, 2] = encoded_new_events
+
+    # Create an Info object
+    info = mne.create_info(ch_names=['STIM'], sfreq=raw.info['sfreq'], ch_types=['stim'])
+
+    # Create a RawArray object for the events
+    stim_data = np.zeros((1, raw.n_times))  # Create empty data with one channel
+    for event in filtered_events:
+        stim_data[0, event[0]] = event[2]  # Place the encoded event value at the event timepoint
+
+    # Create a Raw object for the events
+    raw_events = mne.io.RawArray(stim_data, info)
+
+    # Add the events to the raw data
+    raw.add_channels([raw_events], force_update_info=True)
+
+    # Drop the Status channel
+    raw.drop_channels(['Status'])
+
+    # Finding new events with new stim channel
+    events = mne.find_events(raw, stim_channel='STIM', verbose=False)
+
+    # Remove unused event ids from the event_id dictionary
+    unused_event_ids = set(dataset.event_id_map.values()) - set(events[:, 2])
+    event_id = {k: v for k, v in dataset.event_id_map.items() if v not in unused_event_ids}
+
+    # Compare number of events before and after new events
+    if len(filtered_events) != len(events):
+        print(subject, session, f"Number of events have changed from {len(filtered_events)} to {len(events)}")
+
+    # Update the second column with the value from the third column of the previous row
+    events[1:, 1] = events[:-1, 2]  # Shift the third column down by one row
+
+    # First row stays zero in the second column
+    events[0, 1] = 0

@@ -1,13 +1,15 @@
 import os
 import mne
 import numpy as np
+import warnings
 from mne.preprocessing import create_eog_epochs
 from mne import set_bipolar_reference
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
+
 from utils.config import DATASETS, set_plot_style, PLOTS_PATH
 from utils.helpers import iterate_dataset_items
-from utils.file_io import load_ica
-import warnings
+from utils.file_io import load_ica, save_ica_excluded_components
 
 warnings.filterwarnings("ignore")  # Optional: suppress verbose MNE warnings
 set_plot_style()
@@ -15,9 +17,12 @@ set_plot_style()
 VERBOSE = True
 SHOW_PLOTS = False  # Set False to avoid popups
 
+z_threshold_blink = 5.0
+z_threshold_saccade = 5.0
+
 # Datasets
 DATASETS.pop('braboszcz2017')
-# DATASETS.pop('jin2019', None)
+#DATASETS.pop('jin2019', None)
 
 def epochs_to_raw(epochs):
     """Convert MNE Epochs to a Raw object by stitching epochs together."""
@@ -33,6 +38,114 @@ def epochs_to_raw(epochs):
     raw = mne.io.RawArray(data, info)
 
     return raw
+
+def _lighter_red(iteration, max_iterations=3):
+    """Return lighter shades of red based on iteration."""
+    base_color = np.array([1.0, 0.0, 0.0])  # Pure red (RGB)
+    white = np.array([1.0, 1.0, 1.0])  # White
+    factor = min(iteration / max_iterations, 1.0)  # Gradually move toward white
+    color = base_color + (white - base_color) * factor
+    return tuple(color)
+
+def plot_ica_component_scores(
+    scores,
+    z_threshold,
+    title,
+    save_dir,
+    filename,
+    figsize=(12, 4),
+    ):
+    """
+    Plot ICA component scores with iterative adaptive threshold visualization.
+
+    Parameters
+    ----------
+    scores : np.ndarray
+        Correlation scores for ICA components.
+    z_threshold : float
+        Z-score threshold for exclusion.
+    title : str
+        Title of the plot.
+    save_dir : str
+        Directory to save the figure.
+    filename : str
+        Filename for saving the figure.
+    color_cycle : list of str, optional
+        List of colors to use for different exclusion rounds.
+    figsize : tuple of float, optional
+        Size of the figure.
+    """
+
+    if scores is None or len(scores) == 0:
+        print("No scores to plot.")
+        return
+
+    remaining_scores = scores.copy()
+    n_components = len(scores)
+
+    fig, ax = plt.subplots(figsize=figsize)
+
+    excluded_components = []
+    excluded_colors = []
+
+    iteration = 0
+    while True:
+        if np.all(np.isnan(remaining_scores)):
+            break  # No more scores left
+
+        # Recompute z-scores excluding NaNs
+        mean_now = np.nanmean(remaining_scores)
+        std_now = np.nanstd(remaining_scores)
+        z_scores_iter = (remaining_scores - mean_now) / std_now
+
+        max_z = np.nanmax(np.abs(z_scores_iter))
+        if max_z > z_threshold:
+            idx = np.nanargmax(np.abs(z_scores_iter))
+            excluded_components.append(idx)
+            excluded_colors.append(_lighter_red(iteration))
+
+            # Mark as excluded
+            remaining_scores[idx] = np.nan
+
+            # Plot threshold lines for this iteration
+            thresh_value = z_threshold * std_now
+            ax.axhline(y=mean_now + thresh_value, linestyle='--', color=_lighter_red(iteration), alpha=0.6, linewidth=0.8)
+            ax.axhline(y=mean_now - thresh_value, linestyle='--', color=_lighter_red(iteration), alpha=0.6, linewidth=0.8)
+
+            iteration += 1
+        else:
+            break
+
+    # Final bar plot
+    bars = ax.bar(np.arange(n_components), scores, color='gray', edgecolor='k')
+
+    for idx, color in zip(excluded_components, excluded_colors):
+        bars[idx].set_color(color)
+        bars[idx].set_edgecolor('black')
+
+    ax.set_xlabel('ICA components')
+    ax.set_ylabel('Score (correlation)')
+    ax.set_title(title)
+    ax.axhline(y=0, color='black', linewidth=0.8)
+
+    # --- Custom grey proxy artist for legend ---
+    proxy_line = Line2D(
+        [0], [0],
+        color='gray',
+        linestyle='--',
+        linewidth=1,
+        alpha=0.7
+    )
+    ax.legend([proxy_line], [f'Adaptive threshold: ±{z_threshold} z-score'], loc='upper right')
+
+    fig.tight_layout()
+
+    os.makedirs(save_dir, exist_ok=True)
+    save_path = os.path.join(save_dir, filename)
+    fig.savefig(save_path)
+    plt.close(fig)
+
+    print(f"Saved plot to: {save_path}")
 
 def add_title_above_properties(fig, title, height=0.08, fontsize=14):
     """Move all axes down to make space and add a clean title above."""
@@ -58,93 +171,28 @@ for dataset, subject, label, item, kwargs in iterate_dataset_items(DATASETS):
     epochs = set_bipolar_reference(epochs, anode='LHEOG', cathode='RHEOG', ch_name='HEOG', drop_refs=True, copy=True)
 
     # --- Find bad EOG components
-    blink_inds, blink_scores = ica.find_bads_eog(epochs, ch_name='VEOG', threshold=4.5, measure='zscore')
-    saccade_inds, saccade_scores = ica.find_bads_eog(epochs, ch_name='HEOG', threshold=5.0, measure='zscore')
+    blink_inds, blink_scores = ica.find_bads_eog(epochs, ch_name='VEOG', threshold=z_threshold_blink, measure='zscore')
+    saccade_inds, saccade_scores = ica.find_bads_eog(epochs, ch_name='HEOG', threshold=z_threshold_saccade, measure='zscore')
     print(f"  Blink components: {blink_inds}, Saccade components: {saccade_inds}")
 
     # --- Analyze blink score distribution
-    if blink_scores is not None:
-        z_scores = (blink_scores - np.mean(blink_scores)) / np.std(blink_scores)
-        print(f"  Max blink score: {np.max(blink_scores):.3f}")
-        print(f"  Max blink z-score: {np.max(z_scores):.3f}")
-
-        # Show what would be detected at lower threshold (e.g., 3.0)
-        lower_thresh = 3.0
-        blink_inds_lo_thresh = list(np.where(z_scores > lower_thresh)[0])
-        print(f"  Components at z > {lower_thresh}: {blink_inds_lo_thresh}")
-
-        # --- Plot blink scores
-        fig, ax = plt.subplots(figsize=(10, 3))
-        bars = ax.bar(np.arange(len(blink_scores)), blink_scores, color='gray', edgecolor='black')
-        for i in blink_inds:
-            bars[i].set_color('red')  # Highlight excluded components
-        ax.set_xlabel('ICA components')
-        ax.set_ylabel('score')
-        ax.set_title(f'{dataset.name} | Sub-{subject} | {label}-{item} | Blink Scores')
-        ax.axhline(y=np.mean(blink_scores) + 4.5 * np.std(blink_scores), linestyle='--', color='red', label='threshold')
-        ax.legend()
-        fig.tight_layout()
-
-        # Save or show
-        save_dir = os.path.join(PLOTS_PATH, dataset.f_name, 'ica_scores_blinks')
-        os.makedirs(save_dir, exist_ok=True)
-        fig.savefig(os.path.join(save_dir, f"sub-{subject}_{label}-{item}_blink_scores.png"))
-        plt.close(fig)
-
-    spread_threshold = 5  # adjust if needed
-    z_scores = (blink_scores - np.mean(blink_scores)) / np.std(blink_scores)
-    high_z = np.where(z_scores > 2.5)[0]  # components with notable blink-related signal
-
-    if len(high_z) > spread_threshold:
-        print(f"  [SKIPPED] Blink scores too spread across components ({len(high_z)} > {spread_threshold})")
-        
-        # Optional: log to file
-        # with open("skipped_blink_detection.txt", "a") as log_file:
-        #     log_file.write(f"{dataset.name}, sub-{subject}, {label}-{item}, blink score spread ({len(high_z)} components over z>2.5)\n")
-
-        continue  # skip this subject for now
+    plot_ica_component_scores(
+        scores=blink_scores,
+        z_threshold=z_threshold_blink,
+        title=f'{dataset.name} | Sub-{subject} | {label}-{item} | Blink Scores',
+        save_dir=os.path.join(PLOTS_PATH, dataset.f_name, 'ica_scores_blinks'),
+        filename=f"sub-{subject}_{label}-{item}_blink_scores.png",
+    )
 
     # --- Analyze saccade score distribution
-    if saccade_scores is not None:
-        z_scores = (saccade_scores - np.mean(saccade_scores)) / np.std(saccade_scores)
-        print(f"  Max saccade score: {np.max(saccade_scores):.3f}")
-        print(f"  Max saccade z-score: {np.max(z_scores):.3f}")
+    plot_ica_component_scores(
+        scores=saccade_scores,
+        z_threshold=z_threshold_saccade,
+        title=f'{dataset.name} | Sub-{subject} | {label}-{item} | Saccade Scores',
+        save_dir=os.path.join(PLOTS_PATH, dataset.f_name, 'ica_scores_saccades'),
+        filename=f"sub-{subject}_{label}-{item}_saccade_scores.png",
+    )
 
-        # Show what would be detected at lower threshold (e.g., 4.5)
-        lower_thresh = 4.5
-        saccade_inds_lo_thresh = list(np.where(z_scores > lower_thresh)[0])
-        print(f"  Components at z > {lower_thresh}: {saccade_inds_lo_thresh}")
-
-        # --- Plot saccade scores
-        fig, ax = plt.subplots(figsize=(10, 3))
-        bars = ax.bar(np.arange(len(saccade_scores)), saccade_scores, color='gray', edgecolor='black')
-        for i in saccade_inds:
-            bars[i].set_color('red')
-        ax.set_xlabel('ICA components')
-        ax.set_ylabel('score')
-        ax.set_title(f'{dataset.name} | Sub-{subject} | {label}-{item} | Saccade Scores')
-        ax.axhline(y=np.mean(saccade_scores) + 4.5 * np.std(saccade_scores), linestyle='--', color='red', label='threshold')
-        ax.legend()
-        fig.tight_layout()
-
-        # Save or show
-        save_dir = os.path.join(PLOTS_PATH, dataset.f_name, 'ica_scores_saccades')
-        os.makedirs(save_dir, exist_ok=True)
-        fig.savefig(os.path.join(save_dir, f"sub-{subject}_{label}-{item}_saccade_scores.png"))
-        plt.close(fig)
-
-    # --- Check if blink and saccade components are too spread
-    spread_threshold = 5  # adjust if needed
-    z_scores = (saccade_scores - np.mean(saccade_scores)) / np.std(saccade_scores)
-    high_z = np.where(z_scores > 2.5)[0]  # components with notable saccade-related signal
-    if len(high_z) > spread_threshold:
-        print(f"  [SKIPPED] Saccade scores too spread across components ({len(high_z)} > {spread_threshold})")
-        
-        # Optional: log to file
-        # with open("skipped_saccade_detection.txt", "a") as log_file:
-        #     log_file.write(f"{dataset.name}, sub-{subject}, {label}-{item}, saccade score spread ({len(high_z)} components over z>2.5)\n")
-
-        continue
 
     # --- Make a Raw object from epochs
     raw = epochs_to_raw(epochs)
@@ -162,62 +210,39 @@ for dataset, subject, label, item, kwargs in iterate_dataset_items(DATASETS):
 
 
 
-    # --- Plot scores and save
-    fig_blink_scores = ica.plot_scores(blink_scores, show=SHOW_PLOTS)
-    fig_blink_scores.suptitle(f'{dataset.name} | Sub-{subject} | {label}-{item} | Blink Scores')
-
-    save_dir = os.path.join(PLOTS_PATH, dataset.f_name, 'blink_scores')
-    os.makedirs(save_dir, exist_ok=True)
-
-    fig_blink_scores.savefig(os.path.join(save_dir, f"sub-{subject}_{label}-{item}_blink_scores.png"))
-    plt.close('all')  # Close figures to avoid memory leaks
-
-
-
-
-    fig_saccade_scores = ica.plot_scores(saccade_scores, show=SHOW_PLOTS)
-    fig_saccade_scores.suptitle(f'{dataset.name} | Sub-{subject} | {label}-{item} | Saccade Scores')
-
-    save_dir = os.path.join(PLOTS_PATH, dataset.f_name, 'saccade_scores')
-    os.makedirs(save_dir, exist_ok=True)
-
-    fig_saccade_scores.savefig(os.path.join(save_dir, f"sub-{subject}_{label}-{item}_saccade_scores.png"))
-    plt.close('all')  # Close figures to avoid memory leaks
-
-
-
-
-    # --- Plot ICA properties for blinks and save
-    figs_blink = ica.plot_properties(epochs, picks=blink_inds, psd_args={'fmax': 40.}, show=SHOW_PLOTS)
 
     # --- Define save path
     save_dir = os.path.join(PLOTS_PATH, dataset.f_name, 'ica_properties')
     os.makedirs(save_dir, exist_ok=True)
 
-    if not isinstance(figs_blink, list):
-        figs_blink = [figs_blink]
+    if len(blink_inds) != 0:
+        # --- Plot ICA properties for blinks and save
+        figs_blink = ica.plot_properties(epochs, picks=blink_inds, psd_args={'fmax': 40.}, show=SHOW_PLOTS)
 
-    for i, fig in enumerate(figs_blink):
-        comp_idx = blink_inds[i]
-        title = f'{dataset.name} | Sub-{subject} | {label}-{item} | Blink Component {comp_idx}'
-        add_title_above_properties(fig, title, height=0.06)  # tune height if needed
-        fig.savefig(os.path.join(save_dir, f"sub-{subject}_{label}-{item}_blink_comp-{comp_idx:03d}.png"))
-        plt.close(fig)
+        if not isinstance(figs_blink, list):
+            figs_blink = [figs_blink]
+
+        for i, fig in enumerate(figs_blink):
+            comp_idx = blink_inds[i]
+            title = f'{dataset.name} | Sub-{subject} | {label}-{item} | Blink Component {comp_idx}'
+            add_title_above_properties(fig, title, height=0.06)  # tune height if needed
+            fig.savefig(os.path.join(save_dir, f"sub-{subject}_{label}-{item}_blink_comp-{comp_idx:03d}.png"))
+            plt.close(fig)
 
 
 
+    if len(saccade_inds) != 0:
+        # --- Plot ICA properties for saccades and save
+        figs_saccade = ica.plot_properties(epochs, picks=saccade_inds, psd_args={'fmax': 40.}, show=SHOW_PLOTS)
 
-    # --- Plot ICA properties for saccades and save
-    figs_saccade = ica.plot_properties(epochs, picks=saccade_inds, psd_args={'fmax': 40.}, show=SHOW_PLOTS)
-
-    if not isinstance(figs_saccade, list):
-        figs_saccade = [figs_saccade]
-    for i, fig in enumerate(figs_saccade):
-        comp_idx = saccade_inds[i]
-        title = f'{dataset.name} | Sub-{subject} | {label}-{item} | Saccade Component {comp_idx}'
-        add_title_above_properties(fig, title, height=0.06)
-        fig.savefig(os.path.join(save_dir, f"sub-{subject}_{label}-{item}_saccade_comp-{comp_idx:03d}.png"))
-        plt.close(fig)
+        if not isinstance(figs_saccade, list):
+            figs_saccade = [figs_saccade]
+        for i, fig in enumerate(figs_saccade):
+            comp_idx = saccade_inds[i]
+            title = f'{dataset.name} | Sub-{subject} | {label}-{item} | Saccade Component {comp_idx}'
+            add_title_above_properties(fig, title, height=0.06)
+            fig.savefig(os.path.join(save_dir, f"sub-{subject}_{label}-{item}_saccade_comp-{comp_idx:03d}.png"))
+            plt.close(fig)
 
 
 
@@ -252,5 +277,16 @@ for dataset, subject, label, item, kwargs in iterate_dataset_items(DATASETS):
 
     fig_overlay.savefig(os.path.join(save_dir, f"sub-{subject}_{label}-{item}_eog_overlay.png"))
     plt.close('all')  # Close figures to avoid memory leaks
+
+    # --- Save list of excluded components to derivatives json
+    save_ica_excluded_components(
+        dataset_name=dataset.f_name,
+        subject=subject,
+        label=label,
+        item=item,
+        blink_components=blink_inds,
+        saccade_components=saccade_inds,
+        save_path=dataset.path_derivatives
+    )
 
     print(f"  Finished processing Subject: {subject}, Item: {item}")

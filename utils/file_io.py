@@ -5,6 +5,7 @@ import mne
 import os
 from pathlib import Path
 import numpy as np
+import pandas as pd
 import json
 from mne.preprocessing import ICA, read_ica
 from autoreject import read_auto_reject
@@ -583,3 +584,82 @@ def load_reject_threshold(dataset, subject, label, item, save_dir, stage='pre_ic
 
     key = f"sub-{subject}_{label}-{item}"
     return thresholds_all.get(key, None)
+
+def save_ica_excluded_components(dataset_name, subject, label, item, blink_components, saccade_components, save_path):
+    """Save or update ICA excluded components information into a JSON file."""
+    # Ensure components are native Python ints
+    blink_components = [int(c) for c in blink_components]
+    saccade_components = [int(c) for c in saccade_components]
+    all_excluded = sorted(list(set(blink_components + saccade_components)))
+
+    # Define the subject and item labels
+    subject_key = f"subject-{subject}"
+    item_key = f"{label}-{item}"
+
+    # Full file path
+    filename = f"{dataset_name}_ica_excluded_components.json"
+    filepath = os.path.join(save_path, filename)
+
+    # Load existing data if file exists
+    if os.path.isfile(filepath):
+        with open(filepath, 'r') as f:
+            data = json.load(f)
+    else:
+        data = {}
+
+    # Navigate into the label dictionary, creating it if it doesn't exist
+    if dataset_name not in data:
+        data[dataset_name] = {}
+
+    if subject_key not in data[dataset_name]:
+        data[dataset_name][subject_key] = {}
+
+    # Update the specific entry
+    data[dataset_name][subject_key][item_key] = {
+        "blink_components": blink_components,
+        "saccade_components": saccade_components,
+        "all_excluded": all_excluded
+    }
+
+    # Save back to JSON
+    with open(filepath, 'w') as f:
+        json.dump(data, f, indent=4)
+
+
+def load_ica_excluded_components(dataset_name, subject, label, item, save_path):
+    """
+    Load excluded ICA components (blink + saccade) from shared master JSON.
+
+    Returns
+    -------
+    excluded_components : list of int
+        List of all excluded components (blink + saccade merged).
+    """
+
+    if not os.path.exists(save_path):
+        print(f"No exclusion file found at {save_path}. Returning empty list.")
+        return []
+
+    with open(save_path, "r") as f:
+        data = json.load(f)
+
+    try:
+        exclusion_info = data[dataset_name][f'subject-{subject}'][f"{label}-{item}"]
+        excluded_components = exclusion_info.get("all_excluded", [])
+    except KeyError:
+        print(f"No exclusions found for {dataset_name} {subject} {label}-{item}. Returning empty list.")
+        return []
+
+    print(f"Loaded {len(excluded_components)} excluded components for {dataset_name} {subject} {label}-{item}.")
+    return excluded_components
+
+
+def load_new_events(path, subject, session):
+    file_name = f'subject-{subject}_session-{session}_events.csv'
+    file_path = os.path.join(path, file_name)
+    if os.path.exists(file_path):
+        df = pd.read_csv(file_path)
+        column_names = df.columns.values
+        return df.values, column_names
+    else:
+        raise FileNotFoundError(f"No such file: {file_path}")

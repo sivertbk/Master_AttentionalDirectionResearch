@@ -651,7 +651,30 @@ def iterate_dataset_items(datasets, desc="Datasets"):
                     kwargs = {label: item}
                     yield dataset, subject, label, item, kwargs
 
+def encode_events(events):
+    """
+    Encode a 2D array of events with 3 integers into a 1D array of encoded integers.
+    
+    Parameters:
+    events (np.ndarray): 2D array of shape (n_events, 3) where each row contains 3 integers.
+    
+    Returns:
+    np.ndarray: 1D array of shape (n_events, 1) with encoded integers.
+    """
+    return events[:, 0] * 100 + events[:, 1] + events[:, 2]* 10 
 
+def decode_event(event_id, event_info):
+    """
+    Decode an encoded event ID back into the original event.
+    
+    Parameters:
+    event_id (int): Encoded event ID.
+    event_info (list): List of 3 strings representing the event information.
+    
+    Returns:
+    dict: Event as a dict of 3 integers.
+    """
+    return {event_info[0]: event_id // 100, event_info[1]: event_id % 10, event_info[2]: (event_id % 100) // 10}
 
 if __name__ == "__main__":
     print("Helper functions loaded successfully.")

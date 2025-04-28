@@ -16,7 +16,9 @@ set_plot_style()
 VERBOSE = True
 SHOW_PLOTS = False
 
-DATASETS.pop('braboszcz2017')
+#DATASETS.pop('braboszcz2017')
+DATASETS.pop('jin2019')
+DATASETS.pop('touryan2022')
 
 for dataset, subject, label, item, kwargs in iterate_dataset_items(DATASETS):
     # Load and prepare raw data
@@ -38,7 +40,9 @@ for dataset, subject, label, item, kwargs in iterate_dataset_items(DATASETS):
         EEG_SETTINGS, 
         subject, 
         **kwargs, 
-        verbose=VERBOSE
+        verbose=VERBOSE,
+        min_threshold=100e-6,
+        reject_scale_factor=1.5
     )
 
     # Fit ICA
