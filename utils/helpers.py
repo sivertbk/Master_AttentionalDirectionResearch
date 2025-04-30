@@ -228,53 +228,6 @@ def get_class_array(epochs, class_dict):
     tasks = [find_class(code, class_dict) for code in epochs.events[:, 2]]
     return tasks
 
-
-def generate_metadata_df(epochs, dataset_config, subject, session, eeg_settings, psd_data):
-    """
-    Generate comprehensive metadata for epochs and PSD configuration.
-
-    Parameters:
-        epochs (mne.Epochs): EEG epochs data.
-        dataset_config (DatasetConfig): Configuration object for dataset.
-        subject (str/int): Subject identifier.
-        session (str/int): Session identifier.
-        eeg_settings (dict): Dictionary containing EEG and PSD settings.
-        psd_data (np.ndarray): Computed PSD array (epochs x channels x frequencies).
-
-    Returns:
-        pd.DataFrame: Metadata DataFrame per epoch.
-    """
-    # Basic metadata from configuration
-    epoch_metadata = pd.DataFrame({
-        'dataset_name': dataset_config.name,
-        'subject': subject,
-        'session': session,
-        'state': get_class_array(epochs, dataset_config.state_classes),
-        'task': get_class_array(epochs, dataset_config.task_classes),
-        'task_orientation': dataset_config.task_orientation
-    })
-
-    # Add subject group if available
-    if 'subject_groups' in dataset_config.extra_info:
-        epoch_metadata['subject_group'] = dataset_config.extra_info["subject_groups"].get(subject, "NA")
-
-    # PSD-specific metadata (for reproducibility)
-    unit_suffix = 'µV²/Hz' if eeg_settings["PSD_UNIT_CONVERT"] == 1e12 else 'V²/Hz'
-    epoch_metadata['psd_units'] = unit_suffix
-    epoch_metadata['sampling_rate_hz'] = eeg_settings["SAMPLING_RATE"]
-    epoch_metadata['epoch_duration_sec'] = eeg_settings["EPOCH_LENGTH_SEC"]
-    epoch_metadata['psd_method'] = "Welch"
-    epoch_metadata['psd_n_per_seg'] = eeg_settings["PSD_N_PER_SEG"]
-    epoch_metadata['psd_n_overlap'] = eeg_settings["PSD_N_OVERLAP"]
-    epoch_metadata['psd_n_fft'] = eeg_settings["PSD_N_FFT"]
-    epoch_metadata['psd_freq_resolution_hz'] = eeg_settings["SAMPLING_RATE"] / eeg_settings["PSD_N_FFT"]
-    epoch_metadata['psd_average_method'] = eeg_settings["PSD_AVERAGE_METHOD"]
-    epoch_metadata['psd_freq_range_hz'] = f"{eeg_settings['PSD_FMIN']}-{eeg_settings['PSD_FMAX']} Hz"
-    epoch_metadata['psd_shape'] = [psd_data.shape for _ in range(len(epoch_metadata))]
-    epoch_metadata['psd_computed_time'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    return epoch_metadata
-
 def generate_metadata_epochs(epochs, dataset_config, subject, session):
     return pd.DataFrame({
         'dataset_name': dataset_config.name,

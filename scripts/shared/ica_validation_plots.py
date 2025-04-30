@@ -280,13 +280,12 @@ for dataset, subject, label, item, kwargs in iterate_dataset_items(DATASETS):
 
     # --- Save list of excluded components to derivatives json
     save_ica_excluded_components(
-        dataset_name=dataset.f_name,
+        dataset=dataset,
         subject=subject,
         label=label,
         item=item,
         blink_components=blink_inds,
-        saccade_components=saccade_inds,
-        save_path=dataset.path_derivatives
+        saccade_components=saccade_inds
     )
 
     print(f"  Finished processing Subject: {subject}, Item: {item}")

@@ -585,7 +585,7 @@ def load_reject_threshold(dataset, subject, label, item, save_dir, stage='pre_ic
     key = f"sub-{subject}_{label}-{item}"
     return thresholds_all.get(key, None)
 
-def save_ica_excluded_components(dataset_name, subject, label, item, blink_components, saccade_components, save_path):
+def save_ica_excluded_components(dataset, subject, label, item, blink_components, saccade_components):
     """Save or update ICA excluded components information into a JSON file."""
     # Ensure components are native Python ints
     blink_components = [int(c) for c in blink_components]
@@ -597,7 +597,8 @@ def save_ica_excluded_components(dataset_name, subject, label, item, blink_compo
     item_key = f"{label}-{item}"
 
     # Full file path
-    filename = f"{dataset_name}_ica_excluded_components.json"
+    save_path = dataset.path_derivatives
+    filename = f"{dataset.f_name}_ica_excluded_components.json"
     filepath = os.path.join(save_path, filename)
 
     # Load existing data if file exists
@@ -608,14 +609,14 @@ def save_ica_excluded_components(dataset_name, subject, label, item, blink_compo
         data = {}
 
     # Navigate into the label dictionary, creating it if it doesn't exist
-    if dataset_name not in data:
-        data[dataset_name] = {}
+    if dataset.f_name not in data:
+        data[dataset.f_name] = {}
 
-    if subject_key not in data[dataset_name]:
-        data[dataset_name][subject_key] = {}
+    if subject_key not in data[dataset.f_name]:
+        data[dataset.f_name][subject_key] = {}
 
     # Update the specific entry
-    data[dataset_name][subject_key][item_key] = {
+    data[dataset.f_name][subject_key][item_key] = {
         "blink_components": blink_components,
         "saccade_components": saccade_components,
         "all_excluded": all_excluded
@@ -626,16 +627,16 @@ def save_ica_excluded_components(dataset_name, subject, label, item, blink_compo
         json.dump(data, f, indent=4)
 
 
-def load_ica_excluded_components(dataset_name, subject, label, item, save_path):
+def load_ica_excluded_components(dataset, subject, label, item):
     """
-    Load excluded ICA components (blink + saccade) from shared master JSON.
+    Load excluded ICA components (blink + saccade).
 
     Returns
     -------
     excluded_components : list of int
         List of all excluded components (blink + saccade merged).
     """
-
+    save_path = os.path.join(dataset.path_derivatives, f"{dataset.f_name}_ica_excluded_components.json")
     if not os.path.exists(save_path):
         print(f"No exclusion file found at {save_path}. Returning empty list.")
         return []
@@ -644,13 +645,13 @@ def load_ica_excluded_components(dataset_name, subject, label, item, save_path):
         data = json.load(f)
 
     try:
-        exclusion_info = data[dataset_name][f'subject-{subject}'][f"{label}-{item}"]
+        exclusion_info = data[dataset.f_name][f'subject-{subject}'][f"{label}-{item}"]
         excluded_components = exclusion_info.get("all_excluded", [])
     except KeyError:
-        print(f"No exclusions found for {dataset_name} {subject} {label}-{item}. Returning empty list.")
+        print(f"No exclusions found for {dataset.f_name} {subject} {label}-{item}. Returning empty list.")
         return []
 
-    print(f"Loaded {len(excluded_components)} excluded components for {dataset_name} {subject} {label}-{item}.")
+    print(f"Loaded {len(excluded_components)} excluded components for {dataset.name} {subject} {label}-{item}.")
     return excluded_components
 
 

@@ -14,7 +14,7 @@ from datetime import datetime
 import utils.config as config
 from utils.config import DATASETS, set_plot_style
 from utils.file_io import load_bad_channels, update_bad_channels_json, log_dropped_epochs, log_reject_threshold, load_new_events
-from utils.helpers import plot_ransac_bad_log, encode_events, decode_events
+from utils.helpers import plot_ransac_bad_log, encode_events
 
 
 def prepare_raw_data(raw, dataset, eeg_settings):
@@ -618,7 +618,49 @@ def ica_fit(epochs, eeg_settings, random_state=42069, verbose=True):
 #     )
 
 #     return fig
+def prepare_custom_events(raw, custom_event_id):
+    """
+    Extract custom events from raw.annotations.
 
+    Parameters
+    ----------
+    raw : mne.io.Raw
+        The raw EEG object containing annotations.
+    custom_event_id : dict
+        A dictionary mapping human-readable description -> numeric event code.
+
+    Returns
+    -------
+    new_events : np.ndarray
+        The new events array (n_events, 3) with selected events.
+    final_event_id : dict
+        Dictionary mapping numeric event codes -> description.
+    """
+
+    # Step 1: Get all events and auto event_id from annotations
+    events, event_id = mne.events_from_annotations(raw)
+
+    # Step 2: Reverse mapping: event code -> annotation label (e.g., 1 -> '1111')
+    inv_event_id = {v: k for k, v in event_id.items()}
+
+    # Step 3: Prepare set of annotation codes we care about (string numbers like '2811', '4621', etc.)
+    target_codes = set(str(code) for code in custom_event_id.values())
+
+    # Step 4: Filter events
+    new_events = []
+    for ev in events:
+        onset_sample, _, old_event_code = ev
+        old_annotation_code = inv_event_id[old_event_code]  # Get original string label like '2811'
+        if old_annotation_code in target_codes:
+            new_code = int(old_annotation_code)
+            new_events.append([onset_sample, 0, new_code])
+
+    new_events = np.array(new_events)
+
+    # Step 5: Final event_id: numeric code -> human-readable description
+    final_event_id = {v: k for k, v in custom_event_id.items()}
+
+    return new_events, final_event_id
 
 def create_analysis_epochs(raw, dataset, eeg_settings, subject, item=None, verbose=True):
     """
@@ -676,12 +718,8 @@ def _create_analysis_epochs_jin2019(raw, dataset, eeg_settings, subject, session
 
     # Encode and decode the new events
     encoded_new_events = encode_events(new_events)
-    decoded_new_events = decode_events(encoded_new_events)
 
     try:
-        # Verify that the decoded events match the original new events
-        assert np.array_equal(new_events, decoded_new_events), "ERROR: Decoded events do not match the original events"
-
         # Filter events to keep only IDs in range 9–22
         filtered_events = events_old[(events_old[:, 2] >= 10) & (events_old[:, 2] <= 21)]
 
@@ -726,3 +764,25 @@ def _create_analysis_epochs_jin2019(raw, dataset, eeg_settings, subject, session
 
     # First row stays zero in the second column
     events[0, 1] = 0
+
+def _create_analysis_epochs_touryan2022(raw, dataset, eeg_settings, subject, run=None, verbose=True):
+    desc_to_code = {v: int(k) for k, v in dataset.event_id_map.items()}
+
+    # Then when calling events_from_annotations:
+    events, event_id = prepare_custom_events(raw, desc_to_code)
+
+    print(f"[INFO] Found {len(events)} events in the raw data.")
+    print(f"[INFO] Event IDs: {event_id}")
+
+    return mne.Epochs(
+        raw,
+        events,
+        event_id=event_id,
+        tmin=eeg_settings["EPOCH_START_SEC"],
+        tmax=eeg_settings["EPOCH_START_SEC"] + eeg_settings["EPOCH_LENGTH_SEC"],
+        detrend=1,
+        reject_by_annotation=True,
+        preload=True,
+        verbose=verbose
+    )
+

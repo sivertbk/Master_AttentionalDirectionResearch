@@ -7,12 +7,13 @@ import matplotlib.pyplot as plt
 from utils.config import DATASETS, set_plot_style, EEG_SETTINGS
 from utils.helpers import iterate_dataset_items
 from utils.file_io import load_ica, load_raw_data, load_ica_excluded_components
-from utils.preprocessing_tools import prepare_raw_data, fix_bad_channels
+from utils.preprocessing_tools import prepare_raw_data, fix_bad_channels, create_analysis_epochs
 
 set_plot_style()
 
 
-
+DATASETS.pop('braboszcz2017')
+DATASETS.pop('jin2019')
 
 
 
@@ -35,7 +36,6 @@ for dataset, subject, label, item, kwargs in iterate_dataset_items(DATASETS):
         continue
 
     prepare_raw_data(raw, dataset, EEG_SETTINGS)
-    raw.set_eeg_reference('average', verbose=True, projection=False)
 
     ##----------------------------------------------------------------------------##
     #               2. INTERPOLATE BAD CHANNELS IN ORIGINAL RAW                    #
@@ -60,12 +60,14 @@ for dataset, subject, label, item, kwargs in iterate_dataset_items(DATASETS):
     if ica is None:
         print(f"[WARN] No ICA found for subject {subject} with {label} {item}.")
 
-    components_to_exclude = load_ica_excluded_components(dataset, subject, **kwargs, verbose=True)
+    components_to_exclude = load_ica_excluded_components(dataset, subject, label, item)
     if components_to_exclude is None:
         print(f"[WARN] No excluded components found for subject {subject} with {label} {item}.")
 
-    raw = ica.apply(raw, exclude=components_to_exclude, verbose=True)
+    raw.set_eeg_reference('average', verbose=True, projection=False)
 
+    raw = ica.apply(raw, exclude=components_to_exclude, verbose=True)
+    
     # eog_epochs = create_eog_epochs(raw)
     # Do some plotting
 
@@ -79,5 +81,15 @@ for dataset, subject, label, item, kwargs in iterate_dataset_items(DATASETS):
         RESULTS:
         - Analysis-ready epochs
     '''
+    epochs = create_analysis_epochs(
+        raw=raw,
+        dataset=dataset, 
+        eeg_settings=EEG_SETTINGS, 
+        subject=subject, 
+        item=item, 
+        verbose=True
+    )
+
+
 
 
