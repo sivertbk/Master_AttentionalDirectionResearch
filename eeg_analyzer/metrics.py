@@ -1,3 +1,20 @@
+"""
+Metrics
+-------
+
+Provides static or service-based methods for computing EEG metrics on PSD data.
+
+Responsibilities:
+- Compute alpha-band power and other frequency-band metrics.
+- Normalize or transform PSDs (e.g., relative power, log power).
+- Operate at the level of epoch × channel × frequency arrays.
+
+Notes:
+- Should be stateless and functional in style.
+- Designed to be reusable across recordings, subjects, and datasets.
+"""
+
+
 import numpy as np
 
 class Metrics:
@@ -5,153 +22,169 @@ class Metrics:
     Class to compute various EEG metrics from PSD data.
     """
 
-    def __init__(self, psd, freqs, channels):
+    @staticmethod
+    def mean_power(psd):
+        """Compute mean PSD across epochs."""
+        return np.mean(psd, axis=0)
+
+    @staticmethod
+    def variance_power(psd):
+        """Compute variance of PSD across epochs."""
+        return np.var(psd, axis=0)
+
+    @staticmethod
+    def std_error_power(psd):
+        """Compute standard error of the mean PSD across epochs."""
+        return np.std(psd, axis=0) / np.sqrt(psd.shape[0])
+
+    @staticmethod
+    def band_power(psd: np.ndarray, freqs: np.ndarray, band: tuple[float, float], operation: str = 'sum') -> np.ndarray:
         """
-        Initialize the Metrics class.
+        Compute power within a frequency band using the specified aggregation.
 
         Parameters:
             psd (ndarray): PSD data (epochs × channels × frequencies).
             freqs (ndarray): Frequencies corresponding to PSD data.
-            channels (list[str]): Channel names.
-        """
-        self.psd = psd
-        self.freqs = freqs
-        self.channels = channels
-
-    def __repr__(self):
-        return f"Metrics(psd_shape={self.psd.shape}, freqs_shape={self.freqs.shape}, channels={self.channels})"
-
-    def __str__(self):
-        return f"Metrics: {self.psd.shape} PSD, {self.freqs.shape} Frequencies, {len(self.channels)} Channels"
-    
-    def __len__(self):
-        return len(self.psd)
-    
-    def __getitem__(self, idx):
-        """
-        Get the PSD data for a specific epoch.
-
-        Parameters:
-            idx (int): Index of the epoch.
-
-        Returns:
-            ndarray: PSD data for the specified epoch.
-        """
-        if idx < 0 or idx >= len(self.psd):
-            raise IndexError("Index out of range.")
-        return self.psd[idx]
-    
-    def __iter__(self):
-        """
-        Iterate over the PSD data.
-
-        Returns:
-            iterator: An iterator over the PSD data.
-        """
-        self.current_epoch = 0
-        return self
-    
-    def __next__(self):
-        """
-        Get the next epoch of PSD data.
-
-        Returns:
-            ndarray: PSD data for the next epoch.
-
-        Raises:
-            StopIteration: If there are no more epochs to iterate over.
-        """
-        if self.current_epoch >= len(self.psd):
-            raise StopIteration
-        epoch_data = self.psd[self.current_epoch]
-        self.current_epoch += 1
-        return epoch_data
-    
-    def log_power(self):
-        """
-        Compute the logarithm of the PSD data.
-
-        Returns:
-            ndarray: Logarithm of the PSD data.
-        """
-        return np.log(self.psd + 1e-10) # Avoid log(0) by adding a small constant
-
-    def mean_power(self):
-        """Compute mean PSD across epochs."""
-        return np.mean(self.psd, axis=0)
-
-    def variance_power(self):
-        """Compute variance of PSD across epochs."""
-        return np.var(self.psd, axis=0)
-
-    def std_error_power(self):
-        """Compute standard error of the mean PSD across epochs."""
-        return np.std(self.psd, axis=0) / np.sqrt(self.psd.shape[0])
-
-    def frequency_band_power(self, band):
-        """
-        Compute average power within a specified frequency band.
-
-        Parameters:
             band (tuple): Frequency range as (low_freq, high_freq).
+            operation (str): Aggregation method ('mean' or 'sum').
 
         Returns:
-            ndarray: Mean power within the frequency band (epochs × channels).
+            ndarray: Aggregated power (epochs × channels).
         """
-        low_freq, high_freq = band
-        band_mask = (self.freqs >= low_freq) & (self.freqs <= high_freq)
-        band_power = self.psd[:, :, band_mask].mean(axis=2)
-        return band_power
+        low, high = band
+        band_idx = (freqs >= low) & (freqs <= high)
 
-    def aggregate_frequency_bands(self, bands):
+        if not np.any(band_idx):
+            raise ValueError(f"No frequencies found in band range {band}")
+
+        operation = operation.lower()
+        if operation == 'mean':
+            return psd[..., band_idx].mean(axis=-1)
+        elif operation == 'sum':
+            return psd[..., band_idx].sum(axis=-1)
+        else:
+            raise ValueError("Invalid operation. Use 'mean' or 'sum'.")
+
+    @staticmethod
+    def aggregate_frequency_bands(psd, freqs, bands, operation='sum'):
         """
         Compute power across multiple standard EEG frequency bands.
 
         Parameters:
+            psd (ndarray): PSD data (epochs × channels × frequencies).
+            freqs (ndarray): Frequencies corresponding to PSD data.
             bands (dict): Dictionary of bands with names and frequency ranges.
-                          Example: {'alpha': (8, 12), 'beta': (13, 30)}
+                          Example: {'alpha': (8, 12), 'beta': (12, 30)}
 
         Returns:
             dict: Mean band power (epochs × channels) for each band.
         """
-        aggregated_powers = {}
-        for band_name, freq_range in bands.items():
-            aggregated_powers[band_name] = self.frequency_band_power(freq_range)
-        return aggregated_powers
+        return {
+            band_name: Metrics.band_power(psd, freqs, freq_range, operation)
+            for band_name, freq_range in bands.items()
+        }
 
-    def channel_power(self, channel_name):
+    @staticmethod
+    def channel_power(psd, channels, channel_name):
         """
         Compute mean PSD across epochs for a specific channel.
 
         Parameters:
+            psd (ndarray): PSD data (epochs × channels × frequencies).
+            channels (list[str]): Channel names.
             channel_name (str): Name of the channel.
 
         Returns:
             ndarray: Mean PSD for the specified channel.
         """
-        if channel_name not in self.channels:
+        if channel_name not in channels:
             raise ValueError(f"Channel '{channel_name}' not found in channels.")
-        channel_idx = self.channels.index(channel_name)
-        return self.psd[:, channel_idx, :].mean(axis=0)
+        channel_idx = channels.index(channel_name)
+        return psd[:, channel_idx, :].mean(axis=0)
 
-    def global_mean_power(self):
+    @staticmethod
+    def global_mean_power(psd):
         """
         Compute the global mean PSD across epochs and channels.
+
+        Parameters:
+            psd (ndarray): PSD data (epochs × channels × frequencies).
 
         Returns:
             ndarray: Global mean PSD (frequencies,).
         """
-        return self.psd.mean(axis=(0, 1))
+        return psd.mean(axis=(0, 1))
 
-    def summary_statistics(self):
+    @staticmethod
+    def summary_statistics(psd):
         """
         Compute a set of descriptive summary statistics for PSD data.
+
+        Parameters:
+            psd (ndarray): PSD data (epochs × channels × frequencies).
 
         Returns:
             dict: Dictionary containing mean, variance, and std error.
         """
         return {
-            'mean_power': self.mean_power(),
-            'variance_power': self.variance_power(),
-            'std_error_power': self.std_error_power()
+            'mean_power': Metrics.mean_power(psd),
+            'variance_power': Metrics.variance_power(psd),
+            'std_error_power': Metrics.std_error_power(psd)
         }
+    
+    @staticmethod
+    def to_db(psd: np.ndarray, epsilon: float = 1e-20) -> np.ndarray:
+        """
+        Convert PSD from µV²/Hz to dB scale using 10 * log10(psd).
+        Clips values to prevent log of zero.
+        """
+        return 10 * np.log10(np.maximum(psd, epsilon))
+
+    @staticmethod
+    def normalize_psd(psd: np.ndarray) -> np.ndarray:
+        """
+        Normalize PSD data using min-max scaling to range [0, 1].
+
+        Normalization is applied across all epochs and channels for each frequency.
+
+        Parameters:
+            psd (ndarray): PSD data (epochs × channels × frequencies).
+
+        Returns:
+            ndarray: Min-max normalized PSD data (epochs × channels × frequencies).
+        """
+        psd_min = psd.min(axis=(0, 1), keepdims=True)
+        psd_max = psd.max(axis=(0, 1), keepdims=True)
+        return (psd - psd_min) / (psd_max - psd_min + 1e-20)
+
+    @staticmethod
+    def zscore_normalize_psd(psd: np.ndarray) -> np.ndarray:
+        """
+        Normalize PSD data using z-score normalization.
+
+        Normalization is applied across all epochs and channels for each frequency.
+
+        Parameters:
+            psd (ndarray): PSD data (epochs × channels × frequencies).
+
+        Returns:
+            ndarray: Z-score normalized PSD data (epochs × channels × frequencies).
+        """
+        psd_mean = psd.mean(axis=(0, 1), keepdims=True)
+        psd_std = psd.std(axis=(0, 1), keepdims=True)
+        return (psd - psd_mean) / (psd_std + 1e-20)
+
+    @staticmethod
+    def alpha_power(psd: np.ndarray, freqs: np.ndarray) -> np.ndarray:
+        """
+        Compute the summed alpha power (8-12 Hz) for each epoch and channel.
+
+        Parameters:
+            psd (ndarray): PSD data (epochs × channels × frequencies).
+            freqs (ndarray): Frequencies corresponding to PSD data.
+
+        Returns:
+            ndarray: Summed alpha power with shape (epochs × channels).
+        """
+        alpha_band = (8, 12)
+        return Metrics.band_power(psd, freqs, alpha_band, operation='sum')

@@ -9,6 +9,7 @@ class DatasetConfig:
     subjects: list
     sessions: list = None
     tasks: list = None
+    states: list = None
     runs: list = None
     mapping_channels: dict = None
     mapping_non_eeg: dict = None

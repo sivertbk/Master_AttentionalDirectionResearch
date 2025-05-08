@@ -239,6 +239,37 @@ def generate_metadata_epochs(epochs, dataset_config, subject, session):
         'subject_group': dataset_config.extra_info.get("subject_groups", {}).get(subject, "NA")
     })
 
+def generate_metadata_epochs(psd_data, eeg_settings, dataset, subject, session, task, state):
+    return {
+        'dataset_name': dataset.name,
+        'dataset_f_name': dataset.f_name,
+        'subject': subject,
+        'session': session,
+        'task': task,
+        'state': state,
+        'task_orientation': dataset.task_orientation,
+        'subject_group': dataset.extra_info.get("subject_groups", {}).get(subject, None),
+        "psd_shape": list(psd_data.shape),
+        'epoch_count': len(psd_data[:, 0, 0]),  # Yes, i know all of this is redundant
+        'channel_count': len(psd_data[0, :, 0]),
+        'frequency_count': len(psd_data[0, 0, :]),
+        "sampling_rate": eeg_settings["SAMPLING_RATE"],
+        "epoch_duration_sec": eeg_settings["EPOCH_LENGTH_SEC"],
+        "psd_method": "Welch",
+        "psd_window": eeg_settings["PSD_WINDOW"],
+        "psd_output": eeg_settings["PSD_OUTPUT"],
+        "psd_unit": "µV²/Hz" if eeg_settings["PSD_UNIT_CONVERT"] == 1e12 else "V²/Hz",
+        "psd_n_fft": eeg_settings["PSD_N_FFT"],
+        "psd_n_per_seg": eeg_settings["PSD_N_PER_SEG"],
+        "psd_n_overlap": eeg_settings["PSD_N_OVERLAP"],
+        "psd_freq_resolution_hz": eeg_settings["SAMPLING_RATE"] / eeg_settings["PSD_N_FFT"],
+        "psd_average_method": eeg_settings["PSD_AVERAGE_METHOD"],
+        "psd_freq_range_hz": (eeg_settings['PSD_FMIN'], eeg_settings['PSD_FMAX']),
+        "psd_remove_dc": eeg_settings["PSD_REMOVE_DC"],
+        "psd_computed_time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    }
+
 def generate_metadata_config(eeg_settings, psd_data):
     return {
         "sampling_rate": eeg_settings["SAMPLING_RATE"],
@@ -604,6 +635,26 @@ def iterate_dataset_items(datasets, desc="Datasets"):
                     kwargs = {label: item}
                     yield dataset, subject, label, item, kwargs
 
+
+def iterate_dataset_sessions(datasets, desc="Datasets"):
+    """
+    Iterate through datasets and their subject-session pairs.
+    Yields:
+        dataset, subject, session, task, state
+    """
+    for dataset in tqdm(datasets.values(), desc=desc):
+        tqdm.write(f"[DATASET PROGRESSION] Processing dataset: {dataset.name}")
+
+        # Loop through subjects
+        for subject in tqdm(dataset.subjects, desc=f"{dataset.name} Subjects", leave=True):
+            tqdm.write(f"[SUBJECT PROGRESSION] Processing subject: {subject}")
+
+            for session in dataset.sessions:
+                    for task in dataset.tasks:
+                        for state in dataset.states:
+                            tqdm.write(f"[ ITEM  PROGRESSION ] Processing session: {session}, task: {task}, state: {state}")
+                            yield dataset, subject, session, task, state
+
 def encode_events(events):
     """
     Encode a 2D array of events with 3 integers into a 1D array of encoded integers.
@@ -628,6 +679,21 @@ def decode_event(event_id, event_info):
     dict: Event as a dict of 3 integers.
     """
     return {event_info[0]: event_id // 100, event_info[1]: event_id % 10, event_info[2]: (event_id % 100) // 10}
+
+
+def get_scaled_rejection_threshold(epochs, reject_scale_factor, verbose=True):
+    from autoreject import get_rejection_threshold
+    reject = get_rejection_threshold(
+        epochs,
+        random_state=42069,
+        ch_types='eeg',
+        verbose=verbose
+    )
+    
+    reject = {key: val * reject_scale_factor for key, val in reject.items()}  # Increase the threshold by scale factor
+
+    return reject
+
 
 if __name__ == "__main__":
     print("Helper functions loaded successfully.")

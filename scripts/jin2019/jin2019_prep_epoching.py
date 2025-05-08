@@ -1,3 +1,10 @@
+"""
+    The old script for preprocessing the EEG data from the Jin et al. (2019) study.
+
+    WARNING: This script is deprecated and should not be used for new analyses.
+    It is kept for reference purposes only.
+"""
+
 import mne
 import numpy as np
 import matplotlib.pyplot as plt

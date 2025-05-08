@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import json
+from tqdm import tqdm
 from mne.preprocessing import ICA, read_ica
 from autoreject import read_auto_reject
 from datetime import datetime
@@ -159,43 +160,42 @@ def save_epochs(epochs, output_dir, subject, session=1, subfolder=None):
     print(f"Saved epochs to: {file_path}")
     return file_path
 
-def save_psd_data(psds, freqs, channels, metadata_epochs_df, metadata_config, output_root, subject, session, variant):
+def save_psd_data(psd, freqs, channels, metadata, output_root, subject, session, task, state, variant):
     """
-    Save PSD data and split metadata to a structured directory.
+    Save PSD data and metadata to a structured directory.
 
     Parameters:
-        psds (ndarray): PSD data (epochs × channels × frequencies).
+        psd (ndarray): PSD data (epochs × channels × frequencies).
         freqs (ndarray): Frequency values.
         channels (list[str]): Channel names.
-        metadata_epochs_df (pd.DataFrame): Per-epoch metadata (states, task labels).
-        metadata_config (dict): Global PSD configuration metadata.
+        metadata (dict): Metadata (subject, states, task labels, etc.).
         output_root (str): Root output directory (e.g., 'psd_data/').
         subject (str or int): Subject identifier.
-        session (str or int): Session identifier.
+        session (int): Session identifier.
+        task (str): Task identifier.
+        state (str): State identifier.
         variant (str): Variant name (e.g., 'avg-mean').
     """
-    sub = f"sub-{subject}"
-    ses = f"ses-{session}"
-    output_dir = os.path.join(output_root, sub, ses, variant)
+    sub = f"subject-{subject}"
+    ses = f"session-{session}"
+    task = f"task-{task}"
+    state = f"state-{state}"
+    output_dir = os.path.join(output_root, sub, ses, task, state, variant)
     os.makedirs(output_dir, exist_ok=True)
 
     # Save PSD data
     np.savez_compressed(
         os.path.join(output_dir, "psd.npz"),
-        psd=psds,
+        psd=psd,
         freqs=freqs,
         channels=channels
     )
 
-    # Save per-epoch metadata
-    metadata_epochs_df.to_csv(
-        os.path.join(output_dir, "metadata_epochs.csv"),
-        index=False
-    )
+    # Save metadata dict
+    with open(os.path.join(output_dir, "metadata.json"), "w") as f:
+        json.dump(metadata, f, indent=4)
 
-    # Save global config metadata
-    with open(os.path.join(output_dir, "metadata_config.json"), "w") as f:
-        json.dump(metadata_config, f, indent=2)
+    tqdm.write(f"Saved PSD data and metadata to: {output_dir}")
 
 def update_bad_channels_json(
     save_dir, dataset, subject, session=None, task=None, run=None, bad_chs=None, mode='ransac'
@@ -437,7 +437,7 @@ def load_ica(dataset, subject, session=None, task=None, run=None, verbose=True):
         print(f"[ICA] Loaded ICA from: {path}")
     return ica
 
-def log_dropped_epochs(epochs, dataset, subject, log_root, stage='pre_ica',
+def log_dropped_epochs(epochs, dataset, subject, log_root=config.PREPROCESSING_LOG_PATH, stage='pre_ica',
                        session=None, task=None, run=None, threshold=None, verbose=True):
     """
     Log the number of dropped epochs for a given subject/task/run to a file.
@@ -664,3 +664,4 @@ def load_new_events(path, subject, session):
         return df.values, column_names
     else:
         raise FileNotFoundError(f"No such file: {file_path}")
+    

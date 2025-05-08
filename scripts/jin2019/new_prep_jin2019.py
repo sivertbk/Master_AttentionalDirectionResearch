@@ -1,3 +1,9 @@
+"""
+    This script is not intended to be run directly. It is a template for preprocessing
+    EEG data using MNE-Python and AutoReject. 
+"""
+
+
 import mne
 import numpy as np
 import matplotlib.pyplot as plt

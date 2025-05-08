@@ -7,7 +7,10 @@ from utils.helpers import format_numbers
 # =============================================================================
 
 subjects = format_numbers(list(range(1, 22)),2)  # convert to list of strings with leading zeros like ["01", "02", ...]
+subjects.remove("10") # remove subject 10 since no data exists for this subject
+
 task_orientation = "external"
+runs = [2] # Using only run 2 for the analysis. copied over to sessions as it is the same in theory
 
 
 
@@ -63,7 +66,10 @@ DATASET_CONFIG = DatasetConfig(
     extension="set",
     task_orientation=task_orientation,
     subjects=subjects,
-    runs=[2],   
+    runs=runs,
+    sessions=runs,
+    tasks=["police_detection", "collision"],
+    states=["MW", "OT"],   
     mapping_channels={},  
     mapping_non_eeg={},   
     event_id_map=event_id,
@@ -74,5 +80,6 @@ DATASET_CONFIG = DatasetConfig(
     task_classes={
         "police car": [], # events related to police car
         "collision": [] # events related to collision
-    }
+    },
+    extra_info={}
 )

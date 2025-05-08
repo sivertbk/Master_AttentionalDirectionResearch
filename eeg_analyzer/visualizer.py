@@ -1,4 +1,23 @@
+"""
+Visualizer
+----------
+
+Responsible for generating plots and figures from EEG analysis results.
+
+Responsibilities:
+- Visualize statistical outcomes (e.g., topoplots, violin plots, effect size maps).
+- Display raw or processed metrics for quality control and reporting.
+- Maintain a consistent figure style across the project.
+
+Notes:
+- Should not compute statistics or metrics; only display them.
+- Designed to be modular and compatible with Jupyter or script-based workflows.
+"""
+
+
 import numpy as np
+import mne
+import mne.viz as viz
 import matplotlib.pyplot as plt
 
 class Visualizer:
@@ -118,5 +137,61 @@ class Visualizer:
         plt.ylabel('Mean Power')
         plt.legend()
         plt.grid(True, alpha=0.3)
+        plt.tight_layout()
+        plt.show()
+
+    @staticmethod
+    def plot_alpha_power_by_state(alpha_power: dict, states: list, channels: list, figsize=(12, 6)):
+        """
+        Plot alpha power for each state across channels as bar plots.
+
+        Parameters:
+            alpha_power (dict): Dictionary with states as keys and alpha power arrays (epochs × channels) as values.
+            states (list): List of state names.
+            channels (list): List of channel names.
+            figsize (tuple): Figure size.
+        """
+        plt.figure(figsize=figsize)
+        bar_width = 0.35
+        x = np.arange(len(channels))
+
+        for i, state in enumerate(states):
+            mean_alpha_power = np.mean(alpha_power[state], axis=0)
+            plt.bar(x + i * bar_width, mean_alpha_power, bar_width, label=f"State: {state}")
+
+        plt.title("Alpha Power by State")
+        plt.xlabel("Channels")
+        plt.ylabel("Mean Alpha Power")
+        plt.xticks(x + bar_width * (len(states) - 1) / 2, channels, rotation=90)
+        plt.legend()
+        plt.grid(axis='y', alpha=0.3)
+        plt.tight_layout()
+        plt.show()
+
+    @staticmethod
+    def plot_alpha_power_by_task(alpha_power: dict, tasks: list, channels: list, figsize=(12, 6)):
+        """
+        Plot alpha power for each task across channels as bar plots.
+
+        Parameters:
+            alpha_power (dict): Dictionary with tasks as keys and alpha power arrays (epochs × channels) as values.
+            tasks (list): List of task names.
+            channels (list): List of channel names.
+            figsize (tuple): Figure size.
+        """
+        plt.figure(figsize=figsize)
+        bar_width = 0.35
+        x = np.arange(len(channels))
+
+        for i, task in enumerate(tasks):
+            mean_alpha_power = np.mean(alpha_power[task], axis=0)
+            plt.bar(x + i * bar_width, mean_alpha_power, bar_width, label=f"Task: {task}")
+
+        plt.title("Alpha Power by Task")
+        plt.xlabel("Channels")
+        plt.ylabel("Mean Alpha Power")
+        plt.xticks(x + bar_width * (len(tasks) - 1) / 2, channels, rotation=90)
+        plt.legend()
+        plt.grid(axis='y', alpha=0.3)
         plt.tight_layout()
         plt.show()
