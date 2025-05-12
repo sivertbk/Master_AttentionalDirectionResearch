@@ -32,59 +32,6 @@ class Visualizer:
     """
     Class containing visualization methods for EEG PSD data.
     """
-
-    def __init__(self, subject):
-        """
-        Initialize Visualizer with a reference to a Subject instance.
-
-        Parameters:
-            subject (Subject): An instance of the Subject class.
-        """
-        self.subject = subject
-
-    def plot_psd(self, epoch_idx=-1, channels='all', figsize=(10, 5)):
-        """
-        Plot PSD for a specific epoch or average across epochs.
-
-        Parameters:
-            epoch_idx (int): Index of epoch to plot, or -1 for average across epochs.
-            channels (str or list[str]): 'all' or specific channel name(s).
-            figsize (tuple): Figure size.
-        """
-        psd = self.subject.psd
-        freqs = self.subject.freqs
-        ch_names = self.subject.channels
-
-        # Handle channel selection explicitly
-        if channels == 'all':
-            channel_indices = range(len(ch_names))
-        else:
-            if isinstance(channels, str):
-                channels = [channels]
-            channel_indices = [ch_names.index(ch) for ch in channels]
-
-        # Handle epoch selection explicitly
-        if epoch_idx == -1:
-            psd_to_plot = psd[:, channel_indices, :].mean(axis=0)
-            title = "Mean PSD across epochs"
-        else:
-            psd_to_plot = psd[epoch_idx, channel_indices, :]
-            title = f"PSD for Epoch {epoch_idx}"
-
-        plt.figure(figsize=figsize)
-        for idx, ch_idx in enumerate(channel_indices):
-            plt.plot(freqs, psd_to_plot[idx, :], label=ch_names[ch_idx])
-
-        plt.title(title)
-        plt.xlabel("Frequency (Hz)")
-        plt.ylabel("Power")
-        plt.legend()
-        plt.grid(True, alpha=0.3)
-        plt.tight_layout()
-        plt.show()
-
-
-
     @staticmethod
     def plot_band_power(band_powers, channels, band_name="Frequency Band", figsize=(10, 5)):
         """
