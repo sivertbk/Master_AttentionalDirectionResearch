@@ -98,6 +98,18 @@ class Dataset:
     def get_groups(self) -> Set[str]:
         """Return the set of all subject groups in the dataset."""
         return self.subject_groups
+    
+    def get_alpha_bools(self):
+        """
+        Return a dict of bools where key is subject id and value is wheter the subjects overall alpha power
+        difference is either positive or negative depenindg on task orientation
+        """
+        self._ensure_data_loaded()
+        alpha_bools = {}
+        for sub_id, subject in self.subjects.items():
+            alpha_bools[sub_id] = subject.check_hypothesis()
+        return alpha_bools
+
         
     #                                 Private API
     ##########################################################################################################

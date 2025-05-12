@@ -99,4 +99,63 @@ class Subject:
     
     def get_dataset(self):
         return self.dataset
+    
+    def check_hypothesis(self) -> bool:
+        """
+        Check if the subject supports the hypothesis of alpha power difference between states.
+        This method uses all available sessions and tasks for the subject and disregards differences in tasks.
+
+        If multiple sessions are available, the method will check if the alpha power difference is consistent across all sessions.
+        The method will return True if the alpha power difference is consistent across all sessions, otherwise it will return False.
+        The method will merge the alpha power data across all tasks within each session.
+
+        The hypothesis states that task orientation should be evident in the alpha power difference between states.
+        If task orientation is external, the alpha power should be higher in the "MW" state.
+        If task orientation is internal, the alpha power should be higher in the "OT" state.
+
+        Returns:
+            bool: True if the subject supports the hypothesis, False otherwise.
+        """
+        # Check if the subject has at least one session
+        if not self.recordings:
+            return False
+        
+        # define the task orientation
+        task_orientation = self.dataset.task_orientation
+
+        # Iterate through all sessions and check the hypothesis for each session
+        session_results = []
+        for recording in self.recordings.values():
+            # Initialize lists to store alpha power data for "MW" and "OT" states
+            alpha_power_mw = []
+            alpha_power_ot = []
+
+            # Iterate through all tasks in the recording
+            for task in recording.get_available_tasks():
+                # Collect alpha power for "MW" state
+                if "MW" in recording.get_available_states(task):
+                    alpha_power_mw.append(recording.alpha_power(task=task, state="MW"))
+
+                # Collect alpha power for "OT" state
+                if "OT" in recording.get_available_states(task):
+                    alpha_power_ot.append(recording.alpha_power(task=task, state="OT"))
+
+            # Check if there is sufficient data for both states in this session
+            if not alpha_power_mw or not alpha_power_ot:
+                session_results.append(False)
+                continue
+
+            # Compute the mean alpha power across all tasks for each state in this session
+            mean_alpha_power_mw = np.mean(np.concatenate(alpha_power_mw), axis=0)
+            mean_alpha_power_ot = np.mean(np.concatenate(alpha_power_ot), axis=0)
+
+            if task_orientation == "external":
+                # For external task orientation, we expect higher alpha power in "MW" state
+                session_results.append(np.mean(mean_alpha_power_mw) > np.mean(mean_alpha_power_ot))
+            elif task_orientation == "internal":
+                # For internal task orientation, we expect higher alpha power in "OT" state
+                session_results.append(np.mean(mean_alpha_power_mw) < np.mean(mean_alpha_power_ot))
+
+        # Return True only if all sessions support the hypothesis
+        return all(session_results)
 
