@@ -18,7 +18,7 @@ from collections import defaultdict
 import numpy as np
 
 from eeg_analyzer.metrics import Metrics
-from utils.config import EEG_SETTINGS
+from utils.config import EEG_SETTINGS, ROIs, channel_positions, cortical_regions
 import mne
 import matplotlib.pyplot as plt
 
@@ -61,6 +61,10 @@ class Recording:
             return self.meta_map[task][state]
         except KeyError:
             raise ValueError(f"No metadata found for task '{task}' and state '{state}' in session {self.session_id}")
+        
+    def get_channel_names(self):
+        """Return the list of channel names."""
+        return self.channels
 
     def get_available_tasks(self):
         return list(self.psd_map.keys())
@@ -68,6 +72,14 @@ class Recording:
     def get_available_states(self, task: str):
         return list(self.psd_map[task].keys()) if task in self.psd_map else []
     
+    def get_num_epochs(self):
+        """Return a dictionary with number of epochs for each task and state."""
+        num_epochs = {}
+        for task, states in self.psd_map.items():
+            for state, psd in states.items():
+                num_epochs[(task, state)] = psd.shape[0]
+        return num_epochs
+
     def list_conditions(self) -> list[tuple[str, str]]:
         """List all available (task, state) condition pairs."""
         return [

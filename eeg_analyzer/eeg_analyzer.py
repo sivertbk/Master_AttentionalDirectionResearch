@@ -12,12 +12,46 @@ Responsibilities:
 Usage:
 - Entry point for running full analysis across datasets.
 """
+from eeg_analyzer.dataset import Dataset
 
 
 class EEGAnalyzer:
-    def __init__(self, eeg_data):
-        self.eeg_data = eeg_data
+    def __init__(self, dataset_configs):
+        """
+        Initialize the EEGAnalyzer with a list of dataset configurations.
+        """
+        self.datasets = {}
+        for config in dataset_configs:
+            dataset = Dataset(config)
+            self.datasets[dataset.f_name] = dataset
+            dataset.load_data()
 
-    def analyze(self):
-        # Analyze the EEG data
-        pass
+    def __repr__(self):
+        return f"<EEGAnalyzer with {len(self.datasets)} datasets>"
+    
+    def get_dataset(self, name):
+        """
+        Get a dataset by its name.
+        """
+        return self.datasets.get(name)
+    
+    def get_subject(self, dataset_name, subject_id):
+        """
+        Get a subject by its ID from a specific dataset.
+        """
+        dataset = self.get_dataset(dataset_name)
+        if dataset:
+            return dataset.get_subject(subject_id)
+        return None
+    
+    def remove_subjects(self, dataset_name, subject_ids):
+        """
+        Remove subjects from a specific dataset.
+        """
+        dataset = self.get_dataset(dataset_name)
+        if dataset:
+            for subject_id in subject_ids:
+                dataset.remove_subject(subject_id)
+
+    
+    
