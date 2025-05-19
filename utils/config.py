@@ -228,18 +228,17 @@ ROIs = {
     },
 }
 
-# Scalp region coords
-scalp_region_coords = {
-    "frontal_coords" : {ch: channel_positions[ch] for ch in scalp_regions["frontal"]},
-    "fronto_temporal_coords" : {ch: channel_positions[ch] for ch in scalp_regions["fronto-temporal"]},
-    "central_coords" : {ch: channel_positions[ch] for ch in scalp_regions["central"]},
-    "centro_parietal_coords" : {ch: channel_positions[ch] for ch in scalp_regions["centro-parietal"]},
-    "temporal_coords" : {ch: channel_positions[ch] for ch in scalp_regions["temporal"]},
-    "temporo_parietal_coords" : {ch: channel_positions[ch] for ch in scalp_regions["temporo-parietal"]},
-    "parietal_coords" : {ch: channel_positions[ch] for ch in scalp_regions["parietal"]},
-    "posterior_parietal_coords" : {ch: channel_positions[ch] for ch in scalp_regions["posterior-parietal"]},
-    "parieto_occipital_coords" : {ch: channel_positions[ch] for ch in scalp_regions["parieto-occipital"]},
-    "occipital_coords" : {ch: channel_positions[ch] for ch in scalp_regions["occipital"]}
+# cortical region coords
+cortical_region_coords = {
+    "prefrontal_coords": {ch: channel_positions[ch] for ch in cortical_regions["prefrontal"]},
+    "frontal_coords": {ch: channel_positions[ch] for ch in cortical_regions["frontal"]},
+    "frontocentral_coords": {ch: channel_positions[ch] for ch in cortical_regions["frontocentral"]},
+    "central_coords": {ch: channel_positions[ch] for ch in cortical_regions["central"]},
+    "centroparietal_coords": {ch: channel_positions[ch] for ch in cortical_regions["centroparietal"]},
+    "parietal_coords": {ch: channel_positions[ch] for ch in cortical_regions["parietal"]},
+    "parietooccipital_coords": {ch: channel_positions[ch] for ch in cortical_regions["parietooccipital"]},
+    "occipital_coords": {ch: channel_positions[ch] for ch in cortical_regions["occipital"]},
+    "temporal_coords": {ch: channel_positions[ch] for ch in cortical_regions["temporal"]},
 }
 
 

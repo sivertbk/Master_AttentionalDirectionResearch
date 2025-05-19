@@ -5,7 +5,7 @@ import seaborn as sns
 import os
 from datetime import datetime
 
-from utils.config import EEG_SETTINGS, PLOTS_PATH, ANALYSIS_LOG_PATH, DATASETS, channel_positions, set_plot_style
+from utils.config import EEG_SETTINGS, PLOTS_PATH, ANALYSIS_LOG_PATH, DATASETS, channel_positions, ROIs, set_plot_style
 from eeg_analyzer.dataset import Dataset
 
 set_plot_style()
@@ -154,7 +154,126 @@ def get_long_band_power_df(dataset, freq_band):
     )
     return pd.DataFrame(epochs)
 
+def mark_bad_datapoints(df, method="z-score", threshold=3.0):
+    """
+    Mark bad datapoints at the channel level using the specified filtering method.
+
+    Parameters:
+        df (DataFrame): Long-format dataframe with channel-level data.
+        method (str): Filtering method ("z-score" or "iqr").
+        threshold (float): Threshold for z-score filtering (ignored for IQR).
+
+    Returns:
+        DataFrame: Updated dataframe with a new column 'is_bad' (True for bad datapoints).
+    """
+    df['is_bad'] = False
+
+    if method == "z-score":
+        grouped = df.groupby(['subject_session', 'state', 'channel'])
+        z_scores = grouped['band_power'].transform(lambda x: (x - x.mean()) / x.std())
+        df['is_bad'] = z_scores.abs() > threshold
+
+    elif method == "iqr":
+        def mark_iqr(group):
+            q1 = group['band_power'].quantile(0.25)
+            q3 = group['band_power'].quantile(0.75)
+            iqr = q3 - q1
+            lower = q1 - 1.5 * iqr
+            upper = q3 + 1.5 * iqr
+            group['is_bad'] = ~group['band_power'].between(lower, upper)
+            return group
+
+        df = df.groupby(['subject_session', 'state', 'channel'], group_keys=False).apply(mark_iqr)
+    return df
+
+def aggregate_to_rois(df, roi_mapping, handle_bad="exclude_epoch"):
+    """
+    Aggregate channel-level data to ROI-level data.
+
+    Parameters:
+        df (DataFrame): Long-format dataframe with channel-level data.
+        roi_mapping (dict): Mapping of ROI names to lists of channel names.
+        handle_bad (str): How to handle bad datapoints ("exclude_epoch" or "replace_bad").
+
+    Returns:
+        DataFrame: ROI-level aggregated dataframe.
+    """
+    roi_data = []
+
+    for (subject_session, state, epoch_idx), group in df.groupby(['subject_session', 'state', 'epoch_idx']):
+        for roi, channels in roi_mapping.items():
+            roi_group = group[group['channel'].isin(channels)]
+            if roi_group.empty:
+                continue
+
+            if handle_bad == "exclude_epoch":
+                if roi_group['is_bad'].any():
+                    continue  # Exclude this epoch for the ROI
+                mean_power = roi_group['band_power'].mean()
+
+            elif handle_bad == "replace_bad":
+                good_data = roi_group[~roi_group['is_bad']]
+                if good_data.empty:
+                    continue  # Skip if all channels are bad
+                mean_power = good_data['band_power'].mean()
+                roi_group.loc[roi_group['is_bad'], 'band_power'] = mean_power
+
+            roi_data.append({
+                "subject_session": subject_session,
+                "state": state,
+                "epoch_idx": epoch_idx,
+                "roi": roi,
+                "band_power": mean_power
+            })
+
+    return pd.DataFrame(roi_data)
+
+def plot_roi_boxplot(log, dataset, path_to_box, df_roi, band, variant=None):
+    """
+    Plot and save a boxplot for all ROIs for a subject-session.
+
+    Parameters:
+        log (function): Logging function.
+        dataset (Dataset): Dataset object.
+        path_to_box (str): Path to save the boxplot.
+        df_roi (DataFrame): ROI-level dataframe.
+        band (str): Frequency band name.
+        variant (str): Filtering variant (e.g., "z-score", "iqr").
+    """
+    cmap = sns.color_palette("coolwarm", as_cmap=True)
+    state_palette = [cmap(0.0), cmap(1.0)]
+    state_labels = {0: "Focused", 1: "Mind-wandering"}
+    plt.figure(figsize=(8, 6))
+    ax = sns.boxplot(
+        data=df_roi,
+        x="roi",
+        y="band_power",
+        hue="state",
+        palette=state_palette,
+        dodge=True
+    )
+    ax.set_xlabel("Region of Interest (ROI)")
+    ax.set_ylabel(f"{band} Power [µV²]")
+    variant_title = f"- {variant}-filtered" if variant is not None else ""
+    ax.set_title(f"{band} Power by State {variant_title}\nAggregated by ROI")
+    handles, labels = ax.get_legend_handles_labels()
+    ax.legend(handles, [state_labels[int(l)] for l in labels], title="State")
+    ax.grid(True, axis='y', linestyle='--', alpha=0.6)
+    plt.tight_layout()
+
+    # Prepare save path
+    fname = f"{dataset.f_name}_roi_{band.lower()}_{variant.lower()}-filtered_boxplot.png" if variant else f"{dataset.f_name}_roi_{band.lower()}_boxplot.png"
+    save_dir = os.path.join(path_to_box, band.lower())
+    os.makedirs(save_dir, exist_ok=True)
+    save_path = os.path.join(save_dir, fname)
+    plt.savefig(save_path)
+    plt.close()
+    log(f"Saved ROI-level boxplot: {save_path}")
+
 # ------------------- MAIN ANALYSIS LOGIC -------------------
+
+# Define ROI mapping 
+roi_mapping = ROIs
 
 # Frequency bands to analyze
 freq_bands = {
@@ -182,29 +301,16 @@ for band, freqs in freq_bands.items():
         # --- Step 1: Get long-format dataframe ---
         df_full = get_long_band_power_df(dataset, freqs)
 
-        # --- Step 2: Split into channel dataframes ---
-        df_channels = get_channel_dataframes(df_full)
+        # --- Step 2: Mark bad datapoints ---
+        df_full = mark_bad_datapoints(df_full, method="z-score", threshold=3.0)
 
-        # --- Step 3: Z-score filtering ---
-        df_channels_z = apply_zscore_filtering(df_channels)
+        # --- Step 3: Aggregate to ROIs ---
+        df_roi = aggregate_to_rois(df_full, roi_mapping, handle_bad="exclude_epoch")
 
-        # --- Step 4: IQR filtering ---
-        df_channels_iqr = apply_iqr_filtering(df_channels)
-
-        # --- Step 5: Plotting (no filtering) ---
-        log(f"Plotting boxplots without filtering...")
-        path_to_box = os.path.join(PLOTS_PATH, dataset.f_name, "state-boxplots_per_subject_session", "no_filtering")
-        plot_boxplots_for_subject_sessions(log, dataset, path_to_box, df_channels, band)
-
-        # --- Step 6: Plotting (z-score filtering) ---
-        log(f"Plotting boxplots with z-score filtering...")
-        path_to_box = os.path.join(PLOTS_PATH, dataset.f_name, "state-boxplots_per_subject_session", "z_score_filtering")
-        plot_boxplots_for_subject_sessions(log, dataset, path_to_box, df_channels_z, band, variant="z-score")
-
-        # --- Step 7: Plotting (IQR filtering) ---
-        log(f"Plotting boxplots with iqr filtering...")
-        path_to_box = os.path.join(PLOTS_PATH, dataset.f_name, "state-boxplots_per_subject_session", "iqr_filtering")
-        plot_boxplots_for_subject_sessions(log, dataset, path_to_box, df_channels_iqr, band, variant="iqr")
+        # --- Step 4: Plotting ROI-level boxplots ---
+        log(f"Plotting ROI-level boxplots...")
+        path_to_box = os.path.join(PLOTS_PATH, dataset.f_name, "state-boxplots_per_roi")
+        plot_roi_boxplot(log, dataset, path_to_box, df_roi, band, variant="z-score")
 
         log(f"|||||||||||||||||||||||   FINISHED ANALYZING DATASET: {dataset.name}   |||||||||||||||||||||||", make_gap=True)
         # Delete Dataset object to free up memory

@@ -277,6 +277,7 @@ class Dataset:
                                         "subject_session": subject_session,
                                         "subject_id": subj_id,
                                         "session_id": sess_id,
+                                        "epoch_idx": epoch_idx,
                                         "channel": ch_name,
                                         "task": task,
                                         "state": 1 if state == "MW" else 0,

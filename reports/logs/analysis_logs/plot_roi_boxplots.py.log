@@ -1,0 +1,61 @@
+[2025-05-19 13:59:02] [plot_roi_boxplots.py] Preparing datasets...
+[2025-05-19 13:59:02] [plot_roi_boxplots.py] 
+|||||||||||||||||||||||   ANALYZING BAND: Theta   |||||||||||||||||||||||
+[2025-05-19 13:59:02] [plot_roi_boxplots.py] 
+|||||||||||||||||||||||   ANALYZING DATASET: Braboszcz et al. (2017)   |||||||||||||||||||||||
+[2025-05-19 13:59:02] [plot_roi_boxplots.py] Loading in subjects...
+[2025-05-19 13:59:04] [plot_roi_boxplots.py] Done loading in subjects. Took 0:00:02.520122 seconds
+[2025-05-19 13:59:04] [plot_roi_boxplots.py] 
+Dataset: Braboszcz et al. (2017)
+ Subjects:
+    - 50 subjects, 2 groups: [ctr, vip]
+ Tasks:
+    - med2, think2
+ States:
+    - MW, OT
+ Epochs:
+    - Median epochs per condition: [med2 - OT: 117.0, think2 - MW: 115.0]
+    - Min epochs per condition: [med2 - OT: 75, think2 - MW: 64]
+    - Max epochs per condition: [med2 - OT: 182, think2 - MW: 129]
+    - State ratios: mean:0.987, min:0.484 (subject_id: 040), max:1.613 (subject_id: 063)
+[2025-05-19 13:59:42] [plot_roi_boxplots.py] Preparing datasets...
+[2025-05-19 13:59:42] [plot_roi_boxplots.py] 
+|||||||||||||||||||||||   ANALYZING BAND: Theta   |||||||||||||||||||||||
+[2025-05-19 13:59:42] [plot_roi_boxplots.py] 
+|||||||||||||||||||||||   ANALYZING DATASET: Braboszcz et al. (2017)   |||||||||||||||||||||||
+[2025-05-19 13:59:42] [plot_roi_boxplots.py] Loading in subjects...
+[2025-05-19 13:59:44] [plot_roi_boxplots.py] Done loading in subjects. Took 0:00:02.031010 seconds
+[2025-05-19 13:59:44] [plot_roi_boxplots.py] 
+Dataset: Braboszcz et al. (2017)
+ Subjects:
+    - 50 subjects, 2 groups: [ctr, vip]
+ Tasks:
+    - med2, think2
+ States:
+    - MW, OT
+ Epochs:
+    - Median epochs per condition: [med2 - OT: 117.0, think2 - MW: 115.0]
+    - Min epochs per condition: [med2 - OT: 75, think2 - MW: 64]
+    - Max epochs per condition: [med2 - OT: 182, think2 - MW: 129]
+    - State ratios: mean:0.987, min:0.484 (subject_id: 040), max:1.613 (subject_id: 063)
+[2025-05-19 14:01:38] [plot_roi_boxplots.py] Preparing datasets...
+[2025-05-19 14:01:38] [plot_roi_boxplots.py] 
+|||||||||||||||||||||||   ANALYZING BAND: Theta   |||||||||||||||||||||||
+[2025-05-19 14:01:38] [plot_roi_boxplots.py] 
+|||||||||||||||||||||||   ANALYZING DATASET: Braboszcz et al. (2017)   |||||||||||||||||||||||
+[2025-05-19 14:01:38] [plot_roi_boxplots.py] Loading in subjects...
+[2025-05-19 14:01:40] [plot_roi_boxplots.py] Done loading in subjects. Took 0:00:01.997112 seconds
+[2025-05-19 14:01:40] [plot_roi_boxplots.py] 
+Dataset: Braboszcz et al. (2017)
+ Subjects:
+    - 50 subjects, 2 groups: [ctr, vip]
+ Tasks:
+    - med2, think2
+ States:
+    - MW, OT
+ Epochs:
+    - Median epochs per condition: [med2 - OT: 117.0, think2 - MW: 115.0]
+    - Min epochs per condition: [med2 - OT: 75, think2 - MW: 64]
+    - Max epochs per condition: [med2 - OT: 182, think2 - MW: 129]
+    - State ratios: mean:0.987, min:0.484 (subject_id: 040), max:1.613 (subject_id: 063)
+[2025-05-19 14:01:59] [plot_roi_boxplots.py] Plotting ROI-level boxplots...
