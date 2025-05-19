@@ -192,7 +192,7 @@ def aggregate_to_rois(df, roi_mapping, handle_bad="exclude_epoch"):
 
     Parameters:
         df (DataFrame): Long-format dataframe with channel-level data.
-        roi_mapping (dict): Mapping of ROI names to lists of channel names.
+        roi_mapping (dict): Nested mapping of ROI names to sub-ROIs, each containing lists of channels.
         handle_bad (str): How to handle bad datapoints ("exclude_epoch" or "replace_bad").
 
     Returns:
@@ -200,9 +200,18 @@ def aggregate_to_rois(df, roi_mapping, handle_bad="exclude_epoch"):
     """
     roi_data = []
 
+    # Flatten the nested ROI mapping to get a single mapping of ROI to channels
+    flattened_roi_mapping = {
+        roi: channels
+        for roi, sub_rois in roi_mapping.items()
+        for sub_roi, channels in sub_rois.items()
+    }
+
     for (subject_session, state, epoch_idx), group in df.groupby(['subject_session', 'state', 'epoch_idx']):
-        for roi, channels in roi_mapping.items():
+
+        for roi, channels in flattened_roi_mapping.items():
             roi_group = group[group['channel'].isin(channels)]
+
             if roi_group.empty:
                 continue
 
@@ -306,6 +315,8 @@ for band, freqs in freq_bands.items():
 
         # --- Step 3: Aggregate to ROIs ---
         df_roi = aggregate_to_rois(df_full, roi_mapping, handle_bad="exclude_epoch")
+        #log the head of the dataframe
+        log(f"ROI-level dataframe head:\n{df_roi.head()}")
 
         # --- Step 4: Plotting ROI-level boxplots ---
         log(f"Plotting ROI-level boxplots...")

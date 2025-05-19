@@ -59,3 +59,264 @@ Dataset: Braboszcz et al. (2017)
     - Max epochs per condition: [med2 - OT: 182, think2 - MW: 129]
     - State ratios: mean:0.987, min:0.484 (subject_id: 040), max:1.613 (subject_id: 063)
 [2025-05-19 14:01:59] [plot_roi_boxplots.py] Plotting ROI-level boxplots...
+[2025-05-19 14:04:56] [plot_roi_boxplots.py] Preparing datasets...
+[2025-05-19 14:04:56] [plot_roi_boxplots.py] 
+|||||||||||||||||||||||   ANALYZING BAND: Theta   |||||||||||||||||||||||
+[2025-05-19 14:04:56] [plot_roi_boxplots.py] 
+|||||||||||||||||||||||   ANALYZING DATASET: Braboszcz et al. (2017)   |||||||||||||||||||||||
+[2025-05-19 14:04:56] [plot_roi_boxplots.py] Loading in subjects...
+[2025-05-19 14:04:58] [plot_roi_boxplots.py] Done loading in subjects. Took 0:00:01.991999 seconds
+[2025-05-19 14:04:58] [plot_roi_boxplots.py] 
+Dataset: Braboszcz et al. (2017)
+ Subjects:
+    - 50 subjects, 2 groups: [ctr, vip]
+ Tasks:
+    - med2, think2
+ States:
+    - MW, OT
+ Epochs:
+    - Median epochs per condition: [med2 - OT: 117.0, think2 - MW: 115.0]
+    - Min epochs per condition: [med2 - OT: 75, think2 - MW: 64]
+    - Max epochs per condition: [med2 - OT: 182, think2 - MW: 129]
+    - State ratios: mean:0.987, min:0.484 (subject_id: 040), max:1.613 (subject_id: 063)
+[2025-05-19 14:05:17] [plot_roi_boxplots.py] Plotting ROI-level boxplots...
+[2025-05-19 14:05:32] [plot_roi_boxplots.py] Preparing datasets...
+[2025-05-19 14:05:32] [plot_roi_boxplots.py] 
+|||||||||||||||||||||||   ANALYZING BAND: Theta   |||||||||||||||||||||||
+[2025-05-19 14:05:32] [plot_roi_boxplots.py] 
+|||||||||||||||||||||||   ANALYZING DATASET: Braboszcz et al. (2017)   |||||||||||||||||||||||
+[2025-05-19 14:05:32] [plot_roi_boxplots.py] Loading in subjects...
+[2025-05-19 14:05:34] [plot_roi_boxplots.py] Done loading in subjects. Took 0:00:02.014372 seconds
+[2025-05-19 14:05:34] [plot_roi_boxplots.py] 
+Dataset: Braboszcz et al. (2017)
+ Subjects:
+    - 50 subjects, 2 groups: [ctr, vip]
+ Tasks:
+    - med2, think2
+ States:
+    - MW, OT
+ Epochs:
+    - Median epochs per condition: [med2 - OT: 117.0, think2 - MW: 115.0]
+    - Min epochs per condition: [med2 - OT: 75, think2 - MW: 64]
+    - Max epochs per condition: [med2 - OT: 182, think2 - MW: 129]
+    - State ratios: mean:0.987, min:0.484 (subject_id: 040), max:1.613 (subject_id: 063)
+[2025-05-19 14:05:54] [plot_roi_boxplots.py] Plotting ROI-level boxplots...
+[2025-05-19 14:08:33] [plot_roi_boxplots.py] Preparing datasets...
+[2025-05-19 14:08:33] [plot_roi_boxplots.py] 
+|||||||||||||||||||||||   ANALYZING BAND: Theta   |||||||||||||||||||||||
+[2025-05-19 14:08:33] [plot_roi_boxplots.py] 
+|||||||||||||||||||||||   ANALYZING DATASET: Braboszcz et al. (2017)   |||||||||||||||||||||||
+[2025-05-19 14:08:33] [plot_roi_boxplots.py] Loading in subjects...
+[2025-05-19 14:08:35] [plot_roi_boxplots.py] Done loading in subjects. Took 0:00:01.935656 seconds
+[2025-05-19 14:08:35] [plot_roi_boxplots.py] 
+Dataset: Braboszcz et al. (2017)
+ Subjects:
+    - 50 subjects, 2 groups: [ctr, vip]
+ Tasks:
+    - med2, think2
+ States:
+    - MW, OT
+ Epochs:
+    - Median epochs per condition: [med2 - OT: 117.0, think2 - MW: 115.0]
+    - Min epochs per condition: [med2 - OT: 75, think2 - MW: 64]
+    - Max epochs per condition: [med2 - OT: 182, think2 - MW: 129]
+    - State ratios: mean:0.987, min:0.484 (subject_id: 040), max:1.613 (subject_id: 063)
+[2025-05-19 14:08:55] [plot_roi_boxplots.py] ROI-level dataframe head:
+Empty DataFrame
+Columns: []
+Index: []
+[2025-05-19 14:08:55] [plot_roi_boxplots.py] Plotting ROI-level boxplots...
+[2025-05-19 14:11:08] [plot_roi_boxplots.py] Preparing datasets...
+[2025-05-19 14:11:08] [plot_roi_boxplots.py] 
+|||||||||||||||||||||||   ANALYZING BAND: Theta   |||||||||||||||||||||||
+[2025-05-19 14:11:08] [plot_roi_boxplots.py] 
+|||||||||||||||||||||||   ANALYZING DATASET: Braboszcz et al. (2017)   |||||||||||||||||||||||
+[2025-05-19 14:11:08] [plot_roi_boxplots.py] Loading in subjects...
+[2025-05-19 14:11:10] [plot_roi_boxplots.py] Done loading in subjects. Took 0:00:01.995707 seconds
+[2025-05-19 14:11:10] [plot_roi_boxplots.py] 
+Dataset: Braboszcz et al. (2017)
+ Subjects:
+    - 50 subjects, 2 groups: [ctr, vip]
+ Tasks:
+    - med2, think2
+ States:
+    - MW, OT
+ Epochs:
+    - Median epochs per condition: [med2 - OT: 117.0, think2 - MW: 115.0]
+    - Min epochs per condition: [med2 - OT: 75, think2 - MW: 64]
+    - Max epochs per condition: [med2 - OT: 182, think2 - MW: 129]
+    - State ratios: mean:0.987, min:0.484 (subject_id: 040), max:1.613 (subject_id: 063)
+[2025-05-19 14:14:17] [plot_roi_boxplots.py] Preparing datasets...
+[2025-05-19 14:14:17] [plot_roi_boxplots.py] 
+|||||||||||||||||||||||   ANALYZING BAND: Theta   |||||||||||||||||||||||
+[2025-05-19 14:14:17] [plot_roi_boxplots.py] 
+|||||||||||||||||||||||   ANALYZING DATASET: Braboszcz et al. (2017)   |||||||||||||||||||||||
+[2025-05-19 14:14:17] [plot_roi_boxplots.py] Loading in subjects...
+[2025-05-19 14:14:19] [plot_roi_boxplots.py] Done loading in subjects. Took 0:00:01.985075 seconds
+[2025-05-19 14:14:19] [plot_roi_boxplots.py] 
+Dataset: Braboszcz et al. (2017)
+ Subjects:
+    - 50 subjects, 2 groups: [vip, ctr]
+ Tasks:
+    - med2, think2
+ States:
+    - MW, OT
+ Epochs:
+    - Median epochs per condition: [med2 - OT: 117.0, think2 - MW: 115.0]
+    - Min epochs per condition: [med2 - OT: 75, think2 - MW: 64]
+    - Max epochs per condition: [med2 - OT: 182, think2 - MW: 129]
+    - State ratios: mean:0.987, min:0.484 (subject_id: 040), max:1.613 (subject_id: 063)
+[2025-05-19 14:15:29] [plot_roi_boxplots.py] Preparing datasets...
+[2025-05-19 14:15:29] [plot_roi_boxplots.py] 
+|||||||||||||||||||||||   ANALYZING BAND: Theta   |||||||||||||||||||||||
+[2025-05-19 14:15:29] [plot_roi_boxplots.py] 
+|||||||||||||||||||||||   ANALYZING DATASET: Braboszcz et al. (2017)   |||||||||||||||||||||||
+[2025-05-19 14:15:29] [plot_roi_boxplots.py] Loading in subjects...
+[2025-05-19 14:15:31] [plot_roi_boxplots.py] Done loading in subjects. Took 0:00:02.058093 seconds
+[2025-05-19 14:15:31] [plot_roi_boxplots.py] 
+Dataset: Braboszcz et al. (2017)
+ Subjects:
+    - 50 subjects, 2 groups: [vip, ctr]
+ Tasks:
+    - med2, think2
+ States:
+    - MW, OT
+ Epochs:
+    - Median epochs per condition: [med2 - OT: 117.0, think2 - MW: 115.0]
+    - Min epochs per condition: [med2 - OT: 75, think2 - MW: 64]
+    - Max epochs per condition: [med2 - OT: 182, think2 - MW: 129]
+    - State ratios: mean:0.987, min:0.484 (subject_id: 040), max:1.613 (subject_id: 063)
+[2025-05-19 14:15:43] [plot_roi_boxplots.py] Preparing datasets...
+[2025-05-19 14:15:43] [plot_roi_boxplots.py] 
+|||||||||||||||||||||||   ANALYZING BAND: Theta   |||||||||||||||||||||||
+[2025-05-19 14:15:43] [plot_roi_boxplots.py] 
+|||||||||||||||||||||||   ANALYZING DATASET: Braboszcz et al. (2017)   |||||||||||||||||||||||
+[2025-05-19 14:15:43] [plot_roi_boxplots.py] Loading in subjects...
+[2025-05-19 14:15:45] [plot_roi_boxplots.py] Done loading in subjects. Took 0:00:01.963274 seconds
+[2025-05-19 14:15:45] [plot_roi_boxplots.py] 
+Dataset: Braboszcz et al. (2017)
+ Subjects:
+    - 50 subjects, 2 groups: [vip, ctr]
+ Tasks:
+    - med2, think2
+ States:
+    - MW, OT
+ Epochs:
+    - Median epochs per condition: [med2 - OT: 117.0, think2 - MW: 115.0]
+    - Min epochs per condition: [med2 - OT: 75, think2 - MW: 64]
+    - Max epochs per condition: [med2 - OT: 182, think2 - MW: 129]
+    - State ratios: mean:0.987, min:0.484 (subject_id: 040), max:1.613 (subject_id: 063)
+[2025-05-19 14:17:15] [plot_roi_boxplots.py] Preparing datasets...
+[2025-05-19 14:17:15] [plot_roi_boxplots.py] 
+|||||||||||||||||||||||   ANALYZING BAND: Theta   |||||||||||||||||||||||
+[2025-05-19 14:17:15] [plot_roi_boxplots.py] 
+|||||||||||||||||||||||   ANALYZING DATASET: Braboszcz et al. (2017)   |||||||||||||||||||||||
+[2025-05-19 14:17:15] [plot_roi_boxplots.py] Loading in subjects...
+[2025-05-19 14:17:17] [plot_roi_boxplots.py] Done loading in subjects. Took 0:00:01.894744 seconds
+[2025-05-19 14:17:17] [plot_roi_boxplots.py] 
+Dataset: Braboszcz et al. (2017)
+ Subjects:
+    - 50 subjects, 2 groups: [vip, ctr]
+ Tasks:
+    - med2, think2
+ States:
+    - MW, OT
+ Epochs:
+    - Median epochs per condition: [med2 - OT: 117.0, think2 - MW: 115.0]
+    - Min epochs per condition: [med2 - OT: 75, think2 - MW: 64]
+    - Max epochs per condition: [med2 - OT: 182, think2 - MW: 129]
+    - State ratios: mean:0.987, min:0.484 (subject_id: 040), max:1.613 (subject_id: 063)
+[2025-05-19 14:17:43] [plot_roi_boxplots.py] ROI-level dataframe head:
+  subject_session  state  epoch_idx             roi  band_power
+0           025_1      0          0  anteriofrontal   40.769270
+1           025_1      0          0         frontal   42.839792
+2           025_1      0          0   frontocentral   35.456067
+3           025_1      0          0  centrotemporal   34.840650
+4           025_1      0          0  centroparietal   45.786515
+[2025-05-19 14:17:43] [plot_roi_boxplots.py] Plotting ROI-level boxplots...
+[2025-05-19 14:17:43] [plot_roi_boxplots.py] Saved ROI-level boxplot: /home/sivert/Documents/Master_AttentionalDirectionResearch/reports/plots/braboszcz2017/state-boxplots_per_roi/theta/braboszcz2017_roi_theta_z-score-filtered_boxplot.png
+[2025-05-19 14:17:43] [plot_roi_boxplots.py] 
+|||||||||||||||||||||||   FINISHED ANALYZING DATASET: Braboszcz et al. (2017)   |||||||||||||||||||||||
+[2025-05-19 14:17:43] [plot_roi_boxplots.py] 
+|||||||||||||||||||||||   ANALYZING DATASET: Jin et al. (2019)   |||||||||||||||||||||||
+[2025-05-19 14:17:43] [plot_roi_boxplots.py] Loading in subjects...
+[2025-05-19 14:17:48] [plot_roi_boxplots.py] Done loading in subjects. Took 0:00:04.319883 seconds
+[2025-05-19 14:17:48] [plot_roi_boxplots.py] 
+Dataset: Jin et al. (2019)
+ Subjects:
+    - 30 subjects, 0 groups: []
+ Tasks:
+    - vs, sart
+ States:
+    - MW, OT
+ Epochs:
+    - Median epochs per condition: [vs - MW: 245.0, vs - OT: 113.0, sart - MW: 129.5, sart - OT: 76.0]
+    - Min epochs per condition: [vs - MW: 56, vs - OT: 20, sart - MW: 11, sart - OT: 20]
+    - Max epochs per condition: [vs - MW: 713, vs - OT: 594, sart - MW: 349, sart - OT: 199]
+    - State ratios: mean:2.499, min:0.321 (subject_id: 4), max:8.762 (subject_id: 30)
+[2025-05-19 14:18:23] [plot_roi_boxplots.py] ROI-level dataframe head:
+  subject_session  state  epoch_idx             roi  band_power
+0            10_1      0          0  anteriofrontal   12.491782
+1            10_1      0          0         frontal    9.743220
+2            10_1      0          0   frontocentral    7.954933
+3            10_1      0          0  centrotemporal    7.031910
+4            10_1      0          0  centroparietal    6.132957
+[2025-05-19 14:18:23] [plot_roi_boxplots.py] Plotting ROI-level boxplots...
+[2025-05-19 14:18:24] [plot_roi_boxplots.py] Saved ROI-level boxplot: /home/sivert/Documents/Master_AttentionalDirectionResearch/reports/plots/jin2019/state-boxplots_per_roi/theta/jin2019_roi_theta_z-score-filtered_boxplot.png
+[2025-05-19 14:18:24] [plot_roi_boxplots.py] 
+|||||||||||||||||||||||   FINISHED ANALYZING DATASET: Jin et al. (2019)   |||||||||||||||||||||||
+[2025-05-19 14:18:24] [plot_roi_boxplots.py] 
+|||||||||||||||||||||||   ANALYZING DATASET: Touryan et al. (2022)   |||||||||||||||||||||||
+[2025-05-19 14:18:24] [plot_roi_boxplots.py] Loading in subjects...
+[2025-05-19 14:18:24] [plot_roi_boxplots.py] Done loading in subjects. Took 0:00:00.147002 seconds
+[2025-05-19 14:18:24] [plot_roi_boxplots.py] 
+Dataset: Touryan et al. (2022)
+ Subjects:
+    - 20 subjects, 0 groups: []
+ Tasks:
+    - police_detection, collision
+ States:
+    - MW, OT
+ Epochs:
+    - Median epochs per condition: [police_detection - OT: 19.0, collision - MW: 2.0, collision - OT: 2.0, police_detection - MW: 2.0]
+    - Min epochs per condition: [police_detection - OT: 11, collision - MW: 1, collision - OT: 1, police_detection - MW: 1]
+    - Max epochs per condition: [police_detection - OT: 25, collision - MW: 3, collision - OT: 3, police_detection - MW: 6]
+    - State ratios: mean:0.128, min:0.000 (subject_id: 09), max:0.583 (subject_id: 21)
+[2025-05-19 14:18:25] [plot_roi_boxplots.py] ROI-level dataframe head:
+  subject_session  state  epoch_idx             roi  band_power
+0            01_2      0          0  anteriofrontal    4.658637
+1            01_2      0          0         frontal    8.000370
+2            01_2      0          0   frontocentral    4.541935
+3            01_2      0          0  centrotemporal    4.474923
+4            01_2      0          0  centroparietal    3.627963
+[2025-05-19 14:18:25] [plot_roi_boxplots.py] Plotting ROI-level boxplots...
+[2025-05-19 14:18:26] [plot_roi_boxplots.py] Saved ROI-level boxplot: /home/sivert/Documents/Master_AttentionalDirectionResearch/reports/plots/touryan2022/state-boxplots_per_roi/theta/touryan2022_roi_theta_z-score-filtered_boxplot.png
+[2025-05-19 14:18:26] [plot_roi_boxplots.py] 
+|||||||||||||||||||||||   FINISHED ANALYZING DATASET: Touryan et al. (2022)   |||||||||||||||||||||||
+[2025-05-19 14:18:26] [plot_roi_boxplots.py] 
+|||||||||||||||||||||||   ANALYZING BAND: Alpha   |||||||||||||||||||||||
+[2025-05-19 14:18:26] [plot_roi_boxplots.py] 
+|||||||||||||||||||||||   ANALYZING DATASET: Braboszcz et al. (2017)   |||||||||||||||||||||||
+[2025-05-19 14:18:26] [plot_roi_boxplots.py] Loading in subjects...
+[2025-05-19 14:18:27] [plot_roi_boxplots.py] Done loading in subjects. Took 0:00:01.824397 seconds
+[2025-05-19 14:18:28] [plot_roi_boxplots.py] 
+Dataset: Braboszcz et al. (2017)
+ Subjects:
+    - 50 subjects, 2 groups: [vip, ctr]
+ Tasks:
+    - med2, think2
+ States:
+    - MW, OT
+ Epochs:
+    - Median epochs per condition: [med2 - OT: 117.0, think2 - MW: 115.0]
+    - Min epochs per condition: [med2 - OT: 75, think2 - MW: 64]
+    - Max epochs per condition: [med2 - OT: 182, think2 - MW: 129]
+    - State ratios: mean:0.987, min:0.484 (subject_id: 040), max:1.613 (subject_id: 063)
+[2025-05-19 14:18:55] [plot_roi_boxplots.py] ROI-level dataframe head:
+  subject_session  state  epoch_idx             roi  band_power
+0           025_1      0          0  anteriofrontal   22.341066
+1           025_1      0          0         frontal   24.271625
+2           025_1      0          0   frontocentral   23.209444
+3           025_1      0          0  centrotemporal   20.758560
+4           025_1      0          0  centroparietal   27.513199
+[2025-05-19 14:18:55] [plot_roi_boxplots.py] Plotting ROI-level boxplots...
