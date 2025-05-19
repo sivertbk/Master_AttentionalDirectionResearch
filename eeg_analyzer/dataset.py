@@ -17,7 +17,7 @@ from typing import Optional, List, Set, Union
 import numpy as np
 
 from utils.dataset_config import DatasetConfig
-from utils.config import EEG_SETTINGS, ROIs, channel_positions, cortical_regions
+from utils.config import EEG_SETTINGS, channel_positions, cortical_regions
 from . import Subject
 
 
@@ -231,58 +231,63 @@ class Dataset:
             for subj in self.subjects.values()
         }
 
-    def to_long_band_power_list(self, freq_band: tuple[float, float], use_rois: bool = False) -> list[dict]:
+    def to_long_band_power_list(self, freq_band: tuple[float, float]) -> list[dict]:
         """
         Extract per-epoch band power data from all subjects and recordings in the dataset.
 
         Args:
             freq_band (tuple): Frequency band as (low, high) in Hz.
-            use_rois (bool): If True, aggregate by ROI instead of channel (not yet implemented).
 
         Returns:
             list[dict]: Each dict contains:
                 - "subject_session": "<subject_id>_<session_id>"
                 - "subject_id"
                 - "session_id"
-                - "channel" or "roi"
+                - "epoch_idx"
+                - "channel"
                 - "task"
                 - "state" (int: 0=OT, 1=MW)
                 - "band_power"
+                - "is_bad" (bool: True if the epoch is marked as bad)
         """
         from eeg_analyzer.metrics import Metrics  # local import to avoid circular
         long_list = []
         self._ensure_data_loaded()
+        
+        cortical_regions_map = {}
+        for region, ch_names in cortical_regions.items():
+            for ch_name in ch_names:
+                cortical_regions_map[ch_name] = region
+
         for subject in self.subjects.values():
             subj_id = subject.id
             for rec in subject.get_all_recordings():
                 sess_id = rec.session_id
                 subject_session = f"{subj_id}_{sess_id}"
+                epoch_counter = 0  # Unique epoch index within subject_session
                 for task in rec.get_available_tasks():
                     for state in rec.get_available_states(task):
                         psd = rec.get_psd(task, state)
                         freqs = rec.get_freqs(task, state)
                         band_power = Metrics.band_power(psd, freqs, freq_band, operation='sum')  # shape: (epochs, channels)
                         n_epochs, n_channels = band_power.shape
-                        if use_rois:
-                            # Placeholder for ROI aggregation
-                            # roi_powers = aggregate_band_power_to_rois(band_power, rec.channels)
-                            # for epoch_idx, roi_dict in enumerate(roi_powers):
-                            #     for roi, val in roi_dict.items():
-                            #         long_list.append({...})
-                            pass  # Not implemented yet
-                        else:
-                            for epoch_idx in range(n_epochs):
-                                for ch_idx, ch_name in enumerate(rec.channels):
-                                    long_list.append({
-                                        "subject_session": subject_session,
-                                        "subject_id": subj_id,
-                                        "session_id": sess_id,
-                                        "epoch_idx": epoch_idx,
-                                        "channel": ch_name,
-                                        "task": task,
-                                        "state": 1 if state == "MW" else 0,
-                                        "band_power": float(band_power[epoch_idx, ch_idx])
-                                    })
+                        for epoch_idx in range(n_epochs):
+                            for ch_idx, ch_name in enumerate(rec.channels):
+                                long_list.append({
+                                    "subject_session": subject_session,
+                                    "subject_id": subj_id,
+                                    "session_id": sess_id,
+                                    "epoch_idx": epoch_counter,
+                                    "channel": ch_name,
+                                    "cortical_region": cortical_regions_map.get(ch_name, None),
+                                    "hemisphere": "central" if channel_positions[ch_name][0] == 0 else "left" if channel_positions[ch_name][0] < 0 else "right",
+                                    "task": task,
+                                    "state": 1 if state == "MW" else 0,
+                                    "band_power": float(band_power[epoch_idx, ch_idx]),
+                                    "is_bad": False
+                                })
+                                if ch_idx == n_channels - 1:
+                                    epoch_counter += 1
         return long_list
 
     def estimate_long_band_power_length(self, variant: str = "mean") -> int:

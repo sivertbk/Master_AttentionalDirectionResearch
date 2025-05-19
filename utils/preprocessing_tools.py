@@ -166,7 +166,7 @@ def ransac_detect_bad_channels(raw, dataset, eeg_settings, subject, session=None
         min_corr=0.60,        # Accept lower correlation → fewer false positives
         unbroken_time=0.25,   # Allow sensors to be bad more of the time before flagging
         n_jobs=cpu_count(),   # Use all available CPU cores
-        random_state=42069,   # For reproducibility
+        random_state=42,   # For reproducibility
         verbose=verbose
     )
 
@@ -288,7 +288,7 @@ def autoreject_raw(raw, eeg_settings, verbose=True):
         cv=10,                                     # cross validation: K-fold
         picks=picks_eeg,                           # Only use EEG channels
         n_jobs=cpu_count(),                        # Use all available CPU cores
-        random_state=42069,                        # For reproducibility
+        random_state=42,                        # For reproducibility
         verbose=verbose
     )
 
@@ -494,6 +494,7 @@ def prepare_ica_epochs(raw, dataset, eeg_settings, subject, session=None, task=N
         reject_scale_factor=reject_scale_factor,
     )
     # If threhold is too low, set it to min_threshold
+    # This is implemented to avoid dropping epochs with ocular artifacts
     if reject['eeg'] < min_threshold:
         reject = {key: min_threshold for key in reject.keys()}
 
@@ -529,7 +530,7 @@ def prepare_ica_epochs(raw, dataset, eeg_settings, subject, session=None, task=N
 
     return epochs
 
-def ica_fit(epochs, eeg_settings, random_state=42069, verbose=True):
+def ica_fit(epochs, eeg_settings, random_state=42, verbose=True):
     """
     Fit ICA to the epochs. This function applies ICA to the epochs and returns the fitted ICA object.
     

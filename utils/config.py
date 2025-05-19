@@ -187,60 +187,27 @@ cortical_regions = {
     "frontal": ["F1", "F3", "F5", "F7", "Fz", "F2", "F4", "F6", "F8"],
     "frontocentral": ["FC1", "FC3", "FC5", "FT7", "FCz", "FC2", "FC4", "FC6", "FT8"],
     "central": ["C1", "C3", "C5", "Cz", "C2", "C4", "C6"],
-    "centroparietal": ["CP1", "CP3", "CP5", "TP7", "CPz", "CP2", "CP4", "CP6", "TP8"],
+    "centroparietal": ["CP1", "CP3", "CP5", "CPz", "CP2", "CP4", "CP6"],
     "parietal": ["P1", "P3", "P5", "P7", "Pz", "P2", "P4", "P6", "P8"],
     "parietooccipital": ["PO3", "PO7", "POz", "PO4", "PO8"],
     "occipital": ["O1", "Oz", "O2", "Iz"],
-    "temporal": ["T7", "P9", "P10", "T8"],
+    "temporal": ["T7","TP7", "P9", "T8", "TP8", "P10"],
 }
 
 # The regions of interest (ROIs) are defined as a dictionary of lists.
-# Each key is a region name, and the value is a list of channel names.
-# The regions are based on the cortical regions of the brain divided into two main groups for each hemisphere:
+# Each key is a region name, and the value is a list of sub-regions that are suppose to be investigated in that cortical region.
+# The regions are based on the cortical regions defined above.
 ROIs = {
-    "anteriofrontal": {
-        "left": ["Fp1", "AF3", "AF7"],
-        "right": ["Fp2", "AF4", "AF8"],
-    },
-    "frontal": {
-        "left": ["F3", "F7", "F5", "F1"],
-        "right": ["F4", "F8", "F6", "F2"],
-    },
-    "frontocentral": {
-        "left": ["FC1", "FC3", "FC5", "FT7"],
-        "right": ["FC2", "FC4", "FC6", "FT8"],
-    },
-    "centrotemporal": {
-        "left": ["C3", "C5", "T7"],
-        "right": ["C4", "C6", "T8"],
-    },
-    "centroparietal": {
-        "left": ["CP1", "CP3", "CP5", "TP7"],
-        "right": ["CP2", "CP4", "CP6", "TP8"],
-    },
-    "parietotemporal": {
-        "left": ["P3", "P5", "P7", "P9"],
-        "right": ["P4", "P6", "P8", "P10"],
-    },
-    "parietooccipital": {
-        "left": ["PO3", "PO7", "O1"],
-        "right": ["PO4", "PO8", "O2"],
-    },
+    "prefrontal": ["left", "right", "both"],
+    "frontal": ["left", "right", "both"],
+    "frontocentral": ["left", "right", "both"],
+    "central": ["left", "right", "both"],
+    "centroparietal": ["left", "right", "both"],
+    "parietal": ["left", "right", "both"],
+    "parietooccipital": ["left", "right", "both"],
+    "occipital": ["left", "right", "both"],
+    "temporal": ["left", "right", "both"],
 }
-
-# cortical region coords
-cortical_region_coords = {
-    "prefrontal_coords": {ch: channel_positions[ch] for ch in cortical_regions["prefrontal"]},
-    "frontal_coords": {ch: channel_positions[ch] for ch in cortical_regions["frontal"]},
-    "frontocentral_coords": {ch: channel_positions[ch] for ch in cortical_regions["frontocentral"]},
-    "central_coords": {ch: channel_positions[ch] for ch in cortical_regions["central"]},
-    "centroparietal_coords": {ch: channel_positions[ch] for ch in cortical_regions["centroparietal"]},
-    "parietal_coords": {ch: channel_positions[ch] for ch in cortical_regions["parietal"]},
-    "parietooccipital_coords": {ch: channel_positions[ch] for ch in cortical_regions["parietooccipital"]},
-    "occipital_coords": {ch: channel_positions[ch] for ch in cortical_regions["occipital"]},
-    "temporal_coords": {ch: channel_positions[ch] for ch in cortical_regions["temporal"]},
-}
-
 
 
 
