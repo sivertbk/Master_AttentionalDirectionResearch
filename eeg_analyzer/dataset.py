@@ -140,6 +140,16 @@ class Dataset:
             subj for subj in self.subjects.values()
             if subj.group == group
         ]
+    
+    def get_total_epochs(self, subject_id: str) -> int:
+        """
+        Returns the total number of epochs for a given subject.
+        """
+        self._ensure_data_loaded()
+        if subject_id in self.subjects:
+            return self.subjects[subject_id].get_total_epochs()
+        else:
+            raise ValueError(f"Subject {subject_id} not found in dataset.")
 
     def get_epochs_per_condition(self, subject_id = None) -> dict:
         """
@@ -277,6 +287,7 @@ class Dataset:
                                     "subject_session": subject_session,
                                     "subject_id": subj_id,
                                     "session_id": sess_id,
+                                    "group": subject.group,
                                     "epoch_idx": epoch_counter,
                                     "channel": ch_name,
                                     "cortical_region": cortical_regions_map.get(ch_name, None),

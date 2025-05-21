@@ -24,7 +24,7 @@ class EEGAnalyzer:
         for config in dataset_configs:
             dataset = Dataset(config)
             self.datasets[dataset.f_name] = dataset
-            dataset.load_data()
+            dataset.load_subjects()
 
     def __repr__(self):
         return f"<EEGAnalyzer with {len(self.datasets)} datasets>"

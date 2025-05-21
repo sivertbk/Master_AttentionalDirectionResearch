@@ -100,11 +100,22 @@ class Subject:
     def get_dataset(self):
         return self.dataset
     
+    def get_total_epochs(self):
+        """
+        Returns the number of epochs in all sessions.
+        """
+        n_epochs = 0
+        for recording in self.recordings.values():
+            n_epochs_by_cond = recording.get_num_epochs()
+            for n in n_epochs_by_cond.values():
+                n_epochs += n
+        return n_epochs
+    
     def get_epochs_per_condition(self):
         """
         Returns a dictionary with the number of epochs for each task and state.
         The keys are tuples (task, state) and the values are the number of epochs
-        for that condition in all avavailable sessions.
+        for that condition in all available sessions.
         """
         epochs_per_condition = {}
         for recording in self.recordings.values():
