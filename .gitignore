@@ -11,6 +11,7 @@ data/touryan2022/raw/
 data/touryan2022/author_folder/
 data/touryan2022/epochs/
 data/touryan2022/psd_data/
+data/eeg_analyzer_derivatives/
 attentional_direction_research_workspace.egg-info/
 
 # Ignore hidden system files

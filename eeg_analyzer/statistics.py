@@ -5,64 +5,101 @@ Statistics
 Implements statistical tests and models for analyzing EEG data.
 
 Responsibilities:
-- Perform non-parametric testing (e.g., Mann-Whitney U, permutation cluster tests).
-- Fit linear models and mixed-effects models across conditions or groups.
-- Return standardized results for downstream visualization and reporting.
+- a container for statistical tests and models
+- a container for statistical measures
 
-Notes:
-- Inputs are typically epoch-level metric arrays with associated metadata (e.g., labels, subject IDs).
-- Designed for composability: results should be easy to pass into visualizers.
+Used by EEGAnalyzer to perform statistical analysis on EEG data.
+
+NOTE: Ensures logging of all statistical tests, measures, and models.
 """
 
-from scipy.stats import mannwhitneyu
+from scipy.stats import mannwhitneyu, iqr, skew, kurtosis, wilcoxon
+import statsmodels.formula.api as smf
+import numpy as np
+import pandas as pd
+
 
 
 class Statistics:
-    
-    def __init__(self, data):
-        self.data = data
-
-    def mean(self):
-        return sum(self.data) / len(self.data)
-
-    def median(self):
-        sorted_data = sorted(self.data)
-        n = len(sorted_data)
-        if n % 2 == 0:
-            return (sorted_data[n // 2 - 1] + sorted_data[n // 2]) / 2
-        return sorted_data[n // 2]
-
-    def mode(self):
-        counts = {}
-        for value in self.data:
-            if value in counts:
-                counts[value] += 1
-            else:
-                counts[value] = 1
-        max_count = max(counts.values())
-        return [key for key, value in counts.items() if value == max_count]
-
-    def variance(self):
-        mean = self.mean()
-        return sum((x - mean) ** 2 for x in self.data) / len(self.data)
-
-    def standard_deviation(self):
-        return self.variance() ** 0.5
-
-    def mann_whitney_u_test(self, group1, group2, alternative="greater"):
+    @staticmethod
+    def calculate_descriptive_stats(df: pd.DataFrame, value_col: str, group_cols: list) -> pd.DataFrame:
         """
-        Perform a one-tailed Mann-Whitney U test per channel.
+        Calculates descriptive statistics for a given column, grouped by specified columns.
 
         Parameters:
-        - group1: List of values for group 1 (e.g., OT recordings).
-        - group2: List of values for group 2 (e.g., MW recordings).
-        - alternative: Hypothesis ('greater', 'less', or 'two-sided').
+        - df (pd.DataFrame): The input DataFrame.
+        - value_col (str): The name of the column to calculate statistics on.
+        - group_cols (list): A list of column names to group by.
 
         Returns:
-        - p_values: Dictionary with channel names as keys and p-values as values.
+        - pd.DataFrame: A DataFrame with descriptive statistics.
         """
-        p_values = {}
-        for channel in group1.keys():
-            u_stat, p_value = mannwhitneyu(group1[channel], group2[channel], alternative=alternative)
-            p_values[channel] = p_value
-        return p_values
+        if not group_cols:
+            # Calculate global statistics if no group_cols are provided
+            stats = {
+                f'mean_{value_col}': [df[value_col].mean()],
+                f'std_{value_col}': [df[value_col].std()],
+                f'median_{value_col}': [df[value_col].median()],
+                f'iqr_{value_col}': [iqr(df[value_col], nan_policy='omit')],
+                f'min_{value_col}': [df[value_col].min()],
+                f'max_{value_col}': [df[value_col].max()],
+                f'skewness_{value_col}': [skew(df[value_col], nan_policy='omit')],
+                f'kurtosis_{value_col}': [kurtosis(df[value_col], fisher=True, nan_policy='omit')],
+                'count': [len(df)] # General count of rows in the group
+            }
+            # Add subject and epoch counts if columns exist
+            if 'subject_id' in df.columns:
+                stats['subject_count'] = [df['subject_id'].nunique()]
+            if 'epoch_idx' in df.columns: # Assuming epoch_idx is unique within its original context
+                stats['epoch_count'] = [df['epoch_idx'].count()] # number of epochs
+            
+            return pd.DataFrame(stats)
+
+        # Define aggregation functions
+        def q1(x):
+            return x.quantile(0.25)
+
+        def q3(x):
+            return x.quantile(0.75)
+
+        def iqr_custom_func(x): # Renamed to avoid conflict with imported iqr
+            return q3(x) - q1(x)
+
+        # Initialize agg_funcs with operations on the value_col
+        agg_funcs = {
+            f'mean_{value_col}': pd.NamedAgg(column=value_col, aggfunc='mean'),
+            f'std_{value_col}': pd.NamedAgg(column=value_col, aggfunc='std'),
+            f'median_{value_col}': pd.NamedAgg(column=value_col, aggfunc='median'),
+            f'iqr_{value_col}': pd.NamedAgg(column=value_col, aggfunc=iqr_custom_func),
+            f'min_{value_col}': pd.NamedAgg(column=value_col, aggfunc='min'),
+            f'max_{value_col}': pd.NamedAgg(column=value_col, aggfunc='max'),
+            f'skewness_{value_col}': pd.NamedAgg(column=value_col, aggfunc=lambda x: skew(x, nan_policy='omit')),
+            f'kurtosis_{value_col}': pd.NamedAgg(column=value_col, aggfunc=lambda x: kurtosis(x, fisher=True, nan_policy='omit')),
+            # 'count' can be ambiguous if value_col has NaNs. 
+            # Using 'size' on the group directly is more robust for row count per group.
+        }
+        
+        # Group first, then aggregate. 'size' is a GroupBy method.
+        grouped = df.groupby(group_cols)
+        summary_df = grouped.agg(**agg_funcs)
+        
+        # Add count of rows per group (more robust than count on a specific column if it has NaNs)
+        summary_df['group_size'] = grouped.size() 
+
+        # Add subject and epoch counts if columns exist
+        if 'subject_id' in df.columns:
+            subject_counts = grouped['subject_id'].nunique()
+            summary_df = summary_df.join(subject_counts.rename('subject_count'))
+            
+        if 'epoch_idx' in df.columns: 
+             # nunique is better if epoch_idx can repeat across subjects/sessions but should be unique within one
+            epoch_counts = grouped['epoch_idx'].nunique() 
+            summary_df = summary_df.join(epoch_counts.rename('epoch_count'))
+
+        return summary_df.reset_index()
+
+    # Placeholder for other statistical methods like Cohen's d, t-tests, etc.
+    # @staticmethod
+    # def cohen_d(group1, group2):
+    #     # ... implementation ...
+    #     pass

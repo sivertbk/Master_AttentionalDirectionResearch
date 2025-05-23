@@ -284,6 +284,7 @@ class Dataset:
                         for epoch_idx in range(n_epochs):
                             for ch_idx, ch_name in enumerate(rec.channels):
                                 long_list.append({
+                                    "dataset": self.f_name,
                                     "subject_session": subject_session,
                                     "subject_id": subj_id,
                                     "session_id": sess_id,

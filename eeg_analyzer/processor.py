@@ -15,86 +15,75 @@ Notes:
 """
 
 import numpy as np
+import pandas as pd  # Ensure pandas is imported
 from eeg_analyzer.metrics import Metrics
 from eeg_analyzer.subject import Subject
 
 
 class Processor:
-    def __init__(self, data):
-        self.data = data
-
-    def process(self):
-        return self.data
-
     @staticmethod
-    def detect_outliers_alpha_power(alpha_power: np.ndarray, threshold: float = 4.0, by_state: bool = False, states: dict = None) -> dict:
+    def filter_outliers_zscore(df: pd.DataFrame, group_cols: list, value_col: str, threshold: float = 3.0) -> pd.DataFrame:
         """
-        Detect outliers in alpha power across epochs for each channel.
+        Filters outliers from a DataFrame based on Z-scores within specified groups.
 
         Parameters:
-            alpha_power (ndarray): Alpha power data (epochs × channels).
-            threshold (float): Z-score threshold for detecting outliers.
-            by_state (bool): Whether to process states independently.
-            states (dict): Dictionary mapping state names to epoch indices (optional, required if by_state=True).
+        - df (pd.DataFrame): The input DataFrame.
+        - group_cols (list): List of column names to group by for Z-score calculation.
+        - value_col (str): The name of the column to check for outliers.
+        - threshold (float): The Z-score threshold. Rows with abs(Z-score) > threshold are removed.
 
         Returns:
-            dict: A dictionary with channel names as keys and lists of outlier epoch indices as values.
-                  If by_state=True, returns a nested dictionary with states as keys.
+        - pd.DataFrame: A new DataFrame with outliers removed.
         """
-        if by_state and states is None:
-            raise ValueError("States must be provided when by_state is True.")
+        if df.empty:
+            return df
 
-        def compute_outliers(data):
-            z_scores = (data - np.mean(data, axis=0)) / np.std(data, axis=0)
-            return {ch_idx: np.where(np.abs(z_scores[:, ch_idx]) > threshold)[0].tolist() for ch_idx in range(data.shape[1])}
+        def calculate_zscore(group):
+            return (group[value_col] - group[value_col].mean()) / group[value_col].std(ddof=0)  # ddof=0 for population std
 
-        if by_state:
-            outliers_by_state = {}
-            for state, indices in states.items():
-                state_alpha_power = alpha_power[indices]
-                outliers_by_state[state] = compute_outliers(state_alpha_power)
-            return outliers_by_state
-        else:
-            return compute_outliers(alpha_power)
-        
+        df_copy = df.copy()
+        if group_cols:
+            df_copy['z_score'] = df_copy.groupby(group_cols, group_keys=False).apply(calculate_zscore).reset_index(level=0, drop=True)
+        else:  # Global z-score
+            df_copy['z_score'] = (df_copy[value_col] - df_copy[value_col].mean()) / df_copy[value_col].std(ddof=0)
+
+        return df_copy[np.abs(df_copy['z_score']) <= threshold].drop(columns=['z_score'])
+
     @staticmethod
-    def summarize_subject_alpha(subject: Subject, threshold=4.0) -> list[dict]:
-        rows = []
-        for rec in subject.get_all_recordings():
-            for task in rec.get_available_tasks():
-                for state in rec.get_available_states(task):
-                    psd = rec.get_psd(task, state)
-                    freqs = rec.get_freqs(task, state)
-                    alpha = Metrics.alpha_power(psd, freqs)  # shape [epochs, channels]
+    def filter_outliers_iqr(df: pd.DataFrame, group_cols: list, value_col: str, multiplier: float = 1.5) -> pd.DataFrame:
+        """
+        Filters outliers from a DataFrame based on the IQR method within specified groups.
 
-                    # Outlier detection
-                    outlier_indices = Processor.detect_outliers_alpha_power(alpha, threshold=threshold)
-                    mask = np.ones(alpha.shape[0], dtype=bool)
-                    for idx_list in outlier_indices.values():
-                        if idx_list:  # skip empty
-                            idx_arr = np.array(idx_list, dtype=int)
-                            mask[idx_arr] = False
+        Parameters:
+        - df (pd.DataFrame): The input DataFrame.
+        - group_cols (list): List of column names to group by for IQR calculation.
+        - value_col (str): The name of the column to check for outliers.
+        - multiplier (float): The IQR multiplier (typically 1.5).
 
-                    clean_alpha = alpha[mask]
-                    if clean_alpha.shape[0] == 0:
-                        continue  # Skip if no data left
+        Returns:
+        - pd.DataFrame: A new DataFrame with outliers removed.
+        """
+        if df.empty:
+            return df
 
-                    mean_alpha = clean_alpha.mean(axis=0)  # shape [channels]
-                    channel_names = rec.channels
+        def get_iqr_bounds(group):
+            q1 = group[value_col].quantile(0.25)
+            q3 = group[value_col].quantile(0.75)
+            iqr_val = q3 - q1
+            lower_bound = q1 - multiplier * iqr_val
+            upper_bound = q3 + multiplier * iqr_val
+            return pd.Series({'lower_bound': lower_bound, 'upper_bound': upper_bound})
 
-                    print(f"→ Subject {subject.id} session {rec.session_id}, task {task}, state {state}, alpha shape: {alpha.shape}")
-                    # if any outliers:
-                    print("  Outlier indices:", outlier_indices)
+        df_copy = df.copy()
+        if group_cols:
+            bounds = df_copy.groupby(group_cols, group_keys=False).apply(get_iqr_bounds)
+            df_copy = df_copy.join(bounds, on=group_cols)
+        else:  # Global IQR
+            q1 = df_copy[value_col].quantile(0.25)
+            q3 = df_copy[value_col].quantile(0.75)
+            iqr_val = q3 - q1
+            df_copy['lower_bound'] = q1 - multiplier * iqr_val
+            df_copy['upper_bound'] = q3 + multiplier * iqr_val
 
-
-                    for ch_name, val in zip(channel_names, mean_alpha):
-                        rows.append({
-                            "dataset": subject.dataset.f_name,
-                            "subject": subject.id,
-                            "session": rec.session_id,
-                            "task": task,
-                            "state": state,
-                            "channel": ch_name,
-                            "alpha_power": val
-                        })
-        return rows
+        filtered_df = df_copy[(df_copy[value_col] >= df_copy['lower_bound']) & (df_copy[value_col] <= df_copy['upper_bound'])]
+        return filtered_df.drop(columns=['lower_bound', 'upper_bound'])

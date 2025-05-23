@@ -15,6 +15,8 @@ from utils.helpers import calculate_freq_resolution
 ROOT_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 DATA_PATH = os.path.join(ROOT_PATH, "data")
+EEGANALYZER_OBJECT_DERIVATIVES_PATH = os.path.join(DATA_PATH, "eeg_analyzer_derivatives")
+
 
 REPORTS_PATH           = os.path.join(ROOT_PATH, "reports")
 LOGS_PATH              = os.path.join(REPORTS_PATH, "logs")
@@ -239,3 +241,28 @@ if __name__ == "__main__":
         print(f"  PSD Path: {dataset.path_psd}")
         print(f"  Derivatives Path: {dataset.path_derivatives}")
 
+
+
+
+# =============================================================================
+#                             RANDOM NAMES
+# =============================================================================
+
+NAME_LIST = [
+    "Socrates", "Plato", "Aristotle", "Homer", "Virgil", "Cicero", "Seneca",
+    "Augustus", "Leonidas", "Pericles", "Archimedes", "Pythagoras", "Euclid",
+    "Hippocrates", "Galileo", "Copernicus", "Newton", "Kepler", "Descartes",
+    "Pascal", "Voltaire", "Rousseau", "Locke", "Spinoza", "Kant", "Hegel",
+    "Leibniz", "Darwin", "Faraday", "Tesla", "Edison", "Franklin", "Lincoln",
+    "Washington", "Jefferson", "Churchill", "Mandela", "Gandhi", "Pliny",
+    "Aquinas", "Charlemagne", "Constantine", "Alexander", "Leonardo",
+    "Michelangelo", "Raphael", "Donatello", "Rembrandt", "Shakespeare",
+    "Goethe", "Beethoven", "Mozart", "Bach", "Chopin", "Liszt", "Tolstoy",
+    "Dostoevsky", "Chekhov", "Pushkin", "Dickens", "Twain", "Thoreau",
+    "Emerson", "Einstein", "Bohr", "Curie", "Planck", "Fermi", "Heisenberg",
+    "Dirac", "Turing", "Gauss", "Euler", "Riemann", "Brahms", "Haydn",
+    "Stravinsky", "Wagner", "Verdi", "Handel", "Schubert", "Columbus",
+    "Magellan", "Marco", "Cook", "Livingstone", "Pasteur", "Nansen", "Amundsen",
+    "Luther", "Francis", "Catherine", "Joan", "Theresa", "Clovis", "Alcuin",
+    "Hypatia", "Avicenna", "Rumi", "Omar", "Saladin", "Akbar"
+]
