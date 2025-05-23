@@ -47,11 +47,10 @@ class Statistics:
                 f'kurtosis_{value_col}': [kurtosis(df[value_col], fisher=True, nan_policy='omit')],
                 'count': [len(df)] # General count of rows in the group
             }
-            # Add subject and epoch counts if columns exist
+            # Add subject count if column exists
             if 'subject_id' in df.columns:
                 stats['subject_count'] = [df['subject_id'].nunique()]
-            if 'epoch_idx' in df.columns: # Assuming epoch_idx is unique within its original context
-                stats['epoch_count'] = [df['epoch_idx'].count()] # number of epochs
+            # Removed epoch_count for global stats as 'count' (len(df)) serves this.
             
             return pd.DataFrame(stats)
 
@@ -90,11 +89,6 @@ class Statistics:
         if 'subject_id' in df.columns:
             subject_counts = grouped['subject_id'].nunique()
             summary_df = summary_df.join(subject_counts.rename('subject_count'))
-            
-        if 'epoch_idx' in df.columns: 
-             # nunique is better if epoch_idx can repeat across subjects/sessions but should be unique within one
-            epoch_counts = grouped['epoch_idx'].nunique() 
-            summary_df = summary_df.join(epoch_counts.rename('epoch_count'))
 
         return summary_df.reset_index()
 

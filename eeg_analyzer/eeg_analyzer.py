@@ -22,6 +22,7 @@ from typing import Union # Import Union for older Python versions
 
 from eeg_analyzer.dataset import Dataset
 from eeg_analyzer.statistics import Statistics # Import the Statistics class
+from eeg_analyzer.processor import Processor # Import the Processor class
 from utils.config import EEGANALYZER_OBJECT_DERIVATIVES_PATH, NAME_LIST
 
 
@@ -247,46 +248,148 @@ class EEGAnalyzer:
             print(f"[EEGAnalyzer - {self.analyzer_name}] {log_msg}")
             self._log_event("Load DataFrame Attempt Failed", {"path": filepath, "reason": "File not found", "message": log_msg})
 
+    def apply_zscore_flagging(self, group_cols: list, value_col: str, threshold: float = 3.0, zscore_col_name: str = None):
+        """
+        Applies Z-score based outlier flagging to self.df.
+        Adds a Z-score column and updates the 'is_bad' column.
+        """
+        if self.df is None or self.df.empty:
+            print(f"[EEGAnalyzer - {self.analyzer_name}] DataFrame is empty. Cannot apply Z-score flagging.")
+            self._log_event("Z-score Flagging Skipped", {"reason": "DataFrame empty"})
+            return
+
+        if zscore_col_name is None:
+            zscore_col_name = f"zscore_{value_col}"
+
+        print(f"[EEGAnalyzer - {self.analyzer_name}] Applying Z-score flagging to '{value_col}' (threshold: {threshold})...")
+        
+        initial_bad_count = self.df['is_bad'].sum() if 'is_bad' in self.df.columns else 0
+        
+        processed_df = Processor.flag_outliers_zscore(
+            self.df, 
+            group_cols=group_cols, 
+            value_col=value_col, 
+            threshold=threshold,
+            zscore_col_name=zscore_col_name
+        )
+        
+        final_bad_count = processed_df['is_bad'].sum()
+        newly_flagged = final_bad_count - initial_bad_count
+        
+        self.df = processed_df
+        
+        log_details = {
+            "value_col": value_col,
+            "group_cols": group_cols,
+            "threshold": threshold,
+            "zscore_col_name": zscore_col_name,
+            "initial_bad_rows": initial_bad_count,
+            "final_bad_rows": final_bad_count,
+            "newly_flagged_rows": newly_flagged,
+            "df_shape": self.df.shape
+        }
+        print(f"[EEGAnalyzer - {self.analyzer_name}] Z-score flagging applied. {newly_flagged} new rows flagged as bad.")
+        self._log_event("Z-score Flagging Applied", log_details)
+
+    def apply_iqr_flagging(self, group_cols: list, value_col: str, multiplier: float = 1.5):
+        """
+        Applies IQR based outlier flagging to self.df.
+        Updates the 'is_bad' column.
+        """
+        if self.df is None or self.df.empty:
+            print(f"[EEGAnalyzer - {self.analyzer_name}] DataFrame is empty. Cannot apply IQR flagging.")
+            self._log_event("IQR Flagging Skipped", {"reason": "DataFrame empty"})
+            return
+
+        print(f"[EEGAnalyzer - {self.analyzer_name}] Applying IQR flagging to '{value_col}' (multiplier: {multiplier})...")
+        
+        initial_bad_count = self.df['is_bad'].sum() if 'is_bad' in self.df.columns else 0
+
+        processed_df = Processor.flag_outliers_iqr(
+            self.df, 
+            group_cols=group_cols, 
+            value_col=value_col, 
+            multiplier=multiplier
+        )
+        
+        final_bad_count = processed_df['is_bad'].sum()
+        newly_flagged = final_bad_count - initial_bad_count
+
+        self.df = processed_df
+
+        log_details = {
+            "value_col": value_col,
+            "group_cols": group_cols,
+            "multiplier": multiplier,
+            "initial_bad_rows": initial_bad_count,
+            "final_bad_rows": final_bad_count,
+            "newly_flagged_rows": newly_flagged,
+            "df_shape": self.df.shape
+        }
+        print(f"[EEGAnalyzer - {self.analyzer_name}] IQR flagging applied. {newly_flagged} new rows flagged as bad.")
+        self._log_event("IQR Flagging Applied", log_details)
+
+
+    def _get_df_for_summary(self, source_df: pd.DataFrame = None, exclude_bad_rows: bool = True):
+        """Helper to get the DataFrame to be used for summary, optionally filtering bad rows."""
+        df_to_process = source_df if source_df is not None else self.df
+
+        if df_to_process is None or df_to_process.empty:
+            return None
+
+        if exclude_bad_rows and 'is_bad' in df_to_process.columns:
+            original_rows = len(df_to_process)
+            df_to_process = df_to_process[~df_to_process['is_bad']].copy()
+            rows_after_exclusion = len(df_to_process)
+            if original_rows != rows_after_exclusion:
+                 print(f"[EEGAnalyzer - {self.analyzer_name}] Excluded {original_rows - rows_after_exclusion} rows where is_bad=True for summary.")
+        return df_to_process
+
     def generate_summary_table(self, 
                                groupby_cols: list, 
                                target_col: str = 'band_power', 
-                               filter_type: str = "unfiltered", 
+                               filter_type: str = "processed", # More generic, as df state is now primary
                                output_filename_suffix: str = None,
-                               source_df: pd.DataFrame = None) -> Union[pd.DataFrame, None]:
+                               source_df: pd.DataFrame = None,
+                               exclude_bad_rows: bool = True) -> Union[pd.DataFrame, None]:
         """
         Generates a summary table with descriptive statistics.
 
         Parameters:
         - groupby_cols (list): List of columns to group by.
         - target_col (str): The column to calculate statistics on (default: 'band_power').
-        - filter_type (str): A descriptor for the data filtering state (e.g., "unfiltered", "z_scored").
+        - filter_type (str): A descriptor for the data state (e.g., "unfiltered", "zscore_flagged").
                              Used for logging and filename generation.
         - output_filename_suffix (str): Optional suffix for the output CSV file. If None,
                                         a default name based on groupby_cols and filter_type is used.
         - source_df (pd.DataFrame, optional): DataFrame to use for generating the summary. 
                                               If None, self.df is used.
+        - exclude_bad_rows (bool): If True (default), rows where 'is_bad' is True are excluded 
+                                   before calculating statistics.
 
         Returns:
         - pd.DataFrame: The generated summary table, or None if an error occurs.
         """
-        df_to_process = source_df if source_df is not None else self.df
+        df_to_process = self._get_df_for_summary(source_df, exclude_bad_rows)
 
         if df_to_process is None or df_to_process.empty:
-            log_msg = "DataFrame is not available or is empty. Cannot generate summary table."
+            log_msg = "DataFrame is not available or is empty (possibly after excluding bad rows). Cannot generate summary table."
             print(f"[EEGAnalyzer - {self.analyzer_name}] {log_msg}")
-            self._log_event("Generate Summary Table Failed", {"reason": log_msg, "groupby_cols": groupby_cols, "target_col": target_col, "filter_type": filter_type})
+            self._log_event("Generate Summary Table Failed", {"reason": log_msg, "groupby_cols": groupby_cols, "target_col": target_col, "filter_type": filter_type, "exclude_bad_rows": exclude_bad_rows})
             return None
 
-        print(f"[EEGAnalyzer - {self.analyzer_name}] Generating summary table for '{target_col}', grouped by {groupby_cols}, filter: {filter_type}...")
+        print(f"[EEGAnalyzer - {self.analyzer_name}] Generating summary table for '{target_col}', grouped by {groupby_cols}, data state: {filter_type}, excluding bad rows: {exclude_bad_rows}...")
 
         try:
             summary_df = Statistics.calculate_descriptive_stats(df_to_process, target_col, groupby_cols)
             
+            clean_suffix = "_cleaned" if exclude_bad_rows and ('is_bad' in (source_df if source_df is not None else self.df).columns) else ""
+            
             if output_filename_suffix is None:
                 group_str = "_".join(groupby_cols).replace(" ", "")
-                output_filename = f"summary_{group_str}_{filter_type}_{target_col}.csv"
+                output_filename = f"summary_{group_str}_{filter_type}_{target_col}{clean_suffix}.csv"
             else:
-                output_filename = f"summary_{output_filename_suffix}_{filter_type}_{target_col}.csv"
+                output_filename = f"summary_{output_filename_suffix}_{filter_type}_{target_col}{clean_suffix}.csv"
             
             filepath = os.path.join(self.derivatives_path, output_filename)
             summary_df.to_csv(filepath, index=False)
@@ -297,6 +400,7 @@ class EEGAnalyzer:
                 "groupby_cols": groupby_cols,
                 "target_col": target_col,
                 "filter_type": filter_type,
+                "exclude_bad_rows": exclude_bad_rows,
                 "output_file": filepath,
                 "rows": len(summary_df),
                 "message": log_msg
@@ -309,6 +413,7 @@ class EEGAnalyzer:
                 "groupby_cols": groupby_cols,
                 "target_col": target_col,
                 "filter_type": filter_type,
+                "exclude_bad_rows": exclude_bad_rows,
                 "error": str(e),
                 "message": log_msg
             })

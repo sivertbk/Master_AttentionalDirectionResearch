@@ -22,49 +22,67 @@ from eeg_analyzer.subject import Subject
 
 class Processor:
     @staticmethod
-    def filter_outliers_zscore(df: pd.DataFrame, group_cols: list, value_col: str, threshold: float = 3.0) -> pd.DataFrame:
+    def flag_outliers_zscore(df: pd.DataFrame, group_cols: list, value_col: str, threshold: float = 3.0, zscore_col_name: str = None) -> pd.DataFrame:
         """
-        Filters outliers from a DataFrame based on Z-scores within specified groups.
+        Adds a Z-score column and flags outliers in the 'is_bad' column based on Z-scores
+        within specified groups. Operates on a copy of the DataFrame.
 
         Parameters:
-        - df (pd.DataFrame): The input DataFrame.
+        - df (pd.DataFrame): The input DataFrame. Must contain an 'is_bad' column.
         - group_cols (list): List of column names to group by for Z-score calculation.
-        - value_col (str): The name of the column to check for outliers.
-        - threshold (float): The Z-score threshold. Rows with abs(Z-score) > threshold are removed.
+        - value_col (str): The name of the column to calculate Z-scores on.
+        - threshold (float): The Z-score threshold. Rows with abs(Z-score) > threshold are flagged.
+        - zscore_col_name (str, optional): Name for the new Z-score column. 
+                                           Defaults to f"zscore_{value_col}".
 
         Returns:
-        - pd.DataFrame: A new DataFrame with outliers removed.
+        - pd.DataFrame: A new DataFrame with added Z-score column and updated 'is_bad' column.
         """
         if df.empty:
             return df
 
-        def calculate_zscore(group):
-            return (group[value_col] - group[value_col].mean()) / group[value_col].std(ddof=0)  # ddof=0 for population std
-
         df_copy = df.copy()
-        if group_cols:
-            df_copy['z_score'] = df_copy.groupby(group_cols, group_keys=False).apply(calculate_zscore).reset_index(level=0, drop=True)
-        else:  # Global z-score
-            df_copy['z_score'] = (df_copy[value_col] - df_copy[value_col].mean()) / df_copy[value_col].std(ddof=0)
+        if 'is_bad' not in df_copy.columns:
+            df_copy['is_bad'] = False # Initialize if not present
 
-        return df_copy[np.abs(df_copy['z_score']) <= threshold].drop(columns=['z_score'])
+        if zscore_col_name is None:
+            zscore_col_name = f"zscore_{value_col}"
+
+        def calculate_zscore(group):
+            return (group[value_col] - group[value_col].mean()) / group[value_col].std(ddof=0)
+
+        if group_cols:
+            df_copy[zscore_col_name] = df_copy.groupby(group_cols, group_keys=False).apply(calculate_zscore).reset_index(level=0, drop=True)
+        else: # Global z-score
+            df_copy[zscore_col_name] = (df_copy[value_col] - df_copy[value_col].mean()) / df_copy[value_col].std(ddof=0)
+        
+        # Flag outliers: update 'is_bad' to True where it's already True OR where new outlier condition is met
+        df_copy['is_bad'] = df_copy['is_bad'] | (np.abs(df_copy[zscore_col_name]) > threshold)
+        
+        return df_copy
 
     @staticmethod
-    def filter_outliers_iqr(df: pd.DataFrame, group_cols: list, value_col: str, multiplier: float = 1.5) -> pd.DataFrame:
+    def flag_outliers_iqr(df: pd.DataFrame, group_cols: list, value_col: str, multiplier: float = 1.5) -> pd.DataFrame:
         """
-        Filters outliers from a DataFrame based on the IQR method within specified groups.
+        Flags outliers in the 'is_bad' column based on the IQR method within specified groups.
+        Operates on a copy of the DataFrame.
 
         Parameters:
-        - df (pd.DataFrame): The input DataFrame.
+        - df (pd.DataFrame): The input DataFrame. Must contain an 'is_bad' column.
         - group_cols (list): List of column names to group by for IQR calculation.
         - value_col (str): The name of the column to check for outliers.
         - multiplier (float): The IQR multiplier (typically 1.5).
 
         Returns:
-        - pd.DataFrame: A new DataFrame with outliers removed.
+        - pd.DataFrame: A new DataFrame with an updated 'is_bad' column.
         """
         if df.empty:
             return df
+
+        df_copy = df.copy()
+        if 'is_bad' not in df_copy.columns:
+            df_copy['is_bad'] = False # Initialize if not present
+
 
         def get_iqr_bounds(group):
             q1 = group[value_col].quantile(0.25)
@@ -72,18 +90,21 @@ class Processor:
             iqr_val = q3 - q1
             lower_bound = q1 - multiplier * iqr_val
             upper_bound = q3 + multiplier * iqr_val
-            return pd.Series({'lower_bound': lower_bound, 'upper_bound': upper_bound})
+            # Create a boolean series for outliers within the group
+            is_outlier_group = (group[value_col] < lower_bound) | (group[value_col] > upper_bound)
+            return is_outlier_group
 
-        df_copy = df.copy()
         if group_cols:
-            bounds = df_copy.groupby(group_cols, group_keys=False).apply(get_iqr_bounds)
-            df_copy = df_copy.join(bounds, on=group_cols)
-        else:  # Global IQR
+            # Apply to get boolean series for outliers per group, then combine
+            # The result of apply here should have an index aligned with df_copy.index
+            outlier_flags_series = df_copy.groupby(group_cols, group_keys=False).apply(get_iqr_bounds)
+            df_copy['is_bad'] = df_copy['is_bad'] | outlier_flags_series
+        else: # Global IQR
             q1 = df_copy[value_col].quantile(0.25)
             q3 = df_copy[value_col].quantile(0.75)
             iqr_val = q3 - q1
-            df_copy['lower_bound'] = q1 - multiplier * iqr_val
-            df_copy['upper_bound'] = q3 + multiplier * iqr_val
-
-        filtered_df = df_copy[(df_copy[value_col] >= df_copy['lower_bound']) & (df_copy[value_col] <= df_copy['upper_bound'])]
-        return filtered_df.drop(columns=['lower_bound', 'upper_bound'])
+            lower_bound = q1 - multiplier * iqr_val
+            upper_bound = q3 + multiplier * iqr_val
+            df_copy['is_bad'] = df_copy['is_bad'] | ((df_copy[value_col] < lower_bound) | (df_copy[value_col] > upper_bound))
+            
+        return df_copy
