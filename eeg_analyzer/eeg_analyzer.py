@@ -348,12 +348,18 @@ class EEGAnalyzer:
     def generate_summary_table(self, 
                                groupby_cols: list, 
                                target_col: str = 'band_power', 
-                               filter_type: str = "processed", # More generic, as df state is now primary
+                               filter_type: str = "processed",
                                output_filename_suffix: str = None,
                                source_df: pd.DataFrame = None,
-                               exclude_bad_rows: bool = True) -> Union[pd.DataFrame, None]:
+                               exclude_bad_rows: bool = True,
+                               state_col: str = 'state', # New parameter
+                               positive_state: str = 'OT', # New parameter
+                               negative_state: str = 'MW', # New parameter
+                               perform_state_comparison: bool = True # New parameter
+                               ) -> Union[pd.DataFrame, None]:
         """
         Generates a summary table with descriptive statistics.
+        Can perform detailed state comparisons if perform_state_comparison is True.
 
         Parameters:
         - groupby_cols (list): List of columns to group by.
@@ -366,6 +372,11 @@ class EEGAnalyzer:
                                               If None, self.df is used.
         - exclude_bad_rows (bool): If True (default), rows where 'is_bad' is True are excluded 
                                    before calculating statistics.
+        - state_col (str): Column name for states (default: 'state').
+        - positive_state (str): Name of the positive state for comparison (default: 'OT').
+        - negative_state (str): Name of the negative state for comparison (default: 'MW').
+        - perform_state_comparison (bool): If True, generates detailed stats including state comparisons.
+                                           If False, generates simpler group-wise statistics.
 
         Returns:
         - pd.DataFrame: The generated summary table, or None if an error occurs.
@@ -378,18 +389,36 @@ class EEGAnalyzer:
             self._log_event("Generate Summary Table Failed", {"reason": log_msg, "groupby_cols": groupby_cols, "target_col": target_col, "filter_type": filter_type, "exclude_bad_rows": exclude_bad_rows})
             return None
 
-        print(f"[EEGAnalyzer - {self.analyzer_name}] Generating summary table for '{target_col}', grouped by {groupby_cols}, data state: {filter_type}, excluding bad rows: {exclude_bad_rows}...")
+        print(f"[EEGAnalyzer - {self.analyzer_name}] Generating summary table for '{target_col}', grouped by {groupby_cols}, data state: {filter_type}, excluding bad rows: {exclude_bad_rows}, state comparison: {perform_state_comparison}...")
 
         try:
-            summary_df = Statistics.calculate_descriptive_stats(df_to_process, target_col, groupby_cols)
+            if perform_state_comparison:
+                if state_col not in df_to_process.columns:
+                    log_msg = f"State column '{state_col}' not found in DataFrame. Cannot perform state comparison."
+                    print(f"[EEGAnalyzer - {self.analyzer_name}] {log_msg}")
+                    self._log_event("Generate Summary Table Failed", {"reason": log_msg, "state_col": state_col})
+                    return None
+                summary_df = Statistics.calculate_descriptive_stats_detailed(
+                    df_to_process, 
+                    value_col=target_col, 
+                    group_cols=groupby_cols,
+                    state_col=state_col,
+                    positive_state=positive_state,
+                    negative_state=negative_state
+                )
+            else:
+                summary_df = Statistics.calculate_descriptive_stats(df_to_process, target_col, groupby_cols)
             
             clean_suffix = "_cleaned" if exclude_bad_rows and ('is_bad' in (source_df if source_df is not None else self.df).columns) else ""
+            state_comp_suffix = "_statecomp" if perform_state_comparison else ""
             
             if output_filename_suffix is None:
                 group_str = "_".join(groupby_cols).replace(" ", "")
-                output_filename = f"summary_{group_str}_{filter_type}_{target_col}{clean_suffix}.csv"
+                output_filename = f"summary_{group_str}_{filter_type}_{target_col}{clean_suffix}{state_comp_suffix}.csv"
             else:
-                output_filename = f"summary_{output_filename_suffix}_{filter_type}_{target_col}{clean_suffix}.csv"
+                # Ensure output_filename_suffix doesn't lead to excessively long or redundant names if it already contains info
+                output_filename = f"summary_{output_filename_suffix}_{filter_type}_{target_col}{clean_suffix}{state_comp_suffix}.csv"
+
             
             filepath = os.path.join(self.derivatives_path, output_filename)
             summary_df.to_csv(filepath, index=False)
@@ -401,6 +430,7 @@ class EEGAnalyzer:
                 "target_col": target_col,
                 "filter_type": filter_type,
                 "exclude_bad_rows": exclude_bad_rows,
+                "state_comparison": perform_state_comparison,
                 "output_file": filepath,
                 "rows": len(summary_df),
                 "message": log_msg
@@ -414,6 +444,7 @@ class EEGAnalyzer:
                 "target_col": target_col,
                 "filter_type": filter_type,
                 "exclude_bad_rows": exclude_bad_rows,
+                "state_comparison": perform_state_comparison,
                 "error": str(e),
                 "message": log_msg
             })
