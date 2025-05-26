@@ -200,15 +200,15 @@ cortical_regions = {
 # Each key is a region name, and the value is a list of sub-regions that are suppose to be investigated in that cortical region.
 # The regions are based on the cortical regions defined above.
 ROIs = {
-    "prefrontal": ["left", "right", "both"],
-    "frontal": ["left", "right", "both"],
-    "frontocentral": ["left", "right", "both"],
-    "central": ["left", "right", "both"],
-    "centroparietal": ["left", "right", "both"],
-    "parietal": ["left", "right", "both"],
-    "parietooccipital": ["left", "right", "both"],
-    "occipital": ["left", "right", "both"],
-    "temporal": ["left", "right", "both"],
+    "prefrontal": ["left", "right", "full"],
+    "frontal": ["left", "right", "full"],
+    "frontocentral": ["left", "right", "full"],
+    "central": ["left", "right", "full"],
+    "centroparietal": ["left", "right", "full"],
+    "parietal": ["left", "right", "full"],
+    "parietooccipital": ["left", "right", "full"],
+    "occipital": ["left", "right", "full"],
+    "temporal": ["left", "right", "full"],
 }
 
 

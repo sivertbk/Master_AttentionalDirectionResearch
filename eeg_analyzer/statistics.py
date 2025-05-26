@@ -12,6 +12,7 @@ Used by EEGAnalyzer to perform statistical analysis on EEG data.
 
 NOTE: Ensures logging of all statistical tests, measures, and models.
 """
+from typing import Union
 
 from scipy.stats import mannwhitneyu, iqr, skew, kurtosis, wilcoxon
 import statsmodels.formula.api as smf
@@ -125,20 +126,17 @@ class Statistics:
         df: pd.DataFrame, 
         value_col: str, 
         group_cols: list, 
-        state_col: str,
-        positive_state: str,
-        negative_state: str
+        state_col: str
     ) -> pd.DataFrame:
         """
         Calculates detailed descriptive statistics including per-state measures and differences.
+        Assumes state_col contains 0 for 'OT' (positive) and 1 for 'MW' (negative).
 
         Parameters:
         - df (pd.DataFrame): The input DataFrame.
         - value_col (str): The name of the column to calculate statistics on.
         - group_cols (list): A list of column names to group by.
         - state_col (str): The name of the column indicating state (e.g., 'state').
-        - positive_state (str): The name of the 'positive' state (e.g., 'OT').
-        - negative_state (str): The name of the 'negative' state (e.g., 'MW').
 
         Returns:
         - pd.DataFrame: A DataFrame with detailed descriptive statistics.
@@ -163,21 +161,21 @@ class Statistics:
             overall_stats = Statistics._get_stats_dict(group_df[value_col], value_col, suffix="")
             row_stats.update(overall_stats)
             
-            # Stats for positive state
-            positive_df = group_df[group_df[state_col] == positive_state]
-            pos_stats = Statistics._get_stats_dict(positive_df[value_col], value_col, suffix=f"_{positive_state}")
+            # Stats for positive state (OT, assumed to be 0)
+            positive_df = group_df[group_df[state_col] == 0] # OT state
+            pos_stats = Statistics._get_stats_dict(positive_df[value_col], value_col, suffix=f"_OT")
             row_stats.update(pos_stats)
 
-            # Stats for negative state
-            negative_df = group_df[group_df[state_col] == negative_state]
-            neg_stats = Statistics._get_stats_dict(negative_df[value_col], value_col, suffix=f"_{negative_state}")
+            # Stats for negative state (MW, assumed to be 1)
+            negative_df = group_df[group_df[state_col] == 1] # MW state
+            neg_stats = Statistics._get_stats_dict(negative_df[value_col], value_col, suffix=f"_MW")
             row_stats.update(neg_stats)
 
             # State differences
-            mean_pos = row_stats.get(f'mean_{positive_state}', np.nan)
-            mean_neg = row_stats.get(f'mean_{negative_state}', np.nan)
-            median_pos = row_stats.get(f'median_{positive_state}', np.nan)
-            median_neg = row_stats.get(f'median_{negative_state}', np.nan)
+            mean_pos = row_stats.get(f'mean_OT', np.nan)
+            mean_neg = row_stats.get(f'mean_MW', np.nan)
+            median_pos = row_stats.get(f'median_OT', np.nan)
+            median_neg = row_stats.get(f'median_MW', np.nan)
 
             row_stats[f'state_diff_mean'] = mean_pos - mean_neg
             row_stats[f'state_diff_median'] = median_pos - median_neg
@@ -195,8 +193,8 @@ class Statistics:
         ordered_cols = group_cols.copy()
         base_stat_names = ['mean', 'std', 'median', 'iqr', 'min', 'max', 'skewness', 'kurtosis', 'count']
         ordered_cols.extend(base_stat_names)
-        ordered_cols.extend([f'{stat}_{positive_state}' for stat in base_stat_names])
-        ordered_cols.extend([f'{stat}_{negative_state}' for stat in base_stat_names])
+        ordered_cols.extend([f'{stat}_OT' for stat in base_stat_names])
+        ordered_cols.extend([f'{stat}_MW' for stat in base_stat_names])
         ordered_cols.extend(['state_diff_mean', 'state_diff_median', 'group_size'])
         if 'subject_count' in summary_df.columns:
              ordered_cols.append('subject_count')
@@ -205,6 +203,69 @@ class Statistics:
         ordered_cols = [col for col in ordered_cols if col in summary_df.columns]
         
         return summary_df[ordered_cols]
+
+    @staticmethod
+    def fit_mixedlm(df: pd.DataFrame, 
+                    formula: str, 
+                    groups_col: str, 
+                    re_formula: str = None, 
+                    vc_formula: str = None) -> Union[smf.MixedLMResultsWrapper, None]:
+        """
+        Fits a mixed-effects linear model using statsmodels.
+
+        Parameters:
+        - df (pd.DataFrame): The DataFrame containing the data.
+        - formula (str): The formula for the fixed effects (e.g., 'value ~ C(state)').
+        - groups_col (str): The column name specifying the groups for random effects.
+        - re_formula (str, optional): The formula for the random effects. Defaults to a random intercept for groups_col.
+        - vc_formula (dict, optional): Variance components formula.
+
+        Returns:
+        - statsmodels.regression.mixed_linear_model.MixedLMResultsWrapper or None: 
+          The fitted model results, or None if fitting fails.
+        """
+        if df.empty:
+            print("DataFrame is empty. Cannot fit MixedLM.")
+            return None
+        
+        required_cols = [groups_col] + [term.strip() for term in formula.replace('~', ' ').replace('+', ' ').replace('*', ' ').replace('C(', '').replace(')', '').split() if term.strip().isalpha()]
+        missing_cols = [col for col in required_cols if col not in df.columns and col != '1'] # '1' for intercept
+        if any(missing_cols):
+            print(f"Missing columns in DataFrame for MixedLM: {missing_cols}. Formula: {formula}")
+            return None
+        
+        # Drop rows with NaNs in critical columns for the model
+        # Identify columns involved in the formula (simple parsing)
+        formula_vars = [v.strip() for v in formula.replace("~", " ").replace("+", " ").replace("*", " ").split(" ") if v.strip() and v.strip() != "C"]
+        # Remove potential function calls like C(state) -> state
+        formula_vars = [v.split('(')[-1].replace(')', '') for v in formula_vars] 
+        cols_to_check_for_nans = list(set(formula_vars + [groups_col]))
+        
+        df_cleaned = df.dropna(subset=cols_to_check_for_nans)
+
+        if df_cleaned.empty:
+            print(f"DataFrame became empty after dropping NaNs in columns: {cols_to_check_for_nans}. Cannot fit MixedLM.")
+            return None
+        
+        if df_cleaned[groups_col].nunique() < 2 and re_formula is not None : # Need multiple groups for random effects
+            print(f"Not enough unique groups in '{groups_col}' ({df_cleaned[groups_col].nunique()}) for random effects. Skipping MixedLM for this slice.")
+            # Potentially fit a simpler model like OLS or return None
+            return None
+
+
+        try:
+            model = smf.mixedlm(formula, 
+                                df_cleaned, 
+                                groups=df_cleaned[groups_col], 
+                                re_formula=re_formula, 
+                                vc_formula=vc_formula)
+            result = model.fit(reml=False) # Want full maximum likelihood estimation to compare models 
+            return result
+        except Exception as e:
+            print(f"Error fitting MixedLM: {e}")
+            print(f"Formula: {formula}, Groups: {groups_col}, RE Formula: {re_formula}")
+            print(f"Data head:\n{df_cleaned.head()}")
+            return None
 
 
     # Placeholder for other statistical methods like Cohen's d, t-tests, etc.

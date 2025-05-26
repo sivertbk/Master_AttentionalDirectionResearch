@@ -81,6 +81,8 @@ class EEGAnalyzer:
             loaded_datasets_info[name] = f"{len(dataset.subjects)} subjects"
             print(f"[EEGAnalyzer - {self.analyzer_name}] Loaded dataset: {name} with {len(dataset.subjects)} subjects.")
         self._log_event("Datasets Loaded on Init", {"datasets_loaded": loaded_datasets_info})
+        self.fitted_models = {} # Initialize storage for fitted models
+        self.models = {} # For model configurations if _add_model is used
 
 
     def _log_event(self, event_name: str, details: dict = None):
@@ -352,14 +354,14 @@ class EEGAnalyzer:
                                output_filename_suffix: str = None,
                                source_df: pd.DataFrame = None,
                                exclude_bad_rows: bool = True,
-                               state_col: str = 'state', # New parameter
-                               positive_state: str = 'OT', # New parameter
-                               negative_state: str = 'MW', # New parameter
-                               perform_state_comparison: bool = True # New parameter
+                               state_col: str = 'state', 
+                               perform_state_comparison: bool = True,
+                               output_subfolder: str = None 
                                ) -> Union[pd.DataFrame, None]:
         """
         Generates a summary table with descriptive statistics.
         Can perform detailed state comparisons if perform_state_comparison is True.
+        Assumes state_col contains 0 for 'OT' and 1 for 'MW' for state comparison.
 
         Parameters:
         - groupby_cols (list): List of columns to group by.
@@ -373,10 +375,10 @@ class EEGAnalyzer:
         - exclude_bad_rows (bool): If True (default), rows where 'is_bad' is True are excluded 
                                    before calculating statistics.
         - state_col (str): Column name for states (default: 'state').
-        - positive_state (str): Name of the positive state for comparison (default: 'OT').
-        - negative_state (str): Name of the negative state for comparison (default: 'MW').
         - perform_state_comparison (bool): If True, generates detailed stats including state comparisons.
                                            If False, generates simpler group-wise statistics.
+        - output_subfolder (str, optional): Subfolder within the analyzer's derivatives path to save the table.
+                                            If None, saves directly in the derivatives path.
 
         Returns:
         - pd.DataFrame: The generated summary table, or None if an error occurs.
@@ -402,9 +404,7 @@ class EEGAnalyzer:
                     df_to_process, 
                     value_col=target_col, 
                     group_cols=groupby_cols,
-                    state_col=state_col,
-                    positive_state=positive_state,
-                    negative_state=negative_state
+                    state_col=state_col
                 )
             else:
                 summary_df = Statistics.calculate_descriptive_stats(df_to_process, target_col, groupby_cols)
@@ -420,7 +420,12 @@ class EEGAnalyzer:
                 output_filename = f"summary_{output_filename_suffix}_{filter_type}_{target_col}{clean_suffix}{state_comp_suffix}.csv"
 
             
-            filepath = os.path.join(self.derivatives_path, output_filename)
+            output_dir = self.derivatives_path
+            if output_subfolder:
+                output_dir = os.path.join(self.derivatives_path, output_subfolder)
+                os.makedirs(output_dir, exist_ok=True) # Ensure subfolder exists
+            
+            filepath = os.path.join(output_dir, output_filename)
             summary_df.to_csv(filepath, index=False)
             
             log_msg = f"Summary table saved to {filepath}"
@@ -494,7 +499,12 @@ class EEGAnalyzer:
                 # Log the loading event on the loaded analyzer instance
                 if not hasattr(analyzer, '_history'): # Ensure history is initialized if loading older object
                     analyzer._history = []
-                analyzer._log_event("Analyzer State Loaded", {"path": filepath, "message": f"Successfully loaded state for '{analyzer_name}'."})
+                analyzer._log_event("Analyzer State Loaded", {
+                    "path": filepath, 
+                    "message": f"Successfully loaded state for '{analyzer_name}'.",
+                    "loaded_by": os.path.abspath(__file__),  # Log the file that loaded the instance
+                    "loaded_at": datetime.now().strftime('%Y-%m-%d %H:%M:%S')  # Log the timestamp
+                })
                 return analyzer
             except Exception as e:
                 print(f"[EEGAnalyzer - {analyzer_name}] Error loading analyzer state from {filepath}: {e}")
@@ -502,9 +512,239 @@ class EEGAnalyzer:
         else:
             print(f"[EEGAnalyzer - {analyzer_name}] Could not find saved analyzer state at {filepath}")
             return None
+        
+    def _get_data_slice_for_model(self, dataset_name: str, channel_name: str, 
+                                 value_col: str, state_col: str, group_col: str, 
+                                 exclude_bad_rows: bool = True) -> pd.DataFrame:
+        """
+        Private helper to get a data slice for model fitting.
+        Filters self.df for a specific dataset and channel, selects necessary columns,
+        and handles exclusion of bad rows.
+        """
+        if self.df is None or self.df.empty:
+            return pd.DataFrame()
+
+        df_slice = self.df[(self.df['dataset'] == dataset_name) & (self.df['channel'] == channel_name)].copy()
+
+        if exclude_bad_rows and 'is_bad' in df_slice.columns:
+            df_slice = df_slice[~df_slice['is_bad']]
+
+        required_cols = [value_col, state_col, group_col, 'dataset', 'channel']
+        if not all(col in df_slice.columns for col in required_cols):
+            # This check is more for safety, columns should exist from df creation
+            print(f"[EEGAnalyzer - {self.analyzer_name}] Missing one or more required columns for model data slice for {dataset_name}-{channel_name}.")
+            return pd.DataFrame()
+        
+        # Ensure state_col is categorical if it's used as C(state) in formula
+        if state_col in df_slice.columns:
+             df_slice[state_col] = pd.Categorical(df_slice[state_col])
 
 
+        return df_slice[required_cols]
 
 
+    def fit_models_by_channel(self, 
+                              formula: str, 
+                              value_col: str = 'band_power', 
+                              state_col: str = 'state', 
+                              group_col: str = 'subject_session', 
+                              re_formula: str = None, 
+                              vc_formula: str = None, 
+                              exclude_bad_rows: bool = True):
+        """
+        Fits a mixed-effects model for each channel within each dataset using self.df.
+
+        Parameters:
+        - formula (str): The formula for the fixed effects (e.g., 'band_power ~ C(state)').
+                         The value_col will be dynamically inserted if formula uses 'value_col_placeholder'.
+        - value_col (str): The dependent variable for the model.
+        - state_col (str): Column representing state, often used as a predictor.
+        - group_col (str): Column for grouping random effects (e.g., 'subject_session').
+        - re_formula (str, optional): Random effects formula part. If None, a simple random intercept on group_col is assumed.
+        - vc_formula (dict, optional): Variance components formula for statsmodels.
+        - exclude_bad_rows (bool): Whether to exclude rows marked as 'is_bad'.
+        """
+        if self.df is None or self.df.empty:
+            print(f"[EEGAnalyzer - {self.analyzer_name}] DataFrame is empty. Cannot fit models.")
+            self._log_event("Fit Models By Channel Skipped", {"reason": "DataFrame empty"})
+            return
+
+        self.fitted_models = {} # Reset or initialize
+        log_msg_start = f"Starting model fitting for each dataset and channel. Formula: {formula}"
+        print(f"[EEGAnalyzer - {self.analyzer_name}] {log_msg_start}")
+        self._log_event("Fit Models By Channel Started", {
+            "formula_template": formula, "value_col": value_col, "state_col": state_col, 
+            "group_col": group_col, "re_formula": re_formula, "exclude_bad_rows": exclude_bad_rows
+        })
+
+        unique_datasets = self.df['dataset'].unique()
+        total_models_to_fit = 0
+        for ds_name in unique_datasets:
+            total_models_to_fit += self.df[self.df['dataset'] == ds_name]['channel'].nunique()
+        
+        fitted_count = 0
+        failed_count = 0
+
+        for dataset_name in unique_datasets:
+            self.fitted_models[dataset_name] = {}
+            unique_channels_in_dataset = self.df[self.df['dataset'] == dataset_name]['channel'].unique()
+            
+            print(f"[EEGAnalyzer - {self.analyzer_name}] Processing dataset: {dataset_name} ({len(unique_channels_in_dataset)} channels)")
+
+            for channel_name in unique_channels_in_dataset:
+                current_formula = formula.replace("value_col_placeholder", value_col) # Allow dynamic value_col in formula
+
+                data_slice = self._get_data_slice_for_model(dataset_name, channel_name, value_col, state_col, group_col, exclude_bad_rows)
+
+                if data_slice.empty or len(data_slice) < 10: # Basic check for sufficient data
+                    log_msg = f"Skipping model for {dataset_name}-{channel_name}: Insufficient data after filtering (rows: {len(data_slice)})."
+                    print(f"[EEGAnalyzer - {self.analyzer_name}] {log_msg}")
+                    self.fitted_models[dataset_name][channel_name] = None
+                    self._log_event("Model Fit Skipped", {"dataset": dataset_name, "channel": channel_name, "reason": "Insufficient data", "rows": len(data_slice)})
+                    failed_count +=1
+                    continue
+                
+                # Default re_formula if not provided (random intercept for the group_col)
+                current_re_formula = re_formula
+                if current_re_formula is None:
+                    current_re_formula = f"1" # Results in "1 | group_col" effectively if groups is specified in mixedlm
+
+                # print(f"[EEGAnalyzer - {self.analyzer_name}] Fitting model for {dataset_name}-{channel_name}...")
+                model_result = Statistics.fit_mixedlm(data_slice, 
+                                                      current_formula, 
+                                                      groups_col=group_col,
+                                                      re_formula=current_re_formula,
+                                                      vc_formula=vc_formula)
+                
+                self.fitted_models[dataset_name][channel_name] = model_result
+                if model_result:
+                    fitted_count += 1
+                    self._log_event("Model Fit Successful", {"dataset": dataset_name, "channel": channel_name, "formula": current_formula})
+                else:
+                    failed_count += 1
+                    self._log_event("Model Fit Failed", {"dataset": dataset_name, "channel": channel_name, "formula": current_formula})
+            print(f"[EEGAnalyzer - {self.analyzer_name}] Finished dataset: {dataset_name}. Models fitted: {fitted_count}/{fitted_count+failed_count} (for this dataset so far for all datasets)")
 
 
+        log_msg_end = f"Finished model fitting. Total models attempted: {total_models_to_fit}. Successful: {fitted_count}. Failed/Skipped: {failed_count}."
+        print(f"[EEGAnalyzer - {self.analyzer_name}] {log_msg_end}")
+        self._log_event("Fit Models By Channel Finished", {"total_attempted": total_models_to_fit, "successful": fitted_count, "failed_skipped": failed_count})
+
+    def get_fitted_model(self, dataset_name: str, channel_name: str):
+        """Retrieves a specific fitted model result."""
+        return self.fitted_models.get(dataset_name, {}).get(channel_name, None)
+
+    def get_all_fitted_models(self):
+        """Returns the dictionary of all fitted models."""
+        return self.fitted_models
+    
+    def get_significant_models(self, p_value_threshold: float = 0.05) -> dict:
+        """
+        Returns a dictionary of significant models based on p-value threshold.
+        
+        Parameters:
+        - p_value_threshold (float): The threshold for significance (default: 0.05).
+        
+        Returns:
+        - dict: A dictionary where keys are dataset names and values are dictionaries of 
+                significant channel models with their p-values.
+        """
+        significant_models = {}
+        for dataset_name, channels in self.fitted_models.items():
+            significant_channels = {}
+            for channel_name, model_result in channels.items():
+                if model_result is not None and hasattr(model_result, 'pvalues'):
+                    # Check if dependent variable (state) p-value is below the threshold
+                    for param, p_value in model_result.pvalues.items():
+                        if param == 'C(state)[T.OT]':  # Assuming 'C(state)' is the parameter for state comparison
+                            if p_value < p_value_threshold:
+                                significant_channels[channel_name] = {
+                                    "model": model_result,
+                                    "p_value": p_value
+                                }
+                                significant_models[dataset_name] = significant_channels
+                                break
+            if significant_channels:
+                print(f"[EEGAnalyzer - {self.analyzer_name}] Found significant models in dataset '{dataset_name}' for channels: {', '.join(significant_channels.keys())} with p-value threshold {p_value_threshold}.")
+                self._log_event("Significant Models Found", {
+                    "dataset": dataset_name, 
+                    "channels": list(significant_channels.keys()), 
+                    "p_value_threshold": p_value_threshold
+                })
+        return significant_models
+
+    def summarize_all_fitted_models(self, extract_info_func=None, save: bool = False, filename: str = "fitted_models_summary.csv") -> pd.DataFrame:
+        """
+        Summarizes information from all fitted models into a DataFrame.
+
+        Parameters:
+        - extract_info_func (callable, optional): A function that takes a fitted model result 
+          (statsmodels.regression.mixed_linear_model.MixedLMResultsWrapper) and returns a 
+          dictionary of the information to extract. If None, extracts model parameters.
+        - save (bool): If True, saves the summary DataFrame to a CSV file in the analyzer's
+                       derivatives_path. Defaults to False.
+        - filename (str): Filename to use if saving the summary. Defaults to "fitted_models_summary.csv".
+
+
+        Returns:
+        - pd.DataFrame: A DataFrame where each row corresponds to a model,
+                        with columns for dataset, channel, and extracted model info.
+        """
+        if not self.fitted_models:
+            print(f"[EEGAnalyzer - {self.analyzer_name}] No fitted models available to summarize.")
+            self._log_event("Fitted Models Summarization Skipped", {"reason": "No fitted models"})
+            return pd.DataFrame()
+
+        if extract_info_func is None:
+            def default_extract_info(model_result):
+                if model_result is None:
+                    return {"error": "Fitting failed or skipped"}
+                try:
+                    # Extract parameters and p-values
+                    summary = {"converged": model_result.converged}
+                    summary["n_observations"] = model_result.nobs
+                    for param, value in model_result.params.items():
+                        summary[f"param_{param}"] = value
+                    for param, p_value in model_result.pvalues.items():
+                        summary[f"pvalue_{param}"] = p_value
+                    summary["loglike"] = model_result.llf
+                    summary["aic"] = model_result.aic
+                    summary["bic"] = model_result.bic
+                    return summary
+                except Exception as e:
+                    return {"error": str(e)}
+            extract_info_func = default_extract_info
+        
+        summary_list = []
+        for dataset_name, channels in self.fitted_models.items():
+            for channel_name, model_result in channels.items():
+                model_info = {"dataset": dataset_name, "channel": channel_name}
+                extracted = extract_info_func(model_result)
+                model_info.update(extracted)
+                summary_list.append(model_info)
+        
+        summary_df = pd.DataFrame(summary_list)
+        # Log this action
+        log_details = {"num_models_in_summary": len(summary_df)}
+        
+        if save and not summary_df.empty:
+            try:
+                filepath = os.path.join(self.derivatives_path, filename)
+                summary_df.to_csv(filepath, index=False)
+                save_msg = f"Fitted models summary saved to {filepath}"
+                print(f"[EEGAnalyzer - {self.analyzer_name}] {save_msg}")
+                log_details["saved_to"] = filepath
+                log_details["save_status"] = "Success"
+            except Exception as e:
+                save_err_msg = f"Error saving fitted models summary: {e}"
+                print(f"[EEGAnalyzer - {self.analyzer_name}] {save_err_msg}")
+                log_details["save_error"] = str(e)
+                log_details["save_status"] = "Failed"
+        elif save and summary_df.empty:
+            print(f"[EEGAnalyzer - {self.analyzer_name}] Fitted models summary is empty. Nothing to save.")
+            log_details["save_status"] = "Skipped (empty summary)"
+
+        self._log_event("Fitted Models Summarized", log_details)
+        return summary_df
+
+    

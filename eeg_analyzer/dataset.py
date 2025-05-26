@@ -17,7 +17,7 @@ from typing import Optional, List, Set, Union
 import numpy as np
 
 from utils.dataset_config import DatasetConfig
-from utils.config import EEG_SETTINGS, channel_positions, cortical_regions
+from utils.config import EEG_SETTINGS, channel_positions, cortical_regions, ROIs
 from . import Subject
 
 
@@ -250,11 +250,15 @@ class Dataset:
 
         Returns:
             list[dict]: Each dict contains:
+                - "dataset"
                 - "subject_session": "<subject_id>_<session_id>"
                 - "subject_id"
                 - "session_id"
+                - "group"
                 - "epoch_idx"
                 - "channel"
+                - "cortical_region"
+                - "hemisphere"
                 - "task"
                 - "state" (int: 0=OT, 1=MW)
                 - "band_power"
@@ -294,7 +298,7 @@ class Dataset:
                                     "cortical_region": cortical_regions_map.get(ch_name, None),
                                     "hemisphere": "central" if channel_positions[ch_name][0] == 0 else "left" if channel_positions[ch_name][0] < 0 else "right",
                                     "task": task,
-                                    "state": 1 if state == "MW" else 0,
+                                    "state": state,
                                     "band_power": float(band_power[epoch_idx, ch_idx]),
                                     "is_bad": False
                                 })
@@ -302,9 +306,9 @@ class Dataset:
                                     epoch_counter += 1
         return long_list
 
-    def estimate_long_band_power_length(self, variant: str = "mean") -> int:
+    def estimate_long_band_powength(self, variant: str = "mean") -> int:
         """
-        Estimate the total number of rows in the long-format band power DataFrame
+        Estimate the totl number of rows in the long-format band power DataFrame
         (i.e., sum of epochs × channels for all subject-session-task-state combinations).
 
         Args:
