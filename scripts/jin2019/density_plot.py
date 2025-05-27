@@ -9,7 +9,7 @@ from eeg_analyzer.dataset import Dataset
 from eeg_analyzer.metrics import Metrics
 
 dataset_name = "jin2019"
-subject_id = 19
+subject_id = 18
 session_id = 1
 
 save_dir = os.path.join(PLOTS_PATH, dataset_name, "density_plot")

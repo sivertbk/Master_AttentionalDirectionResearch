@@ -130,7 +130,7 @@ class Statistics:
     ) -> pd.DataFrame:
         """
         Calculates detailed descriptive statistics including per-state measures and differences.
-        Assumes state_col contains 0 for 'OT' (positive) and 1 for 'MW' (negative).
+        Assumes state_col contains "OT" (positive) and "MW" (negative) string values.
 
         Parameters:
         - df (pd.DataFrame): The input DataFrame.
@@ -161,13 +161,13 @@ class Statistics:
             overall_stats = Statistics._get_stats_dict(group_df[value_col], value_col, suffix="")
             row_stats.update(overall_stats)
             
-            # Stats for positive state (OT, assumed to be 0)
-            positive_df = group_df[group_df[state_col] == 0] # OT state
+            # Stats for positive state (OT)
+            positive_df = group_df[group_df[state_col] == "OT"] # OT state
             pos_stats = Statistics._get_stats_dict(positive_df[value_col], value_col, suffix=f"_OT")
             row_stats.update(pos_stats)
 
-            # Stats for negative state (MW, assumed to be 1)
-            negative_df = group_df[group_df[state_col] == 1] # MW state
+            # Stats for negative state (MW)
+            negative_df = group_df[group_df[state_col] == "MW"] # MW state
             neg_stats = Statistics._get_stats_dict(negative_df[value_col], value_col, suffix=f"_MW")
             row_stats.update(neg_stats)
 
@@ -209,7 +209,7 @@ class Statistics:
                     formula: str, 
                     groups_col: str, 
                     re_formula: str = None, 
-                    vc_formula: str = None) -> Union[smf.MixedLMResultsWrapper, None]:
+                    vc_formula: str = None):
         """
         Fits a mixed-effects linear model using statsmodels.
 

@@ -20,6 +20,12 @@ def fit_mixedlm_unprocessed(analyzer: EEGAnalyzer):
         state_col="state",
         group_col="subject_session"
     )
+    analyzer.fit_models_by_roi(
+        formula="band_power ~ C(state)",
+        value_col="band_power",
+        state_col="state",
+        group_col="subject_session"
+    )
 
 
 if __name__ == "__main__":
@@ -36,6 +42,9 @@ if __name__ == "__main__":
 
     fit_mixedlm_unprocessed(analyzer)
     print("Mixed linear model fitting completed.")
+
+    analyzer.summarize_fitted_models(save=True)
+    print("Model summaries generated.")
 
     analyzer.save_analyzer()  # Save the analyzer state after fitting models
 

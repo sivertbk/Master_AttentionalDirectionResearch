@@ -81,8 +81,7 @@ class EEGAnalyzer:
             loaded_datasets_info[name] = f"{len(dataset.subjects)} subjects"
             print(f"[EEGAnalyzer - {self.analyzer_name}] Loaded dataset: {name} with {len(dataset.subjects)} subjects.")
         self._log_event("Datasets Loaded on Init", {"datasets_loaded": loaded_datasets_info})
-        self.fitted_models = {} # Initialize storage for fitted models
-        self.models = {} # For model configurations if _add_model is used
+        self.fitted_models = {} # Initialize storage for all fitted models (channel or ROI)
 
 
     def _log_event(self, event_name: str, details: dict = None):
@@ -513,34 +512,67 @@ class EEGAnalyzer:
             print(f"[EEGAnalyzer - {analyzer_name}] Could not find saved analyzer state at {filepath}")
             return None
         
-    def _get_data_slice_for_model(self, dataset_name: str, channel_name: str, 
-                                 value_col: str, state_col: str, group_col: str, 
-                                 exclude_bad_rows: bool = True) -> pd.DataFrame:
+    def _get_data_slice_for_model(self, 
+                                 dataset_name: str, 
+                                 value_col: str, 
+                                 state_col: str, 
+                                 group_col: str, 
+                                 exclude_bad_rows: bool = True,
+                                 channel_name: str = None,
+                                 roi_cortical_region: str = None,
+                                 roi_hemisphere: str = None 
+                                 ) -> pd.DataFrame:
         """
         Private helper to get a data slice for model fitting.
-        Filters self.df for a specific dataset and channel, selects necessary columns,
-        and handles exclusion of bad rows.
+        Filters self.df for a specific dataset and channel, or dataset and ROI.
+        Selects necessary columns and handles exclusion of bad rows.
         """
         if self.df is None or self.df.empty:
             return pd.DataFrame()
 
-        df_slice = self.df[(self.df['dataset'] == dataset_name) & (self.df['channel'] == channel_name)].copy()
+        # Start with dataset filter
+        df_slice = self.df[self.df['dataset'] == dataset_name].copy()
+
+        if channel_name:
+            df_slice = df_slice[df_slice['channel'] == channel_name]
+        elif roi_cortical_region:
+            df_slice = df_slice[df_slice['cortical_region'] == roi_cortical_region]
+            if roi_hemisphere and roi_hemisphere.lower() != "full":
+                # Ensure case-insensitivity for hemisphere matching if needed,
+                # assuming DataFrame 'hemisphere' column has consistent casing (e.g., 'Left', 'Right', 'Midline')
+                df_slice = df_slice[df_slice['hemisphere'].str.lower() == roi_hemisphere.lower()]
+        else:
+            # Neither channel nor ROI specified, this shouldn't happen if called correctly
+            print(f"[EEGAnalyzer - {self.analyzer_name}] _get_data_slice_for_model called without channel_name or roi_cortical_region.")
+            return pd.DataFrame()
+
 
         if exclude_bad_rows and 'is_bad' in df_slice.columns:
             df_slice = df_slice[~df_slice['is_bad']]
 
-        required_cols = [value_col, state_col, group_col, 'dataset', 'channel']
-        if not all(col in df_slice.columns for col in required_cols):
-            # This check is more for safety, columns should exist from df creation
-            print(f"[EEGAnalyzer - {self.analyzer_name}] Missing one or more required columns for model data slice for {dataset_name}-{channel_name}.")
+        # Define required columns for the model itself, plus identifiers
+        model_value_cols = [value_col, state_col, group_col]
+        identifier_cols = ['dataset'] # Keep dataset for context
+        if channel_name:
+            identifier_cols.append('channel')
+        if roi_cortical_region:
+            identifier_cols.extend(['cortical_region', 'hemisphere']) # Keep these for verification of slice
+
+        required_cols_for_slice = list(set(model_value_cols + identifier_cols))
+
+
+        if not all(col in df_slice.columns for col in model_value_cols):
+            missing_model_cols = [col for col in model_value_cols if col not in df_slice.columns]
+            print(f"[EEGAnalyzer - {self.analyzer_name}] Missing one or more required model columns {missing_model_cols} for data slice for {dataset_name}.")
             return pd.DataFrame()
         
         # Ensure state_col is categorical if it's used as C(state) in formula
         if state_col in df_slice.columns:
              df_slice[state_col] = pd.Categorical(df_slice[state_col])
 
-
-        return df_slice[required_cols]
+        # Return only the columns needed for modeling plus identifiers for clarity if debugging
+        # The actual modeling function (Statistics.fit_mixedlm) will use formula to pick columns from this slice.
+        return df_slice[list(set(model_value_cols + ['dataset', 'channel', 'cortical_region', 'hemisphere', 'subject_session']))].dropna(subset=model_value_cols)
 
 
     def fit_models_by_channel(self, 
@@ -549,7 +581,7 @@ class EEGAnalyzer:
                               state_col: str = 'state', 
                               group_col: str = 'subject_session', 
                               re_formula: str = None, 
-                              vc_formula: str = None, 
+                              vc_formula: dict = None, # Corrected type to dict
                               exclude_bad_rows: bool = True):
         """
         Fits a mixed-effects model for each channel within each dataset using self.df.
@@ -569,7 +601,12 @@ class EEGAnalyzer:
             self._log_event("Fit Models By Channel Skipped", {"reason": "DataFrame empty"})
             return
 
-        self.fitted_models = {} # Reset or initialize
+        if not hasattr(self, 'fitted_models'):
+            # Initialize fitted_models if it doesn't exist (e.g. after loading older object)
+            print(f"[EEGAnalyzer - {self.analyzer_name}] Initializing fitted_models dictionary.")
+            self.fitted_models = {}
+            self._log_event("Fitted Models Dictionary Initialized", {"message": "fitted_models dictionary created for storing model results."})
+        
         log_msg_start = f"Starting model fitting for each dataset and channel. Formula: {formula}"
         print(f"[EEGAnalyzer - {self.analyzer_name}] {log_msg_start}")
         self._log_event("Fit Models By Channel Started", {
@@ -586,7 +623,8 @@ class EEGAnalyzer:
         failed_count = 0
 
         for dataset_name in unique_datasets:
-            self.fitted_models[dataset_name] = {}
+            if dataset_name not in self.fitted_models:
+                self.fitted_models[dataset_name] = {}
             unique_channels_in_dataset = self.df[self.df['dataset'] == dataset_name]['channel'].unique()
             
             print(f"[EEGAnalyzer - {self.analyzer_name}] Processing dataset: {dataset_name} ({len(unique_channels_in_dataset)} channels)")
@@ -594,13 +632,20 @@ class EEGAnalyzer:
             for channel_name in unique_channels_in_dataset:
                 current_formula = formula.replace("value_col_placeholder", value_col) # Allow dynamic value_col in formula
 
-                data_slice = self._get_data_slice_for_model(dataset_name, channel_name, value_col, state_col, group_col, exclude_bad_rows)
+                data_slice = self._get_data_slice_for_model(
+                    dataset_name=dataset_name, 
+                    value_col=value_col, 
+                    state_col=state_col, 
+                    group_col=group_col, 
+                    exclude_bad_rows=exclude_bad_rows,
+                    channel_name=channel_name
+                )
 
                 if data_slice.empty or len(data_slice) < 10: # Basic check for sufficient data
                     log_msg = f"Skipping model for {dataset_name}-{channel_name}: Insufficient data after filtering (rows: {len(data_slice)})."
                     print(f"[EEGAnalyzer - {self.analyzer_name}] {log_msg}")
                     self.fitted_models[dataset_name][channel_name] = None
-                    self._log_event("Model Fit Skipped", {"dataset": dataset_name, "channel": channel_name, "reason": "Insufficient data", "rows": len(data_slice)})
+                    self._log_event("Model Fit Skipped", {"dataset": dataset_name, "identifier": channel_name, "type": "channel", "reason": "Insufficient data", "rows": len(data_slice)})
                     failed_count +=1
                     continue
                 
@@ -619,10 +664,10 @@ class EEGAnalyzer:
                 self.fitted_models[dataset_name][channel_name] = model_result
                 if model_result:
                     fitted_count += 1
-                    self._log_event("Model Fit Successful", {"dataset": dataset_name, "channel": channel_name, "formula": current_formula})
+                    self._log_event("Model Fit Successful", {"dataset": dataset_name, "identifier": channel_name, "type": "channel", "formula": current_formula})
                 else:
                     failed_count += 1
-                    self._log_event("Model Fit Failed", {"dataset": dataset_name, "channel": channel_name, "formula": current_formula})
+                    self._log_event("Model Fit Failed", {"dataset": dataset_name, "identifier": channel_name, "type": "channel", "formula": current_formula})
             print(f"[EEGAnalyzer - {self.analyzer_name}] Finished dataset: {dataset_name}. Models fitted: {fitted_count}/{fitted_count+failed_count} (for this dataset so far for all datasets)")
 
 
@@ -630,52 +675,189 @@ class EEGAnalyzer:
         print(f"[EEGAnalyzer - {self.analyzer_name}] {log_msg_end}")
         self._log_event("Fit Models By Channel Finished", {"total_attempted": total_models_to_fit, "successful": fitted_count, "failed_skipped": failed_count})
 
-    def get_fitted_model(self, dataset_name: str, channel_name: str):
-        """Retrieves a specific fitted model result."""
-        return self.fitted_models.get(dataset_name, {}).get(channel_name, None)
+    def fit_models_by_roi(self,
+                         formula: str,
+                         value_col: str = 'band_power',
+                         state_col: str = 'state',
+                         group_col: str = 'subject_session',
+                         re_formula: str = None,
+                         vc_formula: dict = None,
+                         exclude_bad_rows: bool = True):
+        """
+        Fits a mixed-effects model for each ROI within each dataset using self.df.
+        ROIs are defined by cortical_region and hemisphere (Left, Right, Midline, Full).
+
+        Parameters:
+        - formula (str): The formula for the fixed effects (e.g., 'value_col_placeholder ~ C(state)').
+        - value_col (str): The dependent variable for the model.
+        - state_col (str): Column representing state, often used as a predictor.
+        - group_col (str): Column for grouping random effects (e.g., 'subject_session').
+        - re_formula (str, optional): Random effects formula part.
+        - vc_formula (dict, optional): Variance components formula for statsmodels.
+        - exclude_bad_rows (bool): Whether to exclude rows marked as 'is_bad'.
+        """
+        if self.df is None or self.df.empty:
+            print(f"[EEGAnalyzer - {self.analyzer_name}] DataFrame is empty. Cannot fit models by ROI.")
+            self._log_event("Fit Models By ROI Skipped", {"reason": "DataFrame empty"})
+            return
+
+        if not hasattr(self, 'fitted_models'):
+            self.fitted_models = {}
+            self._log_event("Fitted Models Dictionary Initialized", {})
+        
+        log_msg_start = f"Starting ROI model fitting. Formula: {formula}"
+        print(f"[EEGAnalyzer - {self.analyzer_name}] {log_msg_start}")
+        self._log_event("Fit Models By ROI Started", {
+            "formula_template": formula, "value_col": value_col, "state_col": state_col,
+            "group_col": group_col, "re_formula": re_formula, "exclude_bad_rows": exclude_bad_rows
+        })
+
+        unique_datasets = self.df['dataset'].unique()
+        hemisphere_specs = ["Left", "Right", "Midline", "Full"]
+        
+        fitted_count = 0
+        failed_count = 0
+        total_rois_attempted = 0
+
+        for dataset_name in unique_datasets:
+            if dataset_name not in self.fitted_models:
+                self.fitted_models[dataset_name] = {}
+            dataset_df_slice = self.df[self.df['dataset'] == dataset_name]
+            unique_cortical_regions_in_dataset = dataset_df_slice['cortical_region'].unique()
+            
+            print(f"[EEGAnalyzer - {self.analyzer_name}] Processing ROIs for dataset: {dataset_name}")
+
+            for cortical_region in unique_cortical_regions_in_dataset:
+                if pd.isna(cortical_region): continue # Skip if cortical_region is NaN
+
+                for hemi_spec in hemisphere_specs:
+                    roi_identifier = f"{cortical_region}_{hemi_spec.lower()}"
+                    total_rois_attempted += 1
+
+                    # Skip Midline spec for regions that don't typically have midline channels,
+                    # or if no midline channels exist for that region in the data.
+                    if hemi_spec.lower() == "midline":
+                        has_midline_data = not dataset_df_slice[
+                            (dataset_df_slice['cortical_region'] == cortical_region) &
+                            (dataset_df_slice['hemisphere'].str.lower() == "midline")
+                        ].empty
+                        if not has_midline_data:
+                            # print(f"[EEGAnalyzer - {self.analyzer_name}] Skipping {roi_identifier} for {dataset_name}: No midline data.")
+                            failed_count +=1 # Count as skipped/failed attempt
+                            continue
+                    
+                    current_formula = formula.replace("value_col_placeholder", value_col)
+                    
+                    data_slice = self._get_data_slice_for_model(
+                        dataset_name=dataset_name,
+                        value_col=value_col,
+                        state_col=state_col,
+                        group_col=group_col,
+                        exclude_bad_rows=exclude_bad_rows,
+                        roi_cortical_region=cortical_region,
+                        roi_hemisphere=hemi_spec 
+                    )
+
+                    if data_slice.empty or len(data_slice) < 10: # Basic check
+                        log_msg = f"Skipping model for {dataset_name}-{roi_identifier}: Insufficient data (rows: {len(data_slice)})."
+                        # print(f"[EEGAnalyzer - {self.analyzer_name}] {log_msg}") # Can be verbose
+                        self.fitted_models[dataset_name][roi_identifier] = None
+                        self._log_event("Model Fit Skipped", {"dataset": dataset_name, "identifier": roi_identifier, "type": "ROI", "reason": "Insufficient data", "rows": len(data_slice)})
+                        failed_count += 1
+                        continue
+
+                    current_re_formula = re_formula if re_formula is not None else "1"
+                    
+                    model_result = Statistics.fit_mixedlm(
+                        data_slice,
+                        current_formula,
+                        groups_col=group_col,
+                        re_formula=current_re_formula,
+                        vc_formula=vc_formula
+                    )
+                    
+                    self.fitted_models[dataset_name][roi_identifier] = model_result
+                    if model_result:
+                        fitted_count += 1
+                        self._log_event("Model Fit Successful", {"dataset": dataset_name, "identifier": roi_identifier, "type": "ROI", "formula": current_formula})
+                    else:
+                        failed_count += 1
+                        self._log_event("Model Fit Failed", {"dataset": dataset_name, "identifier": roi_identifier, "type": "ROI", "formula": current_formula})
+            
+            print(f"[EEGAnalyzer - {self.analyzer_name}] Finished ROIs for dataset: {dataset_name}.")
+
+        log_msg_end = f"Finished ROI model fitting. Total ROIs attempted: {total_rois_attempted}. Successful: {fitted_count}. Failed/Skipped: {failed_count}."
+        print(f"[EEGAnalyzer - {self.analyzer_name}] {log_msg_end}")
+        self._log_event("Fit Models By ROI Finished", {"total_attempted": total_rois_attempted, "successful": fitted_count, "failed_skipped": failed_count})
+
+
+    def get_fitted_model(self, dataset_name: str, model_identifier: str):
+        """
+        Retrieves a specific fitted model result (channel or ROI).
+        
+        Parameters:
+        - dataset_name (str): The name of the dataset.
+        - model_identifier (str): The identifier for the model (e.g., channel name or ROI string like 'frontal_left').
+        """
+        if not hasattr(self, 'fitted_models'):
+            return None
+        return self.fitted_models.get(dataset_name, {}).get(model_identifier, None)
 
     def get_all_fitted_models(self):
-        """Returns the dictionary of all fitted models."""
+        """Returns the dictionary of all fitted models (channel and ROI based)."""
+        if not hasattr(self, 'fitted_models'):
+            return {}
         return self.fitted_models
     
     def get_significant_models(self, p_value_threshold: float = 0.05) -> dict:
         """
         Returns a dictionary of significant models based on p-value threshold.
+        Significance is determined by the p-value of the second parameter in the model results,
+        which is assumed to be the slope or main effect of interest (e.g., C(state)).
         
         Parameters:
         - p_value_threshold (float): The threshold for significance (default: 0.05).
         
         Returns:
         - dict: A dictionary where keys are dataset names and values are dictionaries of 
-                significant channel models with their p-values.
+                significant models (key: model_identifier) with the name and p-value of the 
+                second parameter, and the model result itself.
         """
-        significant_models = {}
-        for dataset_name, channels in self.fitted_models.items():
-            significant_channels = {}
-            for channel_name, model_result in channels.items():
+        significant_models_summary = {}
+        all_fitted_models = self.get_all_fitted_models()
+
+        for dataset_name, models_in_dataset in all_fitted_models.items():
+            significant_identifiers_in_dataset = {}
+            for model_identifier, model_result in models_in_dataset.items():
                 if model_result is not None and hasattr(model_result, 'pvalues'):
-                    # Check if dependent variable (state) p-value is below the threshold
-                    for param, p_value in model_result.pvalues.items():
-                        if param == 'C(state)[T.OT]':  # Assuming 'C(state)' is the parameter for state comparison
-                            if p_value < p_value_threshold:
-                                significant_channels[channel_name] = {
-                                    "model": model_result,
-                                    "p_value": p_value
-                                }
-                                significant_models[dataset_name] = significant_channels
-                                break
-            if significant_channels:
-                print(f"[EEGAnalyzer - {self.analyzer_name}] Found significant models in dataset '{dataset_name}' for channels: {', '.join(significant_channels.keys())} with p-value threshold {p_value_threshold}.")
+                    if len(model_result.pvalues) > 1:
+                        # Assume the second parameter is the slope of interest
+                        slope_param_name = model_result.pvalues.index[1]
+                        slope_p_value = model_result.pvalues.iloc[1]
+
+                        if slope_p_value < p_value_threshold:
+                            significant_identifiers_in_dataset[model_identifier] = {
+                                "model": model_result,
+                                "slope_param_name": slope_param_name,
+                                "slope_p_value": slope_p_value
+                            }
+                    else:
+                        # Log or print if a model doesn't have at least two parameters
+                        print(f"[EEGAnalyzer - {self.analyzer_name}] Model for {dataset_name}-{model_identifier} has fewer than 2 parameters. Cannot assess significance based on the second parameter.")
+            
+            if significant_identifiers_in_dataset:
+                significant_models_summary[dataset_name] = significant_identifiers_in_dataset
+                print(f"[EEGAnalyzer - {self.analyzer_name}] Found significant models in dataset '{dataset_name}' for identifiers: {', '.join(significant_identifiers_in_dataset.keys())} with p-value threshold {p_value_threshold} (based on the second model parameter).")
                 self._log_event("Significant Models Found", {
                     "dataset": dataset_name, 
-                    "channels": list(significant_channels.keys()), 
+                    "identifiers": list(significant_identifiers_in_dataset.keys()), 
                     "p_value_threshold": p_value_threshold
                 })
-        return significant_models
+        return significant_models_summary
 
-    def summarize_all_fitted_models(self, extract_info_func=None, save: bool = False, filename: str = "fitted_models_summary.csv") -> pd.DataFrame:
+    def summarize_fitted_models(self, extract_info_func=None, save: bool = False, filename: str = "fitted_models_summary.csv") -> pd.DataFrame:
         """
-        Summarizes information from all fitted models into a DataFrame.
+        Summarizes information from all fitted models (channel and ROI) into a DataFrame.
 
         Parameters:
         - extract_info_func (callable, optional): A function that takes a fitted model result 
@@ -688,9 +870,10 @@ class EEGAnalyzer:
 
         Returns:
         - pd.DataFrame: A DataFrame where each row corresponds to a model,
-                        with columns for dataset, channel, and extracted model info.
+                        with columns for dataset, identifier (channel/ROI), and extracted model info.
         """
-        if not self.fitted_models:
+        all_fitted_models = self.get_all_fitted_models()
+        if not all_fitted_models:
             print(f"[EEGAnalyzer - {self.analyzer_name}] No fitted models available to summarize.")
             self._log_event("Fitted Models Summarization Skipped", {"reason": "No fitted models"})
             return pd.DataFrame()
@@ -716,9 +899,9 @@ class EEGAnalyzer:
             extract_info_func = default_extract_info
         
         summary_list = []
-        for dataset_name, channels in self.fitted_models.items():
-            for channel_name, model_result in channels.items():
-                model_info = {"dataset": dataset_name, "channel": channel_name}
+        for dataset_name, models_in_dataset in all_fitted_models.items():
+            for model_identifier, model_result in models_in_dataset.items():
+                model_info = {"dataset": dataset_name, "identifier": model_identifier}
                 extracted = extract_info_func(model_result)
                 model_info.update(extracted)
                 summary_list.append(model_info)
@@ -747,4 +930,3 @@ class EEGAnalyzer:
         self._log_event("Fitted Models Summarized", log_details)
         return summary_df
 
-    
