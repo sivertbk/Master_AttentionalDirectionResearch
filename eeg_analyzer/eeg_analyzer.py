@@ -25,6 +25,57 @@ from eeg_analyzer.statistics import Statistics # Import the Statistics class
 from eeg_analyzer.processor import Processor # Import the Processor class
 from utils.config import EEGANALYZER_OBJECT_DERIVATIVES_PATH, NAME_LIST
 
+STANDARD_SUMMARY_TABLE_CONFIGS = [
+    {
+        "level_name": "Dataset Level",
+        "groupby_cols": ['dataset'],
+        "output_filename_suffix": "dataset_level",
+        "perform_state_comparison": True,
+    },
+    {
+        "level_name": "Subject-Session Level",
+        "groupby_cols": ['dataset', 'subject_session'],
+        "output_filename_suffix": "subses_level",
+        "perform_state_comparison": True,
+    },
+    {
+        "level_name": "Channel Level (Aggregated across subjects)",
+        "groupby_cols": ['dataset', 'channel', 'hemisphere', 'cortical_region'], 
+        "output_filename_suffix": "channel_level_agg",
+        "perform_state_comparison": True,
+    },
+    {
+        "level_name": "ROI Level - Full Region (Aggregated across subjects)",
+        "groupby_cols": ['dataset', 'cortical_region'], 
+        "output_filename_suffix": "roi_full_region_level_agg",
+        "perform_state_comparison": True,
+    },
+    {
+        "level_name": "ROI Level - Hemisphere Specific (Aggregated across subjects)",
+        "groupby_cols": ['dataset', 'hemisphere', 'cortical_region'], 
+        "output_filename_suffix": "roi_hemi_specific_level_agg",
+        "perform_state_comparison": True,
+    },
+    {
+        "level_name": "Subject-Session-Channel Level",
+        "groupby_cols": ['dataset', 'subject_session', 'channel', 'hemisphere', 'cortical_region'], 
+        "output_filename_suffix": "subses_channel_level",
+        "perform_state_comparison": True,
+    },
+    {
+        "level_name": "Subject-Session-ROI Level - Full Region",
+        "groupby_cols": ['dataset', 'subject_session', 'cortical_region'], 
+        "output_filename_suffix": "subses_roi_full_region_level",
+        "perform_state_comparison": True,
+    },
+    {
+        "level_name": "Subject-Session-ROI Level - Hemisphere Specific",
+        "groupby_cols": ['dataset', 'subject_session', 'hemisphere', 'cortical_region'], 
+        "output_filename_suffix": "subses_roi_hemi_specific_level",
+        "perform_state_comparison": True,
+    }
+]
+
 
 class EEGAnalyzer:
     def __init__(self, dataset_configs: dict, analyzer_name: str = None, description: str = None):
@@ -82,6 +133,8 @@ class EEGAnalyzer:
             print(f"[EEGAnalyzer - {self.analyzer_name}] Loaded dataset: {name} with {len(dataset.subjects)} subjects.")
         self._log_event("Datasets Loaded on Init", {"datasets_loaded": loaded_datasets_info})
         self.fitted_models = {} # Initialize storage for all fitted models (channel or ROI)
+        self.statistical_analyses = {} # Initialize storage for statistical analyses
+        self._df_hash_at_last_summary_gen = None # For tracking summary table outdatedness
 
 
     def _log_event(self, event_name: str, details: dict = None):
@@ -149,7 +202,7 @@ class EEGAnalyzer:
                 f"  Derivatives Path: {self.derivatives_path}\n"
                 f"--------------------------------------")
     
-    def get_dataset(self, name):
+    def get_dataset(self, name) -> Union[Dataset, None]:
         """
         Get a dataset by its name.
         """
@@ -162,21 +215,32 @@ class EEGAnalyzer:
         dataset = self.get_dataset(dataset_name)
         if dataset:
             return dataset.get_subject(subject_id)
+        self._df_hash_at_last_summary_gen = None # DF might change if recreated
         return None
     
-    def remove_subjects(self, dataset_name, subject_ids):
+    def exclude_subjects(self, exclude: dict):
         """
-        Remove subjects from a specific dataset.
+        Remove subjects from a specific dataset. Exclude is either a dictionary
+        with dataset names as keys and lists of subject IDs as values.
         """
-        dataset = self.get_dataset(dataset_name)
-        if dataset:
-            removed_subjects_log = []
-            for subject_id in subject_ids:
-                dataset.remove_subject(subject_id)
-                removed_subjects_log.append(subject_id)
-            self._log_event("Subjects Removed", {"dataset": dataset_name, "removed_ids": removed_subjects_log})
-        else:
-            self._log_event("Remove Subjects Attempt Failed", {"dataset": dataset_name, "reason": "Dataset not found"})
+        for dataset_name, subject_ids_to_exclude in exclude.items():
+            dataset = self.get_dataset(dataset_name)
+            if dataset:
+                # The dataset.remove_subjects method now returns a list of actually removed IDs
+                removed_ids_from_dataset = dataset.remove_subjects(subject_ids_to_exclude)
+                
+                if removed_ids_from_dataset:
+                    self._log_event("Subjects Excluded", {"dataset": dataset_name, "excluded_ids": removed_ids_from_dataset, "requested_ids": subject_ids_to_exclude})
+                    print(f"[EEGAnalyzer - {self.analyzer_name}] Excluded subjects {removed_ids_from_dataset} from dataset '{dataset_name}'.")
+                else:
+                    # Log that no subjects were excluded if the list is empty, 
+                    # e.g. they were not found or subject_ids_to_exclude was empty.
+                    self._log_event("Subjects Exclusion Attempted", {"dataset": dataset_name, "requested_ids": subject_ids_to_exclude, "message": "No subjects were excluded (either not found or list was empty)."})
+                    print(f"[EEGAnalyzer - {self.analyzer_name}] No subjects excluded from dataset '{dataset_name}' (requested: {subject_ids_to_exclude}). They might not have been present.")
+            else:
+                self._log_event("Exclude Subjects Attempt Failed", {"dataset": dataset_name, "reason": "Dataset not found"})
+                print(f"[EEGAnalyzer - {self.analyzer_name}] Dataset '{dataset_name}' not found. Cannot exclude subjects.")
+        self._df_hash_at_last_summary_gen = None # DataFrame will change if recreated after exclusion
 
 
     def create_dataframe(self, freq_band = (8,12)) -> pd.DataFrame:
@@ -207,6 +271,7 @@ class EEGAnalyzer:
             "dataset_contributions": dataset_details_log,
             "message": log_msg
         })
+        self._df_hash_at_last_summary_gen = None # DF has been recreated
         return self.df
 
     def save_dataframe(self, dir: str = None, filename: str = "eeganalyzer_default_df.csv"):
@@ -244,6 +309,7 @@ class EEGAnalyzer:
             log_msg = f"DataFrame loaded from {filepath}"
             print(f"[EEGAnalyzer - {self.analyzer_name}] {log_msg}")
             self._log_event("DataFrame Loaded", {"path": filepath, "rows": len(self.df), "columns": len(self.df.columns), "message": log_msg})
+            self._df_hash_at_last_summary_gen = None # DF has been loaded
         else:
             log_msg = f"File {filepath} does not exist. DataFrame not loaded."
             print(f"[EEGAnalyzer - {self.analyzer_name}] {log_msg}")
@@ -263,7 +329,7 @@ class EEGAnalyzer:
             zscore_col_name = f"zscore_{value_col}"
 
         print(f"[EEGAnalyzer - {self.analyzer_name}] Applying Z-score flagging to '{value_col}' (threshold: {threshold})...")
-        
+
         initial_bad_count = self.df['is_bad'].sum() if 'is_bad' in self.df.columns else 0
         
         processed_df = Processor.flag_outliers_zscore(
@@ -291,6 +357,7 @@ class EEGAnalyzer:
         }
         print(f"[EEGAnalyzer - {self.analyzer_name}] Z-score flagging applied. {newly_flagged} new rows flagged as bad.")
         self._log_event("Z-score Flagging Applied", log_details)
+        self._df_hash_at_last_summary_gen = None # DF 'is_bad' column modified
 
     def apply_iqr_flagging(self, group_cols: list, value_col: str, multiplier: float = 1.5):
         """
@@ -329,6 +396,7 @@ class EEGAnalyzer:
         }
         print(f"[EEGAnalyzer - {self.analyzer_name}] IQR flagging applied. {newly_flagged} new rows flagged as bad.")
         self._log_event("IQR Flagging Applied", log_details)
+        self._df_hash_at_last_summary_gen = None # DF 'is_bad' column modified
 
 
     def _get_df_for_summary(self, source_df: pd.DataFrame = None, exclude_bad_rows: bool = True):
@@ -461,6 +529,13 @@ class EEGAnalyzer:
         """
         filepath = os.path.join(self.derivatives_path, filename)
         try:
+            if self.are_summary_tables_outdated():
+                warning_msg = (f"Warning: Standard summary tables for analyzer '{self.analyzer_name}' "
+                               f"may be outdated or were never generated for the current DataFrame state. "
+                               f"Consider running `generate_standard_summary_tables()` before relying on them.")
+                print(f"[EEGAnalyzer - {self.analyzer_name}] {warning_msg}")
+                self._log_event("Save Analyzer Warning", {"reason": "Summary tables potentially outdated", "message": warning_msg})
+
             with open(filepath, 'wb') as f:
                 pickle.dump(self, f)
             log_msg = f"EEGAnalyzer state saved to {filepath}"
@@ -929,4 +1004,205 @@ class EEGAnalyzer:
 
         self._log_event("Fitted Models Summarized", log_details)
         return summary_df
+
+    def store_statistical_analysis(self, analysis_name: str, data: any, parameters: dict = None):
+        """
+        Stores the results of a statistical analysis within the analyzer.
+
+        Parameters:
+        - analysis_name (str): A descriptive name for the analysis (e.g., "wilcoxon_power_state_comparison").
+        - data (any): The data to store (e.g., a DataFrame, a dictionary of DataFrames).
+        - parameters (dict, optional): A dictionary of parameters used to generate the analysis.
+        """
+        if not hasattr(self, 'statistical_analyses'):
+            self.statistical_analyses = {}
+            self._log_event("Statistical Analyses Dictionary Initialized", {})
+
+        self.statistical_analyses[analysis_name] = {
+            "data": data,
+            "parameters": parameters if parameters is not None else {},
+            "timestamp": datetime.now()
+        }
+        log_msg = f"Statistical analysis '{analysis_name}' stored."
+        print(f"[EEGAnalyzer - {self.analyzer_name}] {log_msg}")
+        self._log_event("Statistical Analysis Stored", {
+            "analysis_name": analysis_name,
+            "parameters": parameters,
+            "message": log_msg
+        })
+
+    def get_statistical_analysis(self, analysis_name: str) -> Union[dict, None]:
+        """
+        Retrieves a stored statistical analysis.
+
+        Parameters:
+        - analysis_name (str): The name of the analysis to retrieve.
+
+        Returns:
+        - dict or None: The stored analysis data and parameters, or None if not found.
+        """
+        if not hasattr(self, 'statistical_analyses'):
+            return None
+        return self.statistical_analyses.get(analysis_name, None)
+
+    def _hash_dataframe(self, df: pd.DataFrame) -> Union[str, None]:
+        """Computes a hash of the DataFrame."""
+        if df is None:
+            return None
+        # Using pd.util.hash_pandas_object for robust hashing
+        # Summing the hashes of each column (Series) to get a single hash for the DataFrame
+        # Convert to string to ensure it's pickleable and comparable
+        try:
+            return str(pd.util.hash_pandas_object(df, index=True).sum())
+        except Exception as e:
+            print(f"[EEGAnalyzer - {self.analyzer_name}] Error hashing DataFrame: {e}")
+            return None # Fallback if hashing fails
+
+    def are_summary_tables_outdated(self) -> bool:
+        """
+        Checks if the standard summary tables are outdated based on DataFrame hash.
+        """
+        if self.df is None:
+            # If no df, tables are effectively outdated or cannot be generated.
+            return True 
+        if self._df_hash_at_last_summary_gen is None:
+            # If no hash stored, tables were never generated for current df or df changed.
+            return True
+        
+        current_df_hash = self._hash_dataframe(self.df)
+        if current_df_hash is None: # Hashing failed
+            return True # Assume outdated if we can't verify
+            
+        return current_df_hash != self._df_hash_at_last_summary_gen
+
+    def generate_standard_summary_tables(self, 
+                                         base_filter_type_label: str, 
+                                         target_value_col: str = 'band_power'):
+        """
+        Generates a suite of standard summary tables at different aggregation levels.
+        Updates the internal DataFrame hash upon successful completion.
+
+        Parameters:
+        - base_filter_type_label (str): A label describing the state of self.df 
+                                       (e.g., "unprocessed", "zscore_flagged").
+        - target_value_col (str): The primary value column to summarize (e.g., 'band_power').
+        """
+        if self.df is None or self.df.empty:
+            print(f"[EEGAnalyzer - {self.analyzer_name}] DataFrame is empty. Attempting to create/load for summary tables.")
+            # Try to load first, then create if load fails
+            self.load_dataframe() 
+            if self.df is None or self.df.empty:
+                self.create_dataframe() 
+            
+            if self.df is None or self.df.empty:
+                log_msg = f"Failed to create/load DataFrame for '{self.analyzer_name}'. Cannot generate summary tables."
+                print(f"[EEGAnalyzer - {self.analyzer_name}] {log_msg}")
+                self._log_event("Generate Standard Summary Tables Failed", {"reason": log_msg})
+                return
+            
+            # Ensure 'is_bad' column exists after creation/loading
+            if 'is_bad' not in self.df.columns:
+                self.df['is_bad'] = False # Default to False if not present
+                print(f"[EEGAnalyzer - {self.analyzer_name}] Added 'is_bad' column to DataFrame for summary generation.")
+            
+            # Save if it was just created/loaded and potentially modified (added 'is_bad')
+            self.save_dataframe() 
+            # self.save_analyzer() # Analyzer state will be saved when user calls it explicitly
+
+        print(f"\n--- Generating Standard Summary Tables for Analyzer: {self.analyzer_name} ---")
+        print(f"--- Data State (filter_type): {base_filter_type_label}, Target Column: {target_value_col} ---")
+
+        # Check for required columns in self.df
+        all_required_cols_for_tables = set([target_value_col, 'state']) # 'is_bad' handled above
+        for config in STANDARD_SUMMARY_TABLE_CONFIGS:
+            all_required_cols_for_tables.update(config['groupby_cols'])
+        
+        missing_cols = [col for col in all_required_cols_for_tables if col not in self.df.columns]
+        if missing_cols:
+            log_msg = (f"CRITICAL ERROR: Missing required columns in DataFrame for summary tables: {missing_cols}. "
+                       f"Ensure columns like 'cortical_region', 'hemisphere' exist for ROI tables.")
+            print(f"[EEGAnalyzer - {self.analyzer_name}] {log_msg}")
+            self._log_event("Generate Standard Summary Tables Failed", {"reason": log_msg, "missing_columns": missing_cols})
+            return
+
+        output_subfolder = "summary_tables" # All tables go into this subfolder
+        tables_generated_count = 0
+
+        for config in STANDARD_SUMMARY_TABLE_CONFIGS:
+            print(f"[EEGAnalyzer - {self.analyzer_name}] Generating: {config['level_name']} Summary Table")
+            
+            # Generate table including all rows
+            summary_df_all = self.generate_summary_table(
+                groupby_cols=config['groupby_cols'],
+                target_col=target_value_col,
+                output_filename_suffix=config['output_filename_suffix'],
+                filter_type=base_filter_type_label,
+                exclude_bad_rows=False, 
+                perform_state_comparison=config['perform_state_comparison'],
+                output_subfolder=output_subfolder
+            )
+            if summary_df_all is not None:
+                tables_generated_count +=1
+
+            # Generate table excluding bad rows (if 'is_bad' column has any True values)
+            if 'is_bad' in self.df.columns and self.df['is_bad'].any():
+                print(f"[EEGAnalyzer - {self.analyzer_name}] Generating: {config['level_name']} Summary Table (Cleaned Data)")
+                summary_df_cleaned = self.generate_summary_table(
+                    groupby_cols=config['groupby_cols'],
+                    target_col=target_value_col,
+                    output_filename_suffix=config['output_filename_suffix'], 
+                    filter_type=base_filter_type_label, 
+                    exclude_bad_rows=True,
+                    perform_state_comparison=config['perform_state_comparison'],
+                    output_subfolder=output_subfolder
+                )
+                if summary_df_cleaned is not None:
+                    tables_generated_count +=1
+            elif not ('is_bad' in self.df.columns and self.df['is_bad'].any()):
+                 print(f"[EEGAnalyzer - {self.analyzer_name}] Skipping cleaned version for {config['level_name']}; no 'is_bad' rows or 'is_bad' column missing/all False.")
+        
+        if tables_generated_count > 0:
+            self._df_hash_at_last_summary_gen = self._hash_dataframe(self.df)
+            log_msg = f"Successfully generated {tables_generated_count} standard summary tables. DataFrame hash updated."
+            print(f"[EEGAnalyzer - {self.analyzer_name}] {log_msg}")
+            self._log_event("Standard Summary Tables Generated", {
+                "count": tables_generated_count, 
+                "filter_type": base_filter_type_label,
+                "target_col": target_value_col,
+                "df_hash": self._df_hash_at_last_summary_gen,
+                "message": log_msg
+                })
+        else:
+            log_msg = "No standard summary tables were generated (possibly due to errors or missing columns)."
+            print(f"[EEGAnalyzer - {self.analyzer_name}] {log_msg}")
+            self._log_event("Standard Summary Tables Generation Attempted", {"message": log_msg, "count": 0})
+
+    def apply_recording_state_ratio_filter(self, min_ratio: float, max_ratio: float):
+        """
+        For all datasets, remove recordings whose MW/OT epoch ratio is outside [min_ratio, max_ratio].
+        Logs all removals and marks the DataFrame as potentially outdated.
+        """
+        total_removed = []
+        for name, dataset in self.datasets.items():
+            removed_log = dataset.filter_recordings_by_state_ratio(min_ratio, max_ratio)
+            if removed_log:
+                self._log_event("Recording State Ratio Filter Applied", {
+                    "dataset": name,
+                    "min_ratio": min_ratio,
+                    "max_ratio": max_ratio,
+                    "removed_recordings": removed_log,
+                    "num_removed": len(removed_log)
+                })
+                print(f"[EEGAnalyzer - {self.analyzer_name}] {len(removed_log)} recordings removed from dataset '{name}' by state ratio filter.")
+            else:
+                self._log_event("Recording State Ratio Filter Applied", {
+                    "dataset": name,
+                    "min_ratio": min_ratio,
+                    "max_ratio": max_ratio,
+                    "removed_recordings": [],
+                    "num_removed": 0
+                })
+                print(f"[EEGAnalyzer - {self.analyzer_name}] No recordings removed from dataset '{name}' by state ratio filter.")
+            total_removed.extend(removed_log)
+        self._df_hash_at_last_summary_gen = None  # Mark DataFrame as outdated
 

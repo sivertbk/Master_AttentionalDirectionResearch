@@ -87,6 +87,27 @@ class Recording:
             for task, states in self.psd_map.items()
             for state in states
         ]
+
+    def get_mw_ot_epoch_ratio(self) -> float:
+        """
+        Calculate the ratio of total MW epochs to total OT epochs across all tasks.
+        Returns np.inf if OT epochs count is zero.
+        """
+        total_mw_epochs = 0
+        total_ot_epochs = 0
+
+        for task, states_data in self.psd_map.items():
+            for state, psd_array in states_data.items():
+                num_epochs_for_condition = psd_array.shape[0]
+                if state == "MW":
+                    total_mw_epochs += num_epochs_for_condition
+                elif state == "OT":
+                    total_ot_epochs += num_epochs_for_condition
+        
+        if total_ot_epochs == 0:
+            return np.inf  # Avoid division by zero
+        
+        return total_mw_epochs / total_ot_epochs
     
     def alpha_power(self, task: str, state: str) -> np.ndarray:
         """Compute alpha power for a given task and state."""

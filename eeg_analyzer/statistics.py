@@ -14,7 +14,7 @@ NOTE: Ensures logging of all statistical tests, measures, and models.
 """
 from typing import Union
 
-from scipy.stats import mannwhitneyu, iqr, skew, kurtosis, wilcoxon
+from scipy.stats import mannwhitneyu, iqr, skew, kurtosis, wilcoxon, PermutationMethod
 import statsmodels.formula.api as smf
 import numpy as np
 import pandas as pd
@@ -203,6 +203,115 @@ class Statistics:
         ordered_cols = [col for col in ordered_cols if col in summary_df.columns]
         
         return summary_df[ordered_cols]
+
+    @staticmethod
+    def perform_wilcoxon_test(df: pd.DataFrame, col1: str, col2: str, group_cols: list, 
+                              tail: str = 'two-sided', 
+                              n_permutations: int = 9999, 
+                              random_state: Union[int, np.random.RandomState, None] = None) -> pd.DataFrame:
+        """
+        Performs a Wilcoxon signed-rank test for paired samples, grouped by specified columns,
+        optionally using a permutation method.
+
+        Parameters:
+        - df (pd.DataFrame): The input DataFrame.
+        - col1 (str): The name of the first column for paired samples.
+        - col2 (str): The name of the second column for paired samples.
+        - group_cols (list): A list of column names to group by.
+        - tail (str): Specifies the alternative hypothesis ('two-sided', 'greater', 'less'). Default is 'two-sided'.
+        - n_permutations (int): Number of permutations for the permutation test. Default is 9999.
+                                If 0 or None, scipy's default method selection is used.
+        - random_state (Union[int, np.random.RandomState, None]): Seed for random number generator for permutations.
+
+        Returns:
+        - pd.DataFrame: A DataFrame with group identifiers, Wilcoxon statistic, and p-value.
+                          Returns an empty DataFrame if input df is empty or required columns are missing.
+        """
+        if df.empty:
+            print("Input DataFrame is empty. Cannot perform Wilcoxon test.")
+            return pd.DataFrame()
+
+        required_data_cols = [col1, col2]
+        all_required_cols = group_cols + required_data_cols
+        missing_cols = [col for col in all_required_cols if col not in df.columns]
+        if missing_cols:
+            print(f"Missing columns in DataFrame for Wilcoxon test: {missing_cols}.")
+            return pd.DataFrame()
+
+        results = []
+
+        if not group_cols:
+            # Perform test on the entire DataFrame if no group_cols are provided
+            data1 = df[col1].dropna()
+            data2 = df[col2].dropna()
+            
+            # Align data for paired test - keep only common indices
+            common_idx = data1.index.intersection(data2.index)
+            data1_aligned = data1.loc[common_idx]
+            data2_aligned = data2.loc[common_idx]
+
+            wilcoxon_method_arg = 'auto'
+            if n_permutations and n_permutations > 0:
+                perm_method = PermutationMethod(n_resamples=n_permutations, random_state=random_state)
+                wilcoxon_method_arg = perm_method
+
+            if len(data1_aligned) < 10: # Arbitrary threshold, scipy might have its own internal checks
+                print(f"Not enough paired samples for Wilcoxon test (found {len(data1_aligned)}).")
+                stat, p_value = np.nan, np.nan
+            else:
+                try:
+                    stat, p_value = wilcoxon(data1_aligned, data2_aligned, alternative=tail, method=wilcoxon_method_arg)
+                except ValueError as e:
+                    print(f"Could not perform Wilcoxon test: {e}")
+                    stat, p_value = np.nan, np.nan
+            
+            results.append({'wilcoxon_statistic': stat, 'p_value': p_value})
+
+        else:
+            grouped = df.groupby(group_cols)
+            for name, group_df in grouped:
+                group_id_dict = {}
+                if isinstance(name, tuple):
+                    for i, col_name in enumerate(group_cols):
+                        group_id_dict[col_name] = name[i]
+                else:
+                    group_id_dict[group_cols[0]] = name
+
+                data1 = group_df[col1].dropna()
+                data2 = group_df[col2].dropna()
+
+                # Align data for paired test within the group
+                common_idx = data1.index.intersection(data2.index)
+                data1_aligned = data1.loc[common_idx]
+                data2_aligned = data2.loc[common_idx]
+                
+                wilcoxon_method_arg = 'auto'
+                if n_permutations and n_permutations > 0:
+                    perm_method = PermutationMethod(n_resamples=n_permutations, random_state=random_state)
+                    wilcoxon_method_arg = perm_method
+
+                # Wilcoxon test requires at least some non-zero differences.
+                # Scipy's wilcoxon handles small sample sizes and zero differences by raising ValueError.
+                if len(data1_aligned) < 8: # A common heuristic minimum, though scipy might be more specific
+                    # print(f"Group {name}: Not enough paired samples for Wilcoxon test (found {len(data1_aligned)}). Skipping.")
+                    stat, p_value = np.nan, np.nan
+                else:
+                    try:
+                        # Perform test on the difference if you want one-sample test on differences
+                        # Or directly on two samples if that's the interpretation
+                        stat, p_value = wilcoxon(data1_aligned, data2_aligned, alternative=tail, method=wilcoxon_method_arg)
+                    except ValueError as e:
+                        # This can happen if all differences are zero, or too few samples.
+                        # print(f"Group {name}: Could not perform Wilcoxon test: {e}. Assigning NaN.")
+                        stat, p_value = np.nan, np.nan
+                
+                result_row = group_id_dict.copy()
+                result_row['wilcoxon_statistic'] = stat
+                result_row['p_value'] = p_value
+                results.append(result_row)
+
+        return pd.DataFrame(results)
+
 
     @staticmethod
     def fit_mixedlm(df: pd.DataFrame, 

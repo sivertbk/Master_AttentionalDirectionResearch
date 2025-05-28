@@ -49,22 +49,40 @@ class Dataset:
         subjects_str = f"\n Subjects:\n    - {len(self.subject_IDs)} subjects, {len(self.subject_groups)} groups: [{', '.join(self.subject_groups)}]"
         tasks_str = f"\n Tasks:\n    - {', '.join(self.tasks)}"
         states_str = f"\n States:\n    - {', '.join(self.states)}"
-        epochs_median_str = f"\n Epochs:\n    - Median epochs per condition: [{', '.join([f'{task} - {state}: {np.median(self.epochs_info[(task, state)])}' for (task, state) in self.epochs_info])}]"
-        epochs_min_str = f"\n    - Min epochs per condition: [{', '.join([f'{task} - {state}: {np.min(self.epochs_info[(task, state)])}' for (task, state) in self.epochs_info])}]"
-        epochs_max_str = f"\n    - Max epochs per condition: [{', '.join([f'{task} - {state}: {np.max(self.epochs_info[(task, state)])}' for (task, state) in self.epochs_info])}]"
-        state_ratios_values = list(self.state_ratios.values())
-        state_ratios_keys = list(self.state_ratios.keys())
-        min_index = np.argmin(state_ratios_values)
-        max_index = np.argmax(state_ratios_values)
-        state_ratios_str = (
-            f"\n    - State ratios: "
-            f"mean:{np.mean(state_ratios_values):.3f}, "
-            f"min:{state_ratios_values[min_index]:.3f} (subject_id: {state_ratios_keys[min_index]}), "
-            f"max:{state_ratios_values[max_index]:.3f} (subject_id: {state_ratios_keys[max_index]})"
-        )
-
+        # Robust handling for empty or missing epochs_info
+        if hasattr(self, 'epochs_info') and self.epochs_info:
+            median_strs, min_strs, max_strs = [], [], []
+            for (task, state), values in self.epochs_info.items():
+                if values:
+                    median_strs.append(f'{task} - {state}: {np.median(values)}')
+                    min_strs.append(f'{task} - {state}: {np.min(values)}')
+                    max_strs.append(f'{task} - {state}: {np.max(values)}')
+                else:
+                    median_strs.append(f'{task} - {state}: N/A')
+                    min_strs.append(f'{task} - {state}: N/A')
+                    max_strs.append(f'{task} - {state}: N/A')
+            epochs_median_str = f"\n Epochs:\n    - Median epochs per condition: [{', '.join(median_strs)}]"
+            epochs_min_str = f"\n    - Min epochs per condition: [{', '.join(min_strs)}]"
+            epochs_max_str = f"\n    - Max epochs per condition: [{', '.join(max_strs)}]"
+        else:
+            epochs_median_str = "\n Epochs:\n    - Median epochs per condition: N/A"
+            epochs_min_str = "\n    - Min epochs per condition: N/A"
+            epochs_max_str = "\n    - Max epochs per condition: N/A"
+        # Robust handling for empty or missing state_ratios
+        if hasattr(self, 'state_ratios') and self.state_ratios:
+            state_ratios_values = list(self.state_ratios.values())
+            state_ratios_keys = list(self.state_ratios.keys())
+            min_index = np.argmin(state_ratios_values)
+            max_index = np.argmax(state_ratios_values)
+            state_ratios_str = (
+                f"\n    - State ratios: "
+                f"mean:{np.mean(state_ratios_values):.3f}, "
+                f"min:{state_ratios_values[min_index]:.3f} (subject_id: {state_ratios_keys[min_index]}), "
+                f"max:{state_ratios_values[max_index]:.3f} (subject_id: {state_ratios_keys[max_index]})"
+            )
+        else:
+            state_ratios_str = "\n    - State ratios: N/A"
         return f"Dataset: {self.name}" + subjects_str + tasks_str + states_str + epochs_median_str + epochs_min_str + epochs_max_str + state_ratios_str
-        # return f"Dataset: {self.name} ({len(self.subject_IDs)} subjects, {len(self.subject_groups)} groups: [{', '.join(self.subject_groups)}]) \nTasks: {', '.join(self.tasks)} \nStates: {', '.join(self.states)}"
 
     def __len__(self):
         # Return the number of subjects in the dataset that are loaded
@@ -84,25 +102,61 @@ class Dataset:
             subject = Subject(self.config, subject_id)
             subject.load_data(variant=variant)
             self.subjects[subject_id] = subject
+        # Recalculate stats after loading
+        self._recalculate_dataset_stats()
 
-        # create epochs_info attribute with useful info about median, min and max epochs for each task and state
+    def filter_recordings_by_state_ratio(self, min_ratio: float, max_ratio: float):
+        """
+        Remove recordings (sessions) from subjects if their MW/OT epoch ratio is outside [min_ratio, max_ratio].
+        Returns a log of removed recordings: list of dicts with subject_id, session_id, and ratio.
+        After removal, updates dataset stats.
+        """
+        removed_log = []
+        for subject in self.subjects.values():
+            to_remove = []
+            for session_id, recording in list(subject.recordings.items()):
+                ratio = recording.get_mw_ot_epoch_ratio()
+                if (ratio < min_ratio) or (ratio > max_ratio):
+                    to_remove.append((session_id, ratio))
+            for session_id, ratio in to_remove:
+                del subject.recordings[session_id]
+                removed_log.append({
+                    "subject_id": subject.id,
+                    "session_id": session_id,
+                    "ratio": ratio
+                })
+        # Remove subjects with no recordings left
+        empty_subjects = [sid for sid, subj in self.subjects.items() if not subj.recordings]
+        for sid in empty_subjects:
+            del self.subjects[sid]
+        # Update subject_IDs and subject_groups
+        self.subject_IDs = list(self.subjects.keys())
+        self.subject_groups = set(
+            self._subject_group_map[sub_id]
+            for sub_id in self.subject_IDs
+            if sub_id in self._subject_group_map and self._subject_group_map[sub_id] is not None
+        )
+        # Recalculate stats after filtering
+        self._recalculate_dataset_stats()
+        return removed_log
+
+    def _recalculate_dataset_stats(self):
+        """
+        Recalculate self.epochs_info and self.state_ratios based on current subjects/recordings.
+        """
         self.epochs_info = {}
-        epochs_per_condition = [] # list of dicts for all subjects
+        epochs_per_condition = []
         for subject in self.subjects.values():
             epochs_per_condition.append(subject.get_epochs_per_condition())
-
-        # For each element in the list, populate the epochs_info with keys from the dict and add up the corresponding values
         for subject_epochs in epochs_per_condition:
             for (task, state), num_epochs in subject_epochs.items():
                 if (task, state) not in self.epochs_info:
                     self.epochs_info[(task, state)] = []
                 self.epochs_info[(task, state)].append(num_epochs)
-        
-        # Create state_ratios attribute with useful info about the ratio between the number of epochs in each state
         self.state_ratios = {}
         for id, subject in self.subjects.items():
             self.state_ratios[id] = subject.get_state_ratio()
-        
+
     def get_subject_group(self, subject_id: str) -> Optional[str]:
         """Return the group name of a given subject, or None if not assigned."""
         self._ensure_data_loaded()
@@ -179,35 +233,37 @@ class Dataset:
         """Return the set of all subject groups in the dataset."""
         return self.subject_groups
     
-    def get_alpha_bools(self):
-        """
-        Return a dict of bools where key is subject id and value is wheter the subjects overall alpha power
-        difference is either positive or negative depenindg on task orientation
-        """
-        self._ensure_data_loaded()
-        alpha_bools = {}
-        for sub_id, subject in self.subjects.items():
-            alpha_bools[sub_id] = subject.check_hypothesis()
-        return alpha_bools
-    
-    def remove_subjects(self, subject_ids: Union[str, List[str]]):
+    def remove_subjects(self, subject_ids: Union[str, List[str]]) -> List[str]:
         """
         Remove subjects from the dataset.
         If a single subject ID is provided, remove it.
         If a list of subject IDs is provided, remove all of them.
+        Returns a list of subject IDs that were actually removed.
         """
         if isinstance(subject_ids, str):
-            subject_ids = [subject_ids]
+            subject_ids_list = [subject_ids]
+        else:
+            subject_ids_list = subject_ids
         
-        for subject_id in subject_ids:
+        actually_removed_ids = []
+        for subject_id in subject_ids_list:
             if subject_id in self.subjects:
                 del self.subjects[subject_id]
+                actually_removed_ids.append(subject_id)
             else:
-                print(f"Subject {subject_id} not found in dataset.")
-
-        # Update the subject IDs and groups
-        self.subject_IDs = list(self.subjects.keys())
-        self.subject_groups = set(subj.group for subj in self.subjects.values())
+                print(f"Subject {subject_id} not found in dataset, not removed.")
+                pass
+                
+        # Update the subject IDs and groups if any subjects were removed
+        if actually_removed_ids:
+            self.subject_IDs = list(self.subjects.keys())
+            # Re-calculate subject_groups based on remaining subjects
+            self.subject_groups = set(
+                self._subject_group_map[sub_id] 
+                for sub_id in self.subject_IDs 
+                if sub_id in self._subject_group_map and self._subject_group_map[sub_id] is not None
+            )
+        return actually_removed_ids
 
     def get_mean_alpha_powers(self, session_id: int) -> dict:
         """

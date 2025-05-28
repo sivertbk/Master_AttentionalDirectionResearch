@@ -108,3 +108,5 @@ class Processor:
             df_copy['is_bad'] = df_copy['is_bad'] | ((df_copy[value_col] < lower_bound) | (df_copy[value_col] > upper_bound))
             
         return df_copy
+    
+
