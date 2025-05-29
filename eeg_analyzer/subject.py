@@ -43,7 +43,8 @@ class Subject:
         """
         base_path = os.path.join(self.dataset.path_psd, f"subject-{self.id}")
         if not os.path.exists(base_path):
-            raise FileNotFoundError(f"Base path does not exist: {base_path}")
+            return None
+            # raise FileNotFoundError(f"Base path does not exist: {base_path}")
 
         session_dirs = [d for d in os.listdir(base_path) if d.startswith("session-")]
 

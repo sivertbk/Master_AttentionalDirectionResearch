@@ -101,6 +101,12 @@ class Dataset:
         for subject_id in self.subject_IDs:
             subject = Subject(self.config, subject_id)
             subject.load_data(variant=variant)
+            if subject.recordings == {}:
+                print(f"Warning: Subject {subject_id} has no recordings. Skipping.")
+                # remove subject id from subject_IDs
+                if subject_id in self.subject_IDs:
+                    self.subject_IDs.remove(subject_id)
+                continue
             self.subjects[subject_id] = subject
         # Recalculate stats after loading
         self._recalculate_dataset_stats()

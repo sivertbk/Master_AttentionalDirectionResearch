@@ -45,6 +45,39 @@ def compute_psd(epochs, eeg_settings):
     psd *= eeg_settings["PSD_UNIT_CONVERT"]
 
     return psd, freqs
+
+def compute_psd_multitaper(epochs, eeg_settings):
+    """
+    Compute the Power Spectral Density (PSD) using the multitaper method for the given EEG epochs.
+
+    Parameters:
+        epochs (mne.Epochs): EEG epochs data.
+        eeg_settings (dict): Dictionary with PSD parameters including scaling factor.
+
+    Returns:
+        tuple: 
+            - psd (ndarray): PSD array (epochs × channels × frequencies), scaled to µV²/Hz.
+            - freqs (ndarray): Frequency values in Hz.
+    """
+    psd, freqs = mne.time_frequency.psd_array_multitaper(
+        epochs.get_data(),
+        sfreq=epochs.info['sfreq'],
+        fmin=eeg_settings["PSD_FMIN"],
+        fmax=eeg_settings["PSD_FMAX"],
+        bandwidth=None,  # Use default bandwidth
+        adaptive=True,  # Use adaptive method
+        low_bias=True,  # Use low bias method
+        normalization='full',  # Full normalization
+        output=eeg_settings["PSD_OUTPUT"],
+        n_jobs=cpu_count(),
+        remove_dc=eeg_settings["PSD_REMOVE_DC"],
+        verbose=False
+    )
+
+    # Apply unit scaling (e.g., V² → µV²)
+    psd *= eeg_settings["PSD_UNIT_CONVERT"]
+
+    return psd, freqs
             
 def compute_psd_data():
     """
@@ -74,7 +107,7 @@ def compute_psd_data():
             eeg_settings = EEG_SETTINGS.copy()
             eeg_settings["PSD_AVERAGE_METHOD"] = average_method
 
-            psd, freqs = compute_psd(epochs, eeg_settings)
+            psd, freqs = compute_psd_multitaper(epochs, eeg_settings)
 
             # Generate metadata
             metadata = generate_metadata_epochs(

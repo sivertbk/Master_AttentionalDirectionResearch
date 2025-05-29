@@ -11,6 +11,7 @@ from tqdm import tqdm
 from mne.preprocessing import ICA, read_ica
 from autoreject import read_auto_reject
 from datetime import datetime
+from typing import Union
 
 
 from utils.config import DATASETS
@@ -627,7 +628,7 @@ def save_ica_excluded_components(dataset, subject, label, item, blink_components
         json.dump(data, f, indent=4)
 
 
-def load_ica_excluded_components(dataset, subject, label, item):
+def load_ica_excluded_components(dataset, subject, label, item) -> Union[list, None]:
     """
     Load excluded ICA components (blink + saccade).
 
@@ -638,8 +639,8 @@ def load_ica_excluded_components(dataset, subject, label, item):
     """
     save_path = os.path.join(dataset.path_derivatives, f"{dataset.f_name}_ica_excluded_components.json")
     if not os.path.exists(save_path):
-        print(f"No exclusion file found at {save_path}. Returning empty list.")
-        return []
+        print(f"No exclusion file found at {save_path}. Returning None.")
+        return None
 
     with open(save_path, "r") as f:
         data = json.load(f)
@@ -648,8 +649,8 @@ def load_ica_excluded_components(dataset, subject, label, item):
         exclusion_info = data[dataset.f_name][f'subject-{subject}'][f"{label}-{item}"]
         excluded_components = exclusion_info.get("all_excluded", [])
     except KeyError:
-        print(f"No exclusions found for {dataset.f_name} {subject} {label}-{item}. Returning empty list.")
-        return []
+        print(f"No exclusions found for {dataset.f_name} {subject} {label}-{item}.")
+        return None
 
     print(f"Loaded {len(excluded_components)} excluded components for {dataset.name} {subject} {label}-{item}.")
     return excluded_components

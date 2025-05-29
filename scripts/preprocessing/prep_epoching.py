@@ -16,15 +16,13 @@ set_plot_style()
 INSPECT_EPOCHS = False 
 PLOT_EOG_RAW = False
 
-DATASETS.pop('braboszcz2017')
-# remove jin2019 subjects from 1 to 18(remove 0-17 index of list)
-DATASETS['jin2019'].subjects = DATASETS['jin2019'].subjects[18:]
-
-
 DATASETS.pop('jin2019')
-# DATASETS.pop('touryan2022')
-# remove touryan2022 subjects from 1 to 6
-DATASETS['touryan2022'].subjects = DATASETS['touryan2022'].subjects[6:]
+DATASETS.pop('touryan2022')
+# remove jin2019 subjects from 1 to 18(remove 0-17 index of list)
+#DATASETS['braboszcz2017'].subjects = DATASETS['braboszcz2017'].subjects[:]
+
+
+
 
 
 def print_epoch_counts(epochs):
@@ -144,8 +142,8 @@ def plot_overlapping_psd(epochs_before, epochs_after, fmin=1, fmax=40, picks="ee
 
 def max_ptp_evoked(evoked1, evoked2):
     """Return the maximum peak-to-peak value across two Evoked objects."""
-    ptp1 = evoked1.data.ptp(axis=1).max()  # ptp per channel, then max across channels
-    ptp2 = evoked2.data.ptp(axis=1).max()
+    ptp1 = np.ptp(evoked1.data, axis=1).max()  # ptp per channel, then max across channels
+    ptp2 = np.ptp(evoked2.data, axis=1).max()
     return max(ptp1, ptp2)
 
 
@@ -196,27 +194,27 @@ if __name__ == "__main__":
             RESULTS:
             - ICA-cleaned raw object
         '''
+        # Always average reference the raw data before applying ICA (will be done to data not ICA-cleaned as well)
+        raw.set_eeg_reference('average', ch_type='eeg', verbose=True, projection=False)
+
         ica = load_ica(dataset, subject, **kwargs, verbose=True)
         if ica is None:
-            print(f"[WARN] No ICA found for subject {subject} with {label} {item}.")
-
+            print(f"[WARN] No ICA found for subject {subject} with {label} {item}. Skipping ICA application.")
+            
         components_to_exclude = load_ica_excluded_components(dataset, subject, label, item)
         if components_to_exclude is None:
             print(f"[WARN] No excluded components found for subject {subject} with {label} {item}.")
-
-        raw.set_eeg_reference('average', ch_type='eeg', verbose=True, projection=False)
-
-        # --- Create bipolar EOG channels
-        raw = set_bipolar_reference(raw, anode='UVEOG', cathode='LVEOG', ch_name='VEOG', drop_refs=True, copy=True)
-        raw = set_bipolar_reference(raw, anode='LHEOG', cathode='RHEOG', ch_name='HEOG', drop_refs=True, copy=True)
-
-        raw_before = raw.copy()
         
-        raw = ica.apply(raw, exclude=components_to_exclude, verbose=True)
+        else:
+            # --- Create bipolar EOG channels
+            raw = set_bipolar_reference(raw, anode='UVEOG', cathode='LVEOG', ch_name='VEOG', drop_refs=True, copy=True)
+            raw = set_bipolar_reference(raw, anode='LHEOG', cathode='RHEOG', ch_name='HEOG', drop_refs=True, copy=True)
 
-        if (dataset.f_name != 'braboszcz2017'):
+            raw_before = raw.copy()
+            
+            raw = ica.apply(raw, exclude=components_to_exclude, verbose=True)
+
             if PLOT_EOG_RAW:
-
                 # --- Create EOG Evoked (before cleaning)
                 eog_epochs_before = create_eog_epochs(raw_before, reject=dict(eeg=400e-6), ch_name='VEOG', verbose=False)
                 eog_evoked_before = eog_epochs_before.average()
