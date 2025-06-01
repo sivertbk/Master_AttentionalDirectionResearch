@@ -102,12 +102,12 @@ def compute_psd_data():
         # Pick EEG channels
         epochs.pick(picks="eeg", verbose=False)
         # Compute PSD
-        for average_method in ['mean', 'median']:
+        for average_method in ['mean', 'median', None]:
             variant = f"avg-{average_method}"
             eeg_settings = EEG_SETTINGS.copy()
             eeg_settings["PSD_AVERAGE_METHOD"] = average_method
 
-            psd, freqs = compute_psd_multitaper(epochs, eeg_settings)
+            psd, freqs = compute_psd(epochs, eeg_settings)
 
             # Generate metadata
             metadata = generate_metadata_epochs(
@@ -137,7 +137,6 @@ def compute_psd_data():
 
 def main():
     compute_psd_data()
-    # compute_spectrograms()  # Implement later
 
 if __name__ == "__main__":
     main()

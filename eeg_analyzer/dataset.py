@@ -345,7 +345,8 @@ class Dataset:
                     for state in rec.get_available_states(task):
                         psd = rec.get_psd(task, state)
                         freqs = rec.get_freqs(task, state)
-                        band_power = Metrics.band_power(psd, freqs, freq_band, operation='sum')  # shape: (epochs, channels)
+                        band_power = Metrics.band_power(psd, freqs, freq_band, operation='mean')  # shape: (epochs, channels)
+                        band_decibel = Metrics.band_decibel(psd, freqs, freq_band, operation='mean')  # shape: (epochs, channels)
                         n_epochs, n_channels = band_power.shape
                         for epoch_idx in range(n_epochs):
                             for ch_idx, ch_name in enumerate(rec.channels):
@@ -360,17 +361,19 @@ class Dataset:
                                     "cortical_region": cortical_regions_map.get(ch_name, None),
                                     "hemisphere": "central" if channel_positions[ch_name][0] == 0 else "left" if channel_positions[ch_name][0] < 0 else "right",
                                     "task": task,
+                                    "task_orientation": self.task_orientation,
                                     "state": state,
                                     "band_power": float(band_power[epoch_idx, ch_idx]),
+                                    "band_db": float(band_decibel[epoch_idx, ch_idx]),
                                     "is_bad": False
                                 })
                                 if ch_idx == n_channels - 1:
                                     epoch_counter += 1
         return long_list
 
-    def estimate_long_band_powength(self, variant: str = "mean") -> int:
+    def estimate_long_band_length(self, variant: str = "mean") -> int:
         """
-        Estimate the totl number of rows in the long-format band power DataFrame
+        Estimate the total number of rows in the long-format band power DataFrame
         (i.e., sum of epochs × channels for all subject-session-task-state combinations).
 
         Args:

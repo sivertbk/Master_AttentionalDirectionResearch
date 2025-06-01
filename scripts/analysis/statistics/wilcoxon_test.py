@@ -128,13 +128,16 @@ def perform_wilcoxon_test(file_names):
 
 if __name__ == "__main__":
     # CSV's to be used for the analysis
-    csv_file_names = ["summary_subses_channel_level_IQR_Filtered_band_power_cleaned_statecomp.csv", 
-                      "summary_subses_roi_full_region_level_IQR_Filtered_band_power_cleaned_statecomp.csv", 
-                      "summary_subses_roi_hemi_specific_level_IQR_Filtered_band_power_cleaned_statecomp.csv"]
+    # csv_file_names = ["summary_subses_channel_level_IQR_Filtered_band_power_cleaned_statecomp.csv", 
+    #                   "summary_subses_roi_full_region_level_IQR_Filtered_band_power_cleaned_statecomp.csv", 
+    #                   "summary_subses_roi_hemi_specific_level_IQR_Filtered_band_power_cleaned_statecomp.csv"]
     #csv_file_names = ["summary_subses_channel_level_unprocessed_band_power_statecomp.csv", 
     #                  "summary_subses_roi_full_region_level_unprocessed_band_power_statecomp.csv", 
     #                  "summary_subses_roi_hemi_specific_level_unprocessed_band_power_statecomp.csv"]
+    csv_file_names = ["summary_subses_channel_level_unprocessed_band_db_statecomp.csv", 
+                     "summary_subses_roi_full_region_level_unprocessed_band_db_statecomp.csv", 
+                     "summary_subses_roi_hemi_specific_level_unprocessed_band_db_statecomp.csv"]
 
-    analyzer = EEGAnalyzer.load_analyzer("IQRFilteredSubExAnalyzer")
+    analyzer = EEGAnalyzer.load_analyzer("UnprocessedAnalyzer")
     path_to_analyzer = analyzer.derivatives_path
     perform_wilcoxon_test(csv_file_names)

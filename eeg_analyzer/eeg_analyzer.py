@@ -23,6 +23,7 @@ from typing import Union # Import Union for older Python versions
 from eeg_analyzer.dataset import Dataset
 from eeg_analyzer.statistics import Statistics # Import the Statistics class
 from eeg_analyzer.processor import Processor # Import the Processor class
+from eeg_analyzer.visualizer import Visualizer # Import the Visualizer class
 from utils.config import EEGANALYZER_OBJECT_DERIVATIVES_PATH, NAME_LIST
 
 STANDARD_SUMMARY_TABLE_CONFIGS = [
@@ -135,6 +136,9 @@ class EEGAnalyzer:
         self.fitted_models = {} # Initialize storage for all fitted models (channel or ROI)
         self.statistical_analyses = {} # Initialize storage for statistical analyses
         self._df_hash_at_last_summary_gen = None # For tracking summary table outdatedness
+        
+        # Initialize Visualizer
+        self.viz = Visualizer(self)
 
 
     def _log_event(self, event_name: str, details: dict = None):
@@ -250,6 +254,7 @@ class EEGAnalyzer:
         """
         #empty dataframe
         self.df = pd.DataFrame()
+        self.freq_band = freq_band
         print(f"[EEGAnalyzer - {self.analyzer_name}] Creating DataFrame from datasets...")
         dataset_details_log = {}
         for name, dataset in self.datasets.items():
@@ -416,7 +421,7 @@ class EEGAnalyzer:
 
     def generate_summary_table(self, 
                                groupby_cols: list, 
-                               target_col: str = 'band_power', 
+                               target_col: str = 'band_db', 
                                filter_type: str = "processed",
                                output_filename_suffix: str = None,
                                source_df: pd.DataFrame = None,
@@ -432,7 +437,7 @@ class EEGAnalyzer:
 
         Parameters:
         - groupby_cols (list): List of columns to group by.
-        - target_col (str): The column to calculate statistics on (default: 'band_power').
+        - target_col (str): The column to calculate statistics on (default: 'band_db').
         - filter_type (str): A descriptor for the data state (e.g., "unfiltered", "zscore_flagged").
                              Used for logging and filename generation.
         - output_filename_suffix (str): Optional suffix for the output CSV file. If None,
@@ -647,12 +652,12 @@ class EEGAnalyzer:
 
         # Return only the columns needed for modeling plus identifiers for clarity if debugging
         # The actual modeling function (Statistics.fit_mixedlm) will use formula to pick columns from this slice.
-        return df_slice[list(set(model_value_cols + ['dataset', 'channel', 'cortical_region', 'hemisphere', 'subject_session']))].dropna(subset=model_value_cols)
+        return df_slice[list(set(model_value_cols + ['dataset', 'channel', 'cortical_region', 'hemisphere', 'subject_session', 'task_orientation']))].dropna(subset=model_value_cols)
 
 
     def fit_models_by_channel(self, 
                               formula: str, 
-                              value_col: str = 'band_power', 
+                              value_col: str = 'band_db', 
                               state_col: str = 'state', 
                               group_col: str = 'subject_session', 
                               re_formula: str = None, 
@@ -662,7 +667,7 @@ class EEGAnalyzer:
         Fits a mixed-effects model for each channel within each dataset using self.df.
 
         Parameters:
-        - formula (str): The formula for the fixed effects (e.g., 'band_power ~ C(state)').
+        - formula (str): The formula for the fixed effects (e.g., 'band_db ~ C(state)').
                          The value_col will be dynamically inserted if formula uses 'value_col_placeholder'.
         - value_col (str): The dependent variable for the model.
         - state_col (str): Column representing state, often used as a predictor.
@@ -752,7 +757,7 @@ class EEGAnalyzer:
 
     def fit_models_by_roi(self,
                          formula: str,
-                         value_col: str = 'band_power',
+                         value_col: str = 'band_db',
                          state_col: str = 'state',
                          group_col: str = 'subject_session',
                          re_formula: str = None,
@@ -1077,7 +1082,7 @@ class EEGAnalyzer:
 
     def generate_standard_summary_tables(self, 
                                          base_filter_type_label: str, 
-                                         target_value_col: str = 'band_power'):
+                                         target_value_col: str = 'band_db'):
         """
         Generates a suite of standard summary tables at different aggregation levels.
         Updates the internal DataFrame hash upon successful completion.
@@ -1085,7 +1090,7 @@ class EEGAnalyzer:
         Parameters:
         - base_filter_type_label (str): A label describing the state of self.df 
                                        (e.g., "unprocessed", "zscore_flagged").
-        - target_value_col (str): The primary value column to summarize (e.g., 'band_power').
+        - target_value_col (str): The primary value column to summarize (e.g., 'band_db').
         """
         if self.df is None or self.df.empty:
             print(f"[EEGAnalyzer - {self.analyzer_name}] DataFrame is empty. Attempting to create/load for summary tables.")

@@ -11,7 +11,6 @@ Responsibilities:
 
 Notes:
 - Should not compute statistics or metrics; only display them.
-- Designed to be modular and compatible with Jupyter or script-based workflows.
 """
 
 
@@ -19,126 +18,146 @@ import numpy as np
 import mne
 import mne.viz as viz
 import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
+import os # Added for path operations
+
+from utils.config import set_plot_style, channel_positions, PLOTS_PATH, EEG_SETTINGS
+
+set_plot_style()
 
 class Visualizer:
     """
     Class containing methods to visualize EEG PSD data.
     """
-
-    import numpy as np
-import matplotlib.pyplot as plt
-
-class Visualizer:
-    """
-    Class containing visualization methods for EEG PSD data.
-    """
-    @staticmethod
-    def plot_band_power(band_powers, channels, band_name="Frequency Band", figsize=(10, 5)):
+    def __init__(self, analyzer):
         """
-        Plot average power in a specific frequency band for each channel.
+        Initialize the Visualizer.
+        """
+        self.analyzer = analyzer
+        self.analyzer_name = analyzer.analyzer_name
+        self.derivatives_path = analyzer.derivatives_path
+
+    def plot_boxplot(self, 
+                     value_col: str = 'band_db', 
+                     state_col: str = 'state', 
+                     output_subfolder: str = 'boxplots',
+                     exclude_bads: bool = True,
+                     group_by_region: bool = False):
+        """
+        Generates and saves boxplots for each channel, separated by state, 
+        for each subject_session within each dataset.
+
+        Plots are saved to: derivatives_path/output_subfolder/dataset_name/
 
         Parameters:
-            band_powers (ndarray): Band power array (epochs × channels).
-            channels (list[str]): Channel names.
-            band_name (str): Name of the frequency band.
-            figsize (tuple): Figure size.
+        - value_col (str): The column name for the y-axis values (e.g., 'band_db').
+        - state_col (str): The column name for the state (e.g., 'state'), expected to contain 0 and 1.
+        - output_subfolder (str): Name of the subfolder within the analyzer's derivatives_path 
+                                  where plots will be saved.
+        - exclude_bads (bool): If True, excludes rows where 'is_bad' is True from the plots.
+        - group_by_region (bool): If True, groups boxplots by cortical region instead of channel.
         """
-        mean_band_power = np.mean(band_powers, axis=0)
 
-        plt.figure(figsize=figsize)
-        plt.bar(channels, mean_band_power, color='skyblue')
-        plt.title(f'Average Power in {band_name.capitalize()} Band')
-        plt.xlabel('Channels')
-        plt.ylabel('Mean Power')
-        plt.xticks(rotation=90)
-        plt.tight_layout()
-        plt.grid(axis='y', alpha=0.3)
-        plt.show()
+        df = self.analyzer.df
+        if df is None or df.empty:
+            print(f"[Visualizer for {self.analyzer_name}] DataFrame is empty. Cannot generate boxplots.")
+            return
 
-    @staticmethod
-    def compare_states(freqs, psd, metadata, channels, state_col='state', figsize=(10, 5)):
-        """
-        Compare PSD between two states (e.g., focused vs mind-wandering).
+        grouping_col = 'cortical_region' if group_by_region else 'channel'
+        required_cols = ['dataset', 'subject_session', 'is_bad', state_col, value_col, grouping_col]
+        if not all(col in df.columns for col in required_cols):
+            missing_cols = [col for col in required_cols if col not in df.columns]
+            print(f"[Visualizer for {self.analyzer_name}] DataFrame is missing required columns: {missing_cols}. Cannot generate boxplots.")
+            return
+        
+        # Filter out bad data if exclude_bads is True
+        if exclude_bads:
+            df = df[df['is_bad'] == False]
 
-        Parameters:
-            freqs (ndarray): Frequencies array.
-            psd (ndarray): PSD array (epochs × channels × frequencies).
-            metadata (DataFrame): Metadata DataFrame with state information.
-            channels (list[str]): Channel names.
-            state_col (str): Column name in metadata indicating the state.
-            figsize (tuple): Figure size.
-        """
-        states = metadata[state_col].unique()
-        if len(states) != 2:
-            raise ValueError("This method currently supports exactly two states for comparison.")
+        plots_main_dir = os.path.join(self.derivatives_path, output_subfolder, 'channel_boxplots' if not group_by_region else 'region_boxplots')
+        os.makedirs(plots_main_dir, exist_ok=True)
 
-        plt.figure(figsize=figsize)
+        # User-provided labels for the legend
+        state_legend_labels = {"OT": "On-target", "MW": "Mind-wandering"} 
+        
+        cmap = sns.color_palette("coolwarm", as_cmap=True)
+        # Palette for 'OT' and 'MW' states after mapping
+        plot_palette = {"OT": cmap(0.1), "MW": cmap(0.9)} # Adjusted for distinct cool/warm
 
-        for state in states:
-            state_indices = metadata[metadata[state_col] == state].index
-            mean_psd_state = psd[state_indices].mean(axis=(0, 1))
-            plt.plot(freqs, mean_psd_state, label=state.capitalize())
+        for dataset_name in df['dataset'].unique():
+            dataset_plot_dir = os.path.join(plots_main_dir, str(dataset_name))
+            os.makedirs(dataset_plot_dir, exist_ok=True)
+            
+            df_dataset = df[df['dataset'] == dataset_name]
+            
+            for subject_session_id in df_dataset['subject_session'].unique():
+                group_df = df_dataset[df_dataset['subject_session'] == subject_session_id].copy() # Use .copy() to avoid SettingWithCopyWarning
 
-        plt.title(f'PSD Comparison: {states[0]} vs. {states[1]}')
-        plt.xlabel('Frequency (Hz)')
-        plt.ylabel('Mean Power')
-        plt.legend()
-        plt.grid(True, alpha=0.3)
-        plt.tight_layout()
-        plt.show()
+                if group_df.empty:
+                    continue
 
-    @staticmethod
-    def plot_alpha_power_by_state(alpha_power: dict, states: list, channels: list, figsize=(12, 6)):
-        """
-        Plot alpha power for each state across channels as bar plots.
+                unique_groups = group_df[grouping_col].unique()
 
-        Parameters:
-            alpha_power (dict): Dictionary with states as keys and alpha power arrays (epochs × channels) as values.
-            states (list): List of state names.
-            channels (list): List of channel names.
-            figsize (tuple): Figure size.
-        """
-        plt.figure(figsize=figsize)
-        bar_width = 0.35
-        x = np.arange(len(channels))
+                if group_by_region:
+                    # Define the desired order of cortical regions
+                    region_order = ['prefrontal', 'frontal', 'frontocentral', 'central', 
+                                    'centroparietal', 'temporal', 'parietal', 'parietooccipital', 'occipital']
+                    # Filter out regions not in the defined order and then sort
+                    sorted_groups = [region for region in region_order if region in unique_groups]
+                else:
+                    # Sort channels by Y-coordinate (anterior to posterior)
+                    sorted_groups = sorted(
+                        unique_groups,
+                        key=lambda ch: channel_positions.get(ch, (0, float('inf'), 0))[1] # Sort unknown channels last
+                    )
 
-        for i, state in enumerate(states):
-            mean_alpha_power = np.mean(alpha_power[state], axis=0)
-            plt.bar(x + i * bar_width, mean_alpha_power, bar_width, label=f"State: {state}")
+                if not sorted_groups:
+                    continue
 
-        plt.title("Alpha Power by State")
-        plt.xlabel("Channels")
-        plt.ylabel("Mean Alpha Power")
-        plt.xticks(x + bar_width * (len(states) - 1) / 2, channels, rotation=90)
-        plt.legend()
-        plt.grid(axis='y', alpha=0.3)
-        plt.tight_layout()
-        plt.show()
+                fig, ax = plt.subplots(figsize=(max(15, len(sorted_groups) * 0.8), 8))
+                
+                sns.boxplot(x=grouping_col, y=value_col, hue='state', data=group_df, 
+                            order=sorted_groups, hue_order=["OT", "MW"], palette=plot_palette, ax=ax)
 
-    @staticmethod
-    def plot_alpha_power_by_task(alpha_power: dict, tasks: list, channels: list, figsize=(12, 6)):
-        """
-        Plot alpha power for each task across channels as bar plots.
+                title = f'Band Power ({self.analyzer.freq_band[0]} - {self.analyzer.freq_band[1]} Hz) by {grouping_col.replace("_", " ").title()} and State\nDataset: {dataset_name} - Subject Session: {subject_session_id}'
+                ax.set_title(title, fontsize=16)
+                xlabel = grouping_col.replace("_", " ").title()
+                ax.set_xlabel(xlabel, fontsize=14)
+                ax.set_ylabel(value_col.replace("_", " ").title(), fontsize=14)
+                
+                ax.tick_params(axis='x', labelrotation=45)
+                for label in ax.get_xticklabels():
+                    label.set_ha('right') # Align rotated labels
 
-        Parameters:
-            alpha_power (dict): Dictionary with tasks as keys and alpha power arrays (epochs × channels) as values.
-            tasks (list): List of task names.
-            channels (list): List of channel names.
-            figsize (tuple): Figure size.
-        """
-        plt.figure(figsize=figsize)
-        bar_width = 0.35
-        x = np.arange(len(channels))
+                # Customize legend
+                handles, _ = ax.get_legend_handles_labels()
+                ax.legend(handles, [state_legend_labels["OT"], state_legend_labels["MW"]], title=state_col.capitalize(), title_fontsize='13', fontsize='12')
 
-        for i, task in enumerate(tasks):
-            mean_alpha_power = np.mean(alpha_power[task], axis=0)
-            plt.bar(x + i * bar_width, mean_alpha_power, bar_width, label=f"Task: {task}")
+                # Add text under x-axis, centered
+                if not group_by_region:
+                    ax.annotate(
+                        "Posterior <------------------------> Anterior", # Adjusted arrow direction based on typical EEG layouts where anterior is often top/smaller Y
+                        xy=(0.5, -0.22), # Adjusted y position for potentially rotated labels
+                        xycoords='axes fraction',
+                        ha='center',
+                        va='center',
+                        fontsize=12
+                    )
+                
+                plt.tight_layout(rect=[0, 0.05, 1, 0.95]) # Adjust rect to make space for annotation and title
 
-        plt.title("Alpha Power by Task")
-        plt.xlabel("Channels")
-        plt.ylabel("Mean Alpha Power")
-        plt.xticks(x + bar_width * (len(tasks) - 1) / 2, channels, rotation=90)
-        plt.legend()
-        plt.grid(axis='y', alpha=0.3)
-        plt.tight_layout()
-        plt.show()
+                fig_filename = f"{dataset_name}_{subject_session_id}_{value_col}_{grouping_col}_state_boxplot.svg"
+                fig_path = os.path.join(dataset_plot_dir, fig_filename)
+                
+                try:
+                    plt.savefig(fig_path, format='svg', bbox_inches='tight')
+                    print(f"[Visualizer for {self.analyzer_name}] Saved plot: {fig_path}")
+                except Exception as e:
+                    print(f"[Visualizer for {self.analyzer_name}] Error saving plot {fig_path}: {e}")
+                
+                plt.close(fig)
+        
+        print(f"[Visualizer for {self.analyzer_name}] Finished generating boxplots. Saved to: {plots_main_dir}")
+
+

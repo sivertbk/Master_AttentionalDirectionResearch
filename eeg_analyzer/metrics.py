@@ -66,6 +66,37 @@ class Metrics:
             raise ValueError("Invalid operation. Use 'mean' or 'sum'.")
 
     @staticmethod
+    def band_decibel(psd: np.ndarray, freqs: np.ndarray, band: tuple[float, float], operation: str = 'mean') -> np.ndarray:
+        """
+        Compute decibel values within a frequency band using the specified aggregation.
+        The PSD data is first converted to dB scale.
+
+        Parameters:
+            psd (ndarray): PSD data (epochs × channels × frequencies).
+            freqs (ndarray): Frequencies corresponding to PSD data.
+            band (tuple): Frequency range as (low_freq, high_freq).
+            operation (str): Aggregation method ('mean' or 'sum').
+
+        Returns:
+            ndarray: Aggregated log-power (epochs × channels).
+        """
+        psd_db = Metrics.to_db(psd)  
+
+        low, high = band
+        band_idx = (freqs >= low) & (freqs <= high)
+
+        if not np.any(band_idx):
+            raise ValueError(f"No frequencies found in band range {band}")
+
+        operation = operation.lower()
+        if operation == 'mean':
+            return psd_db[..., band_idx].mean(axis=-1)
+        elif operation == 'sum':
+            return psd_db[..., band_idx].sum(axis=-1)
+        else:
+            raise ValueError("Invalid operation. Use 'mean' or 'sum'.")
+
+    @staticmethod
     def aggregate_frequency_bands(psd, freqs, bands, operation='sum'):
         """
         Compute power across multiple standard EEG frequency bands.
@@ -138,7 +169,7 @@ class Metrics:
         Convert PSD from µV²/Hz to dB scale using 10 * log10(psd).
         Clips values to prevent log of zero.
         """
-        return 10 * np.log10(np.maximum(psd, epsilon))
+        return 10 * np.log10(np.maximum(psd * 1e-12, epsilon))  # Convert to V² first, then to dB
 
     @staticmethod
     def normalize_psd(psd: np.ndarray) -> np.ndarray:

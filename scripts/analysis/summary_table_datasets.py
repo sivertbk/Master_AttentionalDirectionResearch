@@ -4,7 +4,7 @@ from utils.config import DATASETS
 
 def run_summary_table_generation(analyzer: EEGAnalyzer, 
                                  base_filter_type_label: str, 
-                                 target_value_col: str = 'band_power'):
+                                 target_value_col: str = 'band_db'):
     """
     Calls the EEGAnalyzer method to generate a suite of standard summary tables.
 
@@ -29,7 +29,7 @@ def run_summary_table_generation(analyzer: EEGAnalyzer,
 if __name__ == "__main__":
     # --- CHOOSE THE ANALYZER TO PROCESS ---
     # Option 1: Use an analyzer with unprocessed data
-    ANALYZER_NAME = "SubExAnalyzer" 
+    ANALYZER_NAME = "UnprocessedAnalyzer" 
     ANALYZER_FILTER_TYPE_LABEL = "unprocessed"
 
     # Option 2: Use an analyzer that has undergone Z-score flagging

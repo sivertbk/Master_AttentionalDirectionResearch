@@ -198,6 +198,43 @@ def save_psd_data(psd, freqs, channels, metadata, output_root, subject, session,
 
     tqdm.write(f"Saved PSD data and metadata to: {output_dir}")
 
+
+def save_spectrogram_data(psd, freqs, channels, metadata, output_root, subject, session, task, state):
+    """
+    Save PSD data and metadata to a structured directory.
+
+    Parameters:
+        psd (ndarray): PSD data (epochs × channels × frequencies).
+        freqs (ndarray): Frequency values.
+        channels (list[str]): Channel names.
+        metadata (dict): Metadata (subject, states, task labels, etc.).
+        output_root (str): Root output directory (e.g., 'psd_data/').
+        subject (str or int): Subject identifier.
+        session (int): Session identifier.
+        task (str): Task identifier.
+        state (str): State identifier.
+    """
+    sub = f"subject-{subject}"
+    ses = f"session-{session}"
+    task = f"task-{task}"
+    state = f"state-{state}"
+    output_dir = os.path.join(output_root, sub, ses, task, state, )
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Save PSD data
+    np.savez_compressed(
+        os.path.join(output_dir, "psd.npz"),
+        psd=psd,
+        freqs=freqs,
+        channels=channels
+    )
+
+    # Save metadata dict
+    with open(os.path.join(output_dir, "metadata.json"), "w") as f:
+        json.dump(metadata, f, indent=4)
+
+    tqdm.write(f"Saved PSD data and metadata to: {output_dir}")
+
 def update_bad_channels_json(
     save_dir, dataset, subject, session=None, task=None, run=None, bad_chs=None, mode='ransac'
 ):
@@ -474,7 +511,7 @@ def log_dropped_epochs(epochs, dataset, subject, log_root=config.PREPROCESSING_L
     log_dir = os.path.join(log_root, f"{stage}_dropped_epochs")
     os.makedirs(log_dir, exist_ok=True)
 
-    filename = f"{dataset.f_name}_dropped_epochs_pre_ica.log"
+    filename = f"{dataset.f_name}_dropped_epochs.log"
 
     log_path = os.path.join(log_dir, filename)
     threshold_str = f"{threshold * 1e6:.1f} µV" if threshold is not None else "N/A"
