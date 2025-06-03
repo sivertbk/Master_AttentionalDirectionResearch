@@ -161,3 +161,106 @@ class Visualizer:
         print(f"[Visualizer for {self.analyzer_name}] Finished generating boxplots. Saved to: {plots_main_dir}")
 
 
+    @staticmethod
+    def plot_topomap_comparison(topo_data_ot: np.ndarray, 
+                                topo_data_mw: np.ndarray, 
+                                channels: list[str], 
+                                significance: list[bool] = None, 
+                                band: tuple = (8, 12)) -> plt.Figure:
+        """
+        Plots a comparison of topographic maps for On-Task (OT) and Mind-Wandering (MW) states,
+        as well as their difference.
+
+        Args:
+            topo_data_ot (np.ndarray, shape (n_channels,)): data for On-Task state.
+            topo_data_mw (np.ndarray, shape (n_channels,)): data for Mind-Wandering state.
+            channels (list): List of channel names corresponding to the topographic data.
+            significance (list[bool], optional): Significance values for each channel, used to highlight significant channels.
+            band (tuple): Frequency band of interest (e.g., (8, 12) for alpha band).
+        Returns:
+            fig (matplotlib.figure.Figure): Matplotlib figure object.
+        """
+        topo_data_diff = None
+        if topo_data_ot is not None and topo_data_mw is not None:
+            topo_data_diff = topo_data_ot - topo_data_mw
+
+        montage_type = EEG_SETTINGS["MONTAGE"]
+        info = mne.create_info(ch_names=channels, sfreq=128, ch_types="eeg")
+        info.set_montage(montage_type)
+
+        # If significance is provided, set up mask
+        if significance is not None:
+            significance = np.array(significance, dtype=bool)
+        
+        fig, axes = plt.subplots(1, 3, figsize=(18, 6))
+        plot_data_list = [topo_data_ot, topo_data_mw, topo_data_diff]
+        plot_titles = ["On-task", "Mind-wandering", "Difference (OT-MW)"]
+
+        # Determine vlim for OT and MW plots (shared scale)
+        vlim_ot_mw = None
+        valid_ot_mw_data = [d for d in [topo_data_ot, topo_data_mw] if d is not None]
+        if valid_ot_mw_data:
+            min_val = np.min([np.min(d) for d in valid_ot_mw_data])
+            max_val = np.max([np.max(d) for d in valid_ot_mw_data])
+            vlim_ot_mw = (min_val, max_val)
+            if min_val == max_val: # Avoid vlim=(x,x) if data is flat
+                vlim_ot_mw = (min_val - 0.03, max_val + 0.03) if min_val != 0 else (-0.1, 0.1)
+
+
+        # Determine vlim for difference plot (symmetrical around 0)
+        vlim_diff = None
+        if topo_data_diff is not None:
+            abs_max_diff = np.max(np.abs(topo_data_diff))
+            if abs_max_diff == 0: # Data is all zeros
+                 vlim_diff = (-0.1, 0.1) # Small range for visual clarity
+            else:
+                 vlim_diff = (-abs_max_diff, abs_max_diff)
+        
+        vlims_list = [vlim_diff, vlim_diff, vlim_diff]
+
+        colorbar_label = "z-score"
+
+        for i, ax in enumerate(axes):
+            data = plot_data_list[i]
+            title = plot_titles[i]
+            current_vlim = vlims_list[i]
+            
+            # Determine cmap: explicit for difference, default for others
+            current_cmap = None
+            if title == "Difference (OT-MW)":
+                current_cmap = 'coolwarm' # Explicitly set for the difference plot
+            else:
+                current_cmap = "coolwarm"
+
+            if data is not None:
+                im, _ = mne.viz.plot_topomap(
+                    data, 
+                    info, 
+                    axes=ax, 
+                    show=False, 
+                    contours=4,
+                    mask=significance if significance is not None else None,  # Apply mask if provided
+                    mask_params=dict(marker='o', markerfacecolor='k', markeredgecolor='k', linewidth=0, markersize=5) if significance is not None else None,
+                    vlim=current_vlim,
+                    cmap=current_cmap  # Use the determined colormap
+                )
+                cbar = plt.colorbar(im, ax=ax, orientation='vertical', fraction=0.046, pad=0.04)
+                if title == "Difference (OT-MW)":
+                    cbar.set_label(colorbar_label, rotation=270, labelpad=15)
+                ax.set_title(title, fontsize=12)
+            else:
+                ax.set_title(title, fontsize=12)
+                ax.text(0.5, 0.5, "Data not available", horizontalalignment='center', verticalalignment='center', transform=ax.transAxes)
+                ax.axis('off')
+
+        main_title_parts = [
+            f"Dataset: Braboszcz",
+            f"Subject: All",
+            f"Session: All",
+            f"Band: {band[0]}–{band[1]} Hz"
+        ]
+        
+        fig.suptitle(" | ".join(main_title_parts), fontsize=16, y=0.98)
+        plt.tight_layout(rect=[0, 0.03, 1, 0.95]) # Adjust rect to make space for suptitle and bottom
+
+        return fig

@@ -323,7 +323,8 @@ class Dataset:
                 - "hemisphere"
                 - "task"
                 - "state" (int: 0=OT, 1=MW)
-                - "band_power"
+                - "band_power" (float: band power in µV²)
+                - "band_db" (float: band power in dB)
                 - "is_bad" (bool: True if the epoch is marked as bad)
         """
         from eeg_analyzer.metrics import Metrics  # local import to avoid circular
