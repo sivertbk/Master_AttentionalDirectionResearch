@@ -16,13 +16,6 @@ set_plot_style()
 INSPECT_EPOCHS = False 
 PLOT_EOG_RAW = False
 
-DATASETS.pop('jin2019')
-DATASETS.pop('touryan2022')
-# remove jin2019 subjects from 1 to 18(remove 0-17 index of list)
-#DATASETS['braboszcz2017'].subjects = DATASETS['braboszcz2017'].subjects[:]
-
-
-
 
 
 def print_epoch_counts(epochs):

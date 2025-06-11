@@ -114,43 +114,6 @@ def print_directory_tree(
 
     return output_lines
 
-def perform_ica_cleaning(epochs, subject, n_components=0.99, method='infomax', random_state=97):
-    """
-    Perform ICA on the provided epochs and allow manual selection of components for exclusion.
-
-    Parameters:
-        epochs (mne.Epochs): The epochs object to clean.
-        n_components (int): Number of ICA components to compute (default: 0.99 - 99% of variance).
-        method (str): ICA method to use ('infomax' by default).
-        random_state (int): Random seed for ICA initialization (default: 97).
-
-    Returns:
-        mne.Epochs: Cleaned epochs after ICA.
-        ICA: The ICA object used for the analysis.
-    """
-    print("Fitting ICA...")
-    # Initialize ICA
-    ica = ICA(n_components=n_components, method=method, random_state=random_state)
-
-    # Fit ICA to the epochs
-    ica.fit(epochs)
-    print("ICA fitting complete.")
-
-    # Plot ICA components
-    print("Displaying ICA components. Use the interactive GUI to select components for exclusion.")
-    ica.plot_components(title=f"ICA decomposition on subject {subject}") 
-
-    # Plot sources to identify artifacts
-    print("Displaying ICA sources. Use this to examine the time-series for artifact-related components.")
-    ica.plot_sources(epochs, block = True)  # Opens an interactive source plot
-
-    # Apply ICA to remove the selected components
-    print("Applying ICA to remove selected components...")
-    cleaned_epochs = ica.apply(epochs.copy())
-    print("ICA cleaning complete.")
-
-    return cleaned_epochs, ica
-
 def format_numbers(numbers, width=3):
     """
     Format a number or a list of numbers to strings with leading zeros.

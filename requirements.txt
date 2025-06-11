@@ -5,7 +5,7 @@ numpy
 scipy
 pandas
 matplotlib
-ptitprince
+seaborn
 
 # Machine learning and statistical analysis
 scikit-learn

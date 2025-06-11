@@ -13,13 +13,16 @@ from datetime import datetime
 
 import utils.config as config
 from utils.config import DATASETS, set_plot_style
+from utils.dataset_config import DatasetConfig
 from utils.file_io import load_bad_channels, update_bad_channels_json, log_dropped_epochs, log_reject_threshold, load_new_events
 from utils.helpers import plot_ransac_bad_log, encode_events, get_scaled_rejection_threshold
 
 
-def prepare_raw_data(raw, dataset, eeg_settings):
+def prepare_raw_data(raw: mne.io.Raw, dataset: DatasetConfig, eeg_settings: dict) -> mne.io.Raw:
     """
-    Prepare data for preprocessing. setting correct channel types, selecting channels, resample, set montage, and more deping on the dataset.
+    Prepare data for preprocessing. setting correct channel types, selecting channels, 
+    resample, set montage, and more deping on the dataset. Function works in place of 
+    the raw data object.
     
     Parameters
     ----------
@@ -45,11 +48,11 @@ def prepare_raw_data(raw, dataset, eeg_settings):
     
 
 
-def _prepare_braboszcz2017(raw, dataset, eeg_settings):
+def _prepare_braboszcz2017(raw: mne.io.Raw, dataset, eeg_settings):
     # Define desired channel type mappings
     desired_types = {
-        'EXG1': 'misc', 'EXG2': 'misc', 'EXG3': 'misc', 'EXG4': 'misc',
-        'EXG5': 'misc', 'EXG6': 'misc', 'EXG7': 'misc', 'EXG8': 'misc',
+        'EXG1': 'misc', 'EXG2': 'misc', 'EXG3': 'eog', 'EXG4': 'eog',
+        'EXG5': 'eog', 'EXG6': 'eog', 'EXG7': 'misc', 'EXG8': 'misc',
         'GSR1': 'misc', 'GSR2': 'misc',
         'Erg1': 'misc', 'Erg2': 'misc',
         'Resp': 'bio', 'Plet': 'bio', 'Temp': 'bio'
@@ -65,13 +68,13 @@ def _prepare_braboszcz2017(raw, dataset, eeg_settings):
     raw.set_channel_types(existing_types)
 
     # pick only EEG channels
-    raw.pick('eeg')
+    raw.pick(['eeg','eog'])
 
     # Downsample
     raw.resample(eeg_settings["SAMPLING_RATE"])
 
     # Apply EEG montage
-    raw.set_montage(eeg_settings["MONTAGE"], on_missing="ignore")
+    raw.set_montage(eeg_settings["MONTAGE"])
 
     # Clear projections and bad channels
     raw.info['bads'] = []
@@ -79,7 +82,7 @@ def _prepare_braboszcz2017(raw, dataset, eeg_settings):
 
     return raw
 
-def _prepare_jin2019(raw, dataset, eeg_settings):
+def _prepare_jin2019(raw: mne.io.Raw, dataset, eeg_settings):
     # Extracting the channel names
     old_ch_names = raw.ch_names
 
@@ -122,7 +125,7 @@ def _prepare_jin2019(raw, dataset, eeg_settings):
 
     return raw
 
-def _prepare_touryan2022(raw, dataset, eeg_settings):
+def _prepare_touryan2022(raw: mne.io.Raw, dataset, eeg_settings):
     # Set the channel types
     raw.set_channel_types({
         'LHEOG': 'eog',
@@ -207,7 +210,7 @@ def ransac_detect_bad_channels(raw, dataset, eeg_settings, subject, session=None
     )
 
 
-def fix_bad_channels(raw, dataset, subject, session=None, task=None, run=None, verbose=True):
+def fix_bad_channels(raw: mne.io.Raw, dataset: DatasetConfig, subject, session=None, task=None, run=None, verbose=True):
     """
     Fix bad channels in the raw data. This function loads the bad channels from a JSON file and updates the raw data accordingly.
     
@@ -288,7 +291,7 @@ def autoreject_raw(raw, eeg_settings, verbose=True):
         cv=10,                                     # cross validation: K-fold
         picks=picks_eeg,                           # Only use EEG channels
         n_jobs=cpu_count(),                        # Use all available CPU cores
-        random_state=42,                        # For reproducibility
+        random_state=42,                           # For reproducibility
         verbose=verbose
     )
 
