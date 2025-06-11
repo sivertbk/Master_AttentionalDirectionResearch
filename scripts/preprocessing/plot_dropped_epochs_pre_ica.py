@@ -1,3 +1,19 @@
+"""
+Plot dropped epochs before training ICA for EEG data.
+This script loads EEG data, applies preprocessing steps as it will be done before training,
+and plots epochs that were dropped due to rejection thresholds.
+
+This script is inteded to be used for debugging and understanding the impact of
+epoch rejection thresholds on the data. Epochs dropped should not contain blink or saccade artifacts,
+but rather other artifacts that are not related to eye movements.
+
+Removing epochs with ocular artifacts (blinks, saccades) will reduce the chances of
+training ICA components that are related to eye movements, which is no good!!!!!!!
+
+TIPS: If ICA is bad for spesific subject, remove all subjects from DATASETS and run this script
+to see which epochs were dropped.
+"""
+
 import os
 import mne
 import json

@@ -10,51 +10,44 @@ The analysis workflow includes **preprocessing**, **frequency domain transformat
 ## Project Structure
 ```
 attentional_direction_research_workspace/
-│── backups/                        # Backup files for analysis
+📂 data/                                # 📊 All datasets, relevant derivatives, and EEGAnalyzer-objects live here
+│   ├── braboszcz2017/                  #   EEG study (meditation vs. thinking)
+│   ├── jin2019/                        #   SART + visual-search study
+│   ├── touryan2022/                    #   Simulated-driving study
+│   └── eeg_analyzer_derivatives/       #   Pickled analyzer states & summary CSVs
 │
-│── data/                           # EEG datasets and processed data
-│   ├── datasets/                   # Original EEG datasets
-│   ├── epochs/                     # Preprocessed segmented epochs
-│   ├── psd_data/                   # Power Spectral Density (PSD) data
+📂 eeg_analyzer/                        # 🧠 Core Python package (OO analysis engine)
+|   ├── eeg_analyzer.py                 #   Top-level object used for analysis of all data
+│   ├── dataset.py                      #   Dataset abstraction
+│   ├── subject.py                      #   PSD normalisation & filtering logic
+│   ├── recording.py.py                 #   Helper metrics (band power, z-scores, …)
+│   └── …                               #   subject.py, statistics.py, visualizer.py, …
 │
-│── eeg_analyzer/                    # Main module for EEG analysis
-│   ├── __init__.py                  # Module initialization
-│   ├── eeg_analyzer.py              # EEGAnalyzer class (handles all subjects)
-│   ├── metrics.py                   # Computes EEG-specific metrics
-│   ├── processor.py                 # Processes PSD data (normalization, outlier removal)
-│   ├── statistics.py                # Statistical modeling and hypothesis testing
-│   ├── subject.py                   # Manages individual subject data
-│   ├── visualizer.py                 # Visualization and plotting functions
+📂 notebooks/                           # 📒 Interactive exploration (Jupyter)
+│   ├── braboszcz2017/                  #   Dataset-specific EDA & modelling
+│   ├── jin2019/
+│   ├── touryan2022/
+│   └── shared/                         #   Re-usable analyses (e.g. PSD parameter sweeps)
 │
-│── notebooks/                       # Jupyter Notebooks for experiments
-│   ├── exploring.ipynb              # Exploratory data analysis
-│   ├── hypothesis_testing.ipynb     # Hypothesis-driven analysis
+📂 scripts/                             # ⚙️  Command-line automation
+│   ├── preprocessing/                  #   AutoReject, ICA, epoching, …
+│   ├── analysis/                       #   Stats & plotting & analysis scripts
+│   └── dataset-specific/               #   One-off utilities (probe extraction, etc.)
 │
-│── reports/                         # Generated reports, logs, and plots
-│   ├── logs/                        # Logs for analysis and preprocessing
-│   │   ├── analysis_logs/           # Logs for EEG analysis scripts
-│   │   ├── preprocessing_logs/      # Logs for preprocessing steps
-│   ├── plots/                       # Directory for generated plots
+📂 reports/                             # 📈 Results for papers / slides
+│   ├── plots/                          #   Figures from scripts
+│   └── logs/                           #   Analysis & preprocessing logs
 │
-│── scripts/                         # Standalone scripts for batch processing and analysis
-│   ├── dir_tree.py                  # Script for generating directory tree
+📂 utils/                               # 🛠  Generic helpers & configuration
+│   ├── dataset_configs/                #   Per-dataset metadata objects
+│   ├── config.py                       #   Global constants (paths, EEG settings, styles)
+│   └── helpers.py                      #   Misc. convenience functions
 │
-│── tests/                           # Unit tests for validating code
-│   ├── __init__.py                  # Module initialization
-│   ├── test_metrics.py              # Tests for EEG metrics calculations
-│   ├── test_processing.py           # Tests for data processing logic
-│
-│── utils/                           # Utility functions and helpers
-│   ├── __init__.py                  # Module initialization
-│   ├── config.py                    # Global settings for file paths and parameters
-│   ├── file_io.py                   # Functions for loading and saving data
-│   ├── helpers.py                    # Miscellaneous helper functions
-│
-│── .gitignore                       # Files to exclude from version control
-│── README.md                        # Project documentation
-│── pyproject.toml                   # Python build system configuration
-│── requirements.txt                  # Required Python dependencies
-│── setup.py                         # Setup file for package installation
+📄 README.md                            # 👉 Start here
+📄 PROJECT_PROCESS.md                   #   Project diary / decisions log
+📄 pyproject.toml / setup.py            #   Installable package metadata
+📄 requirements.txt                     #   Exact Python dependencies
+
 ```
 
 ---
@@ -79,7 +72,6 @@ Important: ICA selection requires manual input, so preprocessing is not fully au
 ### 2. Transforming Data to the Frequency Domain
 - Converts EEG time-domain data into **Power Spectral Density (PSD)**.
 - Output: PSD is stored as **nested dictionaries** for each subject.
-- Optionally, **spectrograms** can be generated.
 
 Output: PSD data is stored in `data/psd_data/` for analysis.
 
@@ -173,14 +165,6 @@ Example usage:
 from utils.config import PSD_FREQUENCY_RES, PSD_NORMALIZATION
 print(f"Using PSD frequency resolution: {PSD_FREQUENCY_RES} Hz")
 ```
-
----
-
-## Next Steps
-- Implement preprocessing notebooks for all datasets.
-- Finalize PSD conversion scripts.
-- Develop `Processor` class for data normalization.
-- Validate and test the EEG analysis workflow.
 
 ---
 
