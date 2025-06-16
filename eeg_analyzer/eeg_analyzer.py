@@ -616,13 +616,13 @@ class EEGAnalyzer:
         
         # Filter channels based on hemisphere using actual channel naming conventions
         if hemisphere.lower() == 'left':
-            # Channels with odd numbers (1, 3, 5, 7, 9) or 'z' suffix for midline
+            # Channels with odd numbers (1, 3, 5, 7, 9) 
             region_channels = [ch for ch in region_channels if 
-                              ch[-1] in ['1', '3', '5', '7', '9'] or ch.endswith('z')]
+                              ch[-1] in ['1', '3', '5', '7', '9']]
         elif hemisphere.lower() == 'right':
-            # Channels with even numbers (2, 4, 6, 8, 0) or 'z' suffix for midline
+            # Channels with even numbers (2, 4, 6, 8, 10) 
             region_channels = [ch for ch in region_channels if 
-                              ch[-1] in ['2', '4', '6', '8', '0'] or ch.endswith('z')]
+                              ch[-1] in ['2', '4', '6', '8', '10']]
         # For 'full', use all channels in the region
         
         # Filter df_slice to only include channels in this region
@@ -707,6 +707,68 @@ class EEGAnalyzer:
             regional_df[state_col] = pd.Categorical(regional_df[state_col])
         
         return regional_df.dropna(subset=required_cols)
+
+    def _get_data_slice_for_model(self, 
+                                 dataset_name: str, 
+                                 value_col: str, 
+                                 state_col: str, 
+                                 group_col: str, 
+                                 exclude_bad_rows: bool = True,
+                                 channel_name: str = None,
+                                 roi_cortical_region: str = None,
+                                 roi_hemisphere: str = None 
+                                 ) -> pd.DataFrame:
+        """
+        Private helper to get a data slice for model fitting.
+        Filters self.df for a specific dataset and channel, or dataset and ROI.
+        Selects necessary columns and handles exclusion of bad rows.
+        """
+        if self.df is None or self.df.empty:
+            return pd.DataFrame()
+
+        # Start with dataset filter
+        df_slice = self.df[self.df['dataset'] == dataset_name].copy()
+
+        if channel_name:
+            df_slice = df_slice[df_slice['channel'] == channel_name]
+        elif roi_cortical_region:
+            df_slice = df_slice[df_slice['cortical_region'] == roi_cortical_region]
+            if roi_hemisphere and roi_hemisphere.lower() != "full":
+                # Ensure case-insensitivity for hemisphere matching if needed,
+                # assuming DataFrame 'hemisphere' column has consistent casing (e.g., 'Left', 'Right', 'Midline')
+                df_slice = df_slice[df_slice['hemisphere'].str.lower() == roi_hemisphere.lower()]
+        else:
+            # Neither channel nor ROI specified, this shouldn't happen if called correctly
+            print(f"[EEGAnalyzer - {self.analyzer_name}] _get_data_slice_for_model called without channel_name or roi_cortical_region.")
+            return pd.DataFrame()
+
+
+        if exclude_bad_rows and 'is_bad' in df_slice.columns:
+            df_slice = df_slice[~df_slice['is_bad']]
+
+        # Define required columns for the model itself, plus identifiers
+        model_value_cols = [value_col, state_col, group_col]
+        identifier_cols = ['dataset'] # Keep dataset for context
+        if channel_name:
+            identifier_cols.append('channel')
+        if roi_cortical_region:
+            identifier_cols.extend(['cortical_region', 'hemisphere']) # Keep these for verification of slice
+
+        required_cols_for_slice = list(set(model_value_cols + identifier_cols))
+
+
+        if not all(col in df_slice.columns for col in model_value_cols):
+            missing_model_cols = [col for col in model_value_cols if col not in df_slice.columns]
+            print(f"[EEGAnalyzer - {self.analyzer_name}] Missing one or more required model columns {missing_model_cols} for data slice for {dataset_name}.")
+            return pd.DataFrame()
+        
+        # Ensure state_col is categorical if it's used as C(state) in formula
+        if state_col in df_slice.columns:
+             df_slice[state_col] = pd.Categorical(df_slice[state_col])
+
+        # Return only the columns needed for modeling plus identifiers for clarity if debugging
+        # The actual modeling function (Statistics.fit_mixedlm) will use formula to pick columns from this slice.
+        return df_slice[list(set(model_value_cols + ['dataset', 'channel', 'cortical_region', 'hemisphere', 'subject_session', 'task_orientation']))].dropna(subset=model_value_cols)
 
     def fit_models_by_channel(self, 
                               formula: str, 

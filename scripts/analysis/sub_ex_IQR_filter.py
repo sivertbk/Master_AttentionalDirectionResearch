@@ -23,7 +23,7 @@ if __name__ == "__main__":
     # Apply IQR filtering to the 'band_power' column
     analyzer.df = Processor.flag_outliers_iqr(
         df=analyzer.df,
-        group_cols=['dataset', 'subject_session', 'channel', 'state'],
+        group_cols=['dataset', 'subject_session', 'channel'],
         value_col='band_power',
         multiplier=1.5
     )
