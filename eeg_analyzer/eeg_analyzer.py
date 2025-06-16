@@ -24,7 +24,7 @@ from eeg_analyzer.dataset import Dataset
 from eeg_analyzer.statistics import Statistics # Import the Statistics class
 from eeg_analyzer.processor import Processor # Import the Processor class
 from eeg_analyzer.visualizer import Visualizer # Import the Visualizer class
-from utils.config import EEGANALYZER_OBJECT_DERIVATIVES_PATH, NAME_LIST
+from utils.config import EEGANALYZER_OBJECT_DERIVATIVES_PATH, NAME_LIST, cortical_regions, ROIs
 
 STANDARD_SUMMARY_TABLE_CONFIGS = [
     {
@@ -592,68 +592,121 @@ class EEGAnalyzer:
             print(f"[EEGAnalyzer - {analyzer_name}] Could not find saved analyzer state at {filepath}")
             return None
         
-    def _get_data_slice_for_model(self, 
-                                 dataset_name: str, 
-                                 value_col: str, 
-                                 state_col: str, 
-                                 group_col: str, 
-                                 exclude_bad_rows: bool = True,
-                                 channel_name: str = None,
-                                 roi_cortical_region: str = None,
-                                 roi_hemisphere: str = None 
-                                 ) -> pd.DataFrame:
+    def _calculate_regional_power(self, 
+                                 df_slice: pd.DataFrame, 
+                                 cortical_region: str, 
+                                 hemisphere: str) -> pd.DataFrame:
         """
-        Private helper to get a data slice for model fitting.
-        Filters self.df for a specific dataset and channel, or dataset and ROI.
-        Selects necessary columns and handles exclusion of bad rows.
+        Calculate mean power for a specific ROI, handling bad channels properly.
+        
+        Parameters:
+        - df_slice: DataFrame slice for a specific dataset
+        - cortical_region: Name of the cortical region (e.g., 'frontal')
+        - hemisphere: 'left', 'right', or 'full'
+        
+        Returns:
+        - DataFrame with regional averages and proper is_bad flagging
+        """
+        if cortical_region not in cortical_regions:
+            print(f"[EEGAnalyzer - {self.analyzer_name}] Unknown cortical region: {cortical_region}")
+            return pd.DataFrame()
+        
+        # Get channels for this cortical region
+        region_channels = cortical_regions[cortical_region]
+        
+        # Filter channels based on hemisphere using actual channel naming conventions
+        if hemisphere.lower() == 'left':
+            # Channels with odd numbers (1, 3, 5, 7, 9) or 'z' suffix for midline
+            region_channels = [ch for ch in region_channels if 
+                              ch[-1] in ['1', '3', '5', '7', '9'] or ch.endswith('z')]
+        elif hemisphere.lower() == 'right':
+            # Channels with even numbers (2, 4, 6, 8, 0) or 'z' suffix for midline
+            region_channels = [ch for ch in region_channels if 
+                              ch[-1] in ['2', '4', '6', '8', '0'] or ch.endswith('z')]
+        # For 'full', use all channels in the region
+        
+        # Filter df_slice to only include channels in this region
+        region_df = df_slice[df_slice['channel'].isin(region_channels)].copy()
+        
+        if region_df.empty:
+            return pd.DataFrame()
+        
+        # Group by all identifying columns except channel to aggregate across channels
+        group_cols = ['dataset', 'subject_session', 'task_orientation', 'state', 'epoch_idx']
+        group_cols = [col for col in group_cols if col in region_df.columns]
+        
+        regional_data = []
+        
+        for group_values, group_df in region_df.groupby(group_cols):
+            # Create a dict for this group's identifiers
+            group_dict = dict(zip(group_cols, group_values))
+            
+            # Check if any channel in this group is marked as bad
+            any_bad = group_df['is_bad'].any() if 'is_bad' in group_df.columns else False
+            
+            # Calculate mean power across channels (only if not all channels are bad)
+            if not any_bad and len(group_df) > 0:
+                mean_power = group_df['band_db'].mean()
+                group_dict.update({
+                    'band_db': mean_power,
+                    'cortical_region': cortical_region,
+                    'hemisphere': hemisphere.title(),
+                    'is_bad': False,
+                    'n_channels': len(group_df)
+                })
+            else:
+                # Mark as bad if any channel was bad or no valid data
+                group_dict.update({
+                    'band_db': np.nan,
+                    'cortical_region': cortical_region, 
+                    'hemisphere': hemisphere.title(),
+                    'is_bad': True,
+                    'n_channels': len(group_df)
+                })
+            
+            regional_data.append(group_dict)
+        
+        return pd.DataFrame(regional_data)
+
+    def _get_data_slice_for_roi_model(self,
+                                     dataset_name: str,
+                                     cortical_region: str, 
+                                     hemisphere: str,
+                                     value_col: str,
+                                     state_col: str,
+                                     group_col: str,
+                                     exclude_bad_rows: bool = True) -> pd.DataFrame:
+        """
+        Get aggregated regional data for ROI model fitting.
         """
         if self.df is None or self.df.empty:
             return pd.DataFrame()
-
-        # Start with dataset filter
-        df_slice = self.df[self.df['dataset'] == dataset_name].copy()
-
-        if channel_name:
-            df_slice = df_slice[df_slice['channel'] == channel_name]
-        elif roi_cortical_region:
-            df_slice = df_slice[df_slice['cortical_region'] == roi_cortical_region]
-            if roi_hemisphere and roi_hemisphere.lower() != "full":
-                # Ensure case-insensitivity for hemisphere matching if needed,
-                # assuming DataFrame 'hemisphere' column has consistent casing (e.g., 'Left', 'Right', 'Midline')
-                df_slice = df_slice[df_slice['hemisphere'].str.lower() == roi_hemisphere.lower()]
-        else:
-            # Neither channel nor ROI specified, this shouldn't happen if called correctly
-            print(f"[EEGAnalyzer - {self.analyzer_name}] _get_data_slice_for_model called without channel_name or roi_cortical_region.")
-            return pd.DataFrame()
-
-
-        if exclude_bad_rows and 'is_bad' in df_slice.columns:
-            df_slice = df_slice[~df_slice['is_bad']]
-
-        # Define required columns for the model itself, plus identifiers
-        model_value_cols = [value_col, state_col, group_col]
-        identifier_cols = ['dataset'] # Keep dataset for context
-        if channel_name:
-            identifier_cols.append('channel')
-        if roi_cortical_region:
-            identifier_cols.extend(['cortical_region', 'hemisphere']) # Keep these for verification of slice
-
-        required_cols_for_slice = list(set(model_value_cols + identifier_cols))
-
-
-        if not all(col in df_slice.columns for col in model_value_cols):
-            missing_model_cols = [col for col in model_value_cols if col not in df_slice.columns]
-            print(f"[EEGAnalyzer - {self.analyzer_name}] Missing one or more required model columns {missing_model_cols} for data slice for {dataset_name}.")
+        
+        # Get data for this dataset
+        dataset_df = self.df[self.df['dataset'] == dataset_name].copy()
+        
+        # Calculate regional averages
+        regional_df = self._calculate_regional_power(dataset_df, cortical_region, hemisphere)
+        
+        if regional_df.empty:
             return pd.DataFrame()
         
-        # Ensure state_col is categorical if it's used as C(state) in formula
-        if state_col in df_slice.columns:
-             df_slice[state_col] = pd.Categorical(df_slice[state_col])
-
-        # Return only the columns needed for modeling plus identifiers for clarity if debugging
-        # The actual modeling function (Statistics.fit_mixedlm) will use formula to pick columns from this slice.
-        return df_slice[list(set(model_value_cols + ['dataset', 'channel', 'cortical_region', 'hemisphere', 'subject_session', 'task_orientation']))].dropna(subset=model_value_cols)
-
+        # Exclude bad rows if requested
+        if exclude_bad_rows and 'is_bad' in regional_df.columns:
+            regional_df = regional_df[~regional_df['is_bad']]
+        
+        # Ensure required columns exist
+        required_cols = [value_col, state_col, group_col]
+        if not all(col in regional_df.columns for col in required_cols):
+            missing_cols = [col for col in required_cols if col not in regional_df.columns]
+            print(f"[EEGAnalyzer - {self.analyzer_name}] Missing columns {missing_cols} in regional data")
+            return pd.DataFrame()
+        
+        # Ensure state_col is categorical
+        if state_col in regional_df.columns:
+            regional_df[state_col] = pd.Categorical(regional_df[state_col])
+        
+        return regional_df.dropna(subset=required_cols)
 
     def fit_models_by_channel(self, 
                               formula: str, 
@@ -661,7 +714,7 @@ class EEGAnalyzer:
                               state_col: str = 'state', 
                               group_col: str = 'subject_session', 
                               re_formula: str = None, 
-                              vc_formula: dict = None, # Corrected type to dict
+                              vc_formula: dict = None, 
                               exclude_bad_rows: bool = True):
         """
         Fits a mixed-effects model for each channel within each dataset using self.df.
@@ -765,7 +818,7 @@ class EEGAnalyzer:
                          exclude_bad_rows: bool = True):
         """
         Fits a mixed-effects model for each ROI within each dataset using self.df.
-        ROIs are defined by cortical_region and hemisphere (Left, Right, Midline, Full).
+        ROIs are defined by cortical_region and hemisphere combinations from config.
 
         Parameters:
         - formula (str): The formula for the fixed effects (e.g., 'value_col_placeholder ~ C(state)').
@@ -785,15 +838,15 @@ class EEGAnalyzer:
             self.fitted_models = {}
             self._log_event("Fitted Models Dictionary Initialized", {})
         
-        log_msg_start = f"Starting ROI model fitting. Formula: {formula}"
+        log_msg_start = f"Starting ROI model fitting using config ROIs. Formula: {formula}"
         print(f"[EEGAnalyzer - {self.analyzer_name}] {log_msg_start}")
         self._log_event("Fit Models By ROI Started", {
             "formula_template": formula, "value_col": value_col, "state_col": state_col,
-            "group_col": group_col, "re_formula": re_formula, "exclude_bad_rows": exclude_bad_rows
+            "group_col": group_col, "re_formula": re_formula, "exclude_bad_rows": exclude_bad_rows,
+            "roi_config_regions": list(ROIs.keys())
         })
 
         unique_datasets = self.df['dataset'].unique()
-        hemisphere_specs = ["Left", "Right", "Midline", "Full"]
         
         fitted_count = 0
         failed_count = 0
@@ -802,47 +855,36 @@ class EEGAnalyzer:
         for dataset_name in unique_datasets:
             if dataset_name not in self.fitted_models:
                 self.fitted_models[dataset_name] = {}
-            dataset_df_slice = self.df[self.df['dataset'] == dataset_name]
-            unique_cortical_regions_in_dataset = dataset_df_slice['cortical_region'].unique()
             
             print(f"[EEGAnalyzer - {self.analyzer_name}] Processing ROIs for dataset: {dataset_name}")
 
-            for cortical_region in unique_cortical_regions_in_dataset:
-                if pd.isna(cortical_region): continue # Skip if cortical_region is NaN
-
-                for hemi_spec in hemisphere_specs:
-                    roi_identifier = f"{cortical_region}_{hemi_spec.lower()}"
+            # Iterate through cortical regions defined in config
+            for cortical_region, hemisphere_list in ROIs.items():
+                for hemisphere in hemisphere_list:
+                    roi_identifier = f"{cortical_region}_{hemisphere.lower()}"
                     total_rois_attempted += 1
 
-                    # Skip Midline spec for regions that don't typically have midline channels,
-                    # or if no midline channels exist for that region in the data.
-                    if hemi_spec.lower() == "midline":
-                        has_midline_data = not dataset_df_slice[
-                            (dataset_df_slice['cortical_region'] == cortical_region) &
-                            (dataset_df_slice['hemisphere'].str.lower() == "midline")
-                        ].empty
-                        if not has_midline_data:
-                            # print(f"[EEGAnalyzer - {self.analyzer_name}] Skipping {roi_identifier} for {dataset_name}: No midline data.")
-                            failed_count +=1 # Count as skipped/failed attempt
-                            continue
-                    
                     current_formula = formula.replace("value_col_placeholder", value_col)
                     
-                    data_slice = self._get_data_slice_for_model(
+                    # Get aggregated regional data
+                    data_slice = self._get_data_slice_for_roi_model(
                         dataset_name=dataset_name,
+                        cortical_region=cortical_region,
+                        hemisphere=hemisphere,
                         value_col=value_col,
                         state_col=state_col,
                         group_col=group_col,
-                        exclude_bad_rows=exclude_bad_rows,
-                        roi_cortical_region=cortical_region,
-                        roi_hemisphere=hemi_spec 
+                        exclude_bad_rows=exclude_bad_rows
                     )
 
-                    if data_slice.empty or len(data_slice) < 10: # Basic check
+                    if data_slice.empty or len(data_slice) < 10:
                         log_msg = f"Skipping model for {dataset_name}-{roi_identifier}: Insufficient data (rows: {len(data_slice)})."
-                        # print(f"[EEGAnalyzer - {self.analyzer_name}] {log_msg}") # Can be verbose
+                        # print(f"[EEGAnalyzer - {self.analyzer_name}] {log_msg}")
                         self.fitted_models[dataset_name][roi_identifier] = None
-                        self._log_event("Model Fit Skipped", {"dataset": dataset_name, "identifier": roi_identifier, "type": "ROI", "reason": "Insufficient data", "rows": len(data_slice)})
+                        self._log_event("Model Fit Skipped", {
+                            "dataset": dataset_name, "identifier": roi_identifier, "type": "ROI", 
+                            "reason": "Insufficient data", "rows": len(data_slice)
+                        })
                         failed_count += 1
                         continue
 
@@ -859,17 +901,24 @@ class EEGAnalyzer:
                     self.fitted_models[dataset_name][roi_identifier] = model_result
                     if model_result:
                         fitted_count += 1
-                        self._log_event("Model Fit Successful", {"dataset": dataset_name, "identifier": roi_identifier, "type": "ROI", "formula": current_formula})
+                        self._log_event("Model Fit Successful", {
+                            "dataset": dataset_name, "identifier": roi_identifier, "type": "ROI", 
+                            "formula": current_formula, "n_data_points": len(data_slice)
+                        })
                     else:
                         failed_count += 1
-                        self._log_event("Model Fit Failed", {"dataset": dataset_name, "identifier": roi_identifier, "type": "ROI", "formula": current_formula})
-            
-            print(f"[EEGAnalyzer - {self.analyzer_name}] Finished ROIs for dataset: {dataset_name}.")
+                        self._log_event("Model Fit Failed", {
+                            "dataset": dataset_name, "identifier": roi_identifier, "type": "ROI", 
+                            "formula": current_formula
+                        })
+        
+        print(f"[EEGAnalyzer - {self.analyzer_name}] Finished ROI model fitting.")
 
         log_msg_end = f"Finished ROI model fitting. Total ROIs attempted: {total_rois_attempted}. Successful: {fitted_count}. Failed/Skipped: {failed_count}."
         print(f"[EEGAnalyzer - {self.analyzer_name}] {log_msg_end}")
-        self._log_event("Fit Models By ROI Finished", {"total_attempted": total_rois_attempted, "successful": fitted_count, "failed_skipped": failed_count})
-
+        self._log_event("Fit Models By ROI Finished", {
+            "total_attempted": total_rois_attempted, "successful": fitted_count, "failed_skipped": failed_count
+        })
 
     def get_fitted_model(self, dataset_name: str, model_identifier: str):
         """

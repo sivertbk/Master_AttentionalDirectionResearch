@@ -703,3 +703,60 @@ def load_new_events(path, subject, session):
     else:
         raise FileNotFoundError(f"No such file: {file_path}")
     
+
+def save_epochs_dict(epochs_dict, reject, dataset, subject, session):
+    """
+    Save each Epochs object in the dictionary using key information file names.
+
+    NOTE: from now on, all datasets will be treated with session instead of label and item
+
+    Parameters
+    ----------
+    epochs_dict : dict
+        Dictionary of class_label -> Epochs.
+    reject : dict
+        Rejection threshold for each channel type.
+    dataset : DatasetConfig
+        Dataset metadata config.
+    subject : str or int
+        Subject ID.
+    session : str
+        session ID.
+
+    Returns
+    -------
+    saved_paths : list of Path
+        List of saved file paths.
+    """
+    # Checking the passed session
+    if session not in dataset.sessions:
+        # As of now this applies only to the braboszcz dataset and we map to session-1
+        session = 1
+    saved_paths = []
+    subject_str = f"subject-{subject}"
+    session_str = f"session-{session}"
+
+    for class_label, epochs in epochs_dict.items():
+        task, state = class_label.split('/')
+        condition = None
+
+        # Build filename
+        fname_parts = [f"task-{task}"]
+        if condition:
+            fname_parts.append(f"condition-{condition}")
+        fname_parts.append(f"state-{state}")
+        fname = "_".join(fname_parts) + "_epo.fif"
+
+        # Build full path
+        base_path = Path(dataset.path_epochs) / "analysis_epochs" / subject_str / session_str
+        base_path.mkdir(parents=True, exist_ok=True)
+        out_path = base_path / fname
+
+        # deop bad epochs
+        epochs.drop_bad(reject, verbose=True)
+
+        # Save
+        epochs.save(out_path, overwrite=True)
+        saved_paths.append(out_path)
+
+    return saved_paths

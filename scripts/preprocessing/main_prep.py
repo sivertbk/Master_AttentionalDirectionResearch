@@ -8,14 +8,13 @@ from mne import set_bipolar_reference
 
 from utils.config import DATASETS, set_plot_style, EEG_SETTINGS, PLOTS_PATH
 from utils.helpers import iterate_dataset_items, get_scaled_rejection_threshold
-from utils.file_io import load_ica, load_raw_data, load_ica_excluded_components, log_reject_threshold, log_dropped_epochs
+from utils.file_io import (load_ica, load_raw_data, load_ica_excluded_components, 
+                           log_reject_threshold, log_dropped_epochs, save_epochs_dict)
 from utils.preprocessing_tools import prepare_raw_data, fix_bad_channels, create_analysis_epochs
 
 set_plot_style()
 
-INSPECT_EPOCHS = False 
 PLOT_EOG_RAW = False
-
 
 
 def print_epoch_counts(epochs):
@@ -26,70 +25,8 @@ def print_epoch_counts(epochs):
         print(f"{label}: {n} epochs")
     return counts
 
-def save_epochs_dict(epochs_dict, reject, dataset, subject, session):
-    """
-    Save each Epochs object in the dictionary using key information file names.
-
-    NOTE: from now on, all datasets will be treated with session instead of label and item
-
-    Parameters
-    ----------
-    epochs_dict : dict
-        Dictionary of class_label -> Epochs.
-    reject : dict
-        Rejection threshold for each channel type.
-    dataset : DatasetConfig
-        Dataset metadata config.
-    subject : str or int
-        Subject ID.
-    session : str
-        session ID.
-
-    Returns
-    -------
-    saved_paths : list of Path
-        List of saved file paths.
-    """
-    # Checking the passed session
-    if session not in dataset.sessions:
-        # As of now this applies only to the braboszcz dataset and we map to session-1
-        session = 1
-    saved_paths = []
-    subject_str = f"subject-{subject}"
-    session_str = f"session-{session}"
-
-    for class_label, epochs in epochs_dict.items():
-        task, state = class_label.split('/')
-        condition = None
-
-        # Build filename
-        fname_parts = [f"task-{task}"]
-        if condition:
-            fname_parts.append(f"condition-{condition}")
-        fname_parts.append(f"state-{state}")
-        fname = "_".join(fname_parts) + "_epo.fif"
-
-        # Build full path
-        base_path = Path(dataset.path_epochs) / "analysis_epochs" / subject_str / session_str
-        base_path.mkdir(parents=True, exist_ok=True)
-        out_path = base_path / fname
-
-        # deop bad epochs
-        epochs.drop_bad(reject, verbose=True)
-
-        # Save
-        epochs.save(out_path, overwrite=True)
-        saved_paths.append(out_path)
-
-    return saved_paths
-
-
 def get_dropped_epoch_indices(drop_log):
     return [i for i, log in enumerate(drop_log) if len(log) > 0]
-
-def plot_dropped_epochs(dropped_epochs, subject, label, item):
-    title = f"Dropped Epochs | Subject: {subject} | {label}: {item}"
-    dropped_epochs.plot(block=True, scalings=dict(eeg=100e-6), title=title)
 
 def plot_overlapping_psd(epochs_before, epochs_after, fmin=1, fmax=40, picks="eeg", title=None, save_path=None):
     # Compute PSDs
@@ -287,10 +224,6 @@ if __name__ == "__main__":
         if not dropped_indices:
             print(f"[INFO] No dropped epochs for sub-{subject}, {label}-{item}")
             continue
-
-        if INSPECT_EPOCHS:
-            # Extract and plot the dropped epochs
-            plot_dropped_epochs(dropped_epochs, subject, label, item)
 
         # create evoked objects of epochs before and after dropping
         evoked_before = original_epochs.average()

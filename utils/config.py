@@ -194,6 +194,7 @@ cortical_regions = {
     "parietooccipital": ["PO3", "PO7", "POz", "PO4", "PO8"],
     "occipital": ["O1", "Oz", "O2", "Iz"],
     "temporal": ["T7","TP7", "P9", "T8", "TP8", "P10"],
+    "fronto-parietal": ["F1", "F2", "F3", "F4", "CP3", "CP4", "P3", "P4"]
 }
 
 # The regions of interest (ROIs) are defined as a dictionary of lists.
@@ -209,6 +210,7 @@ ROIs = {
     "parietooccipital": ["left", "right", "full"],
     "occipital": ["left", "right", "full"],
     "temporal": ["left", "right", "full"],
+    "fronto-parietal": ["left", "right", "full"]
 }
 
 

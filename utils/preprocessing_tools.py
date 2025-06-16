@@ -165,7 +165,7 @@ def ransac_detect_bad_channels(raw, dataset, eeg_settings, subject, session=None
     ransac = Ransac(
         picks=picks_eeg,
         n_resample=101,       # Double the number of epochs to resample and uneven number to get true median
-        min_channels=0.0625,  # Using less channels than defualt (4 channels)
+        min_channels=0.0625,  # Using less channels than defualt (4 out of 64 channels)
         min_corr=0.60,        # Accept lower correlation → fewer false positives
         unbroken_time=0.25,   # Allow sensors to be bad more of the time before flagging
         n_jobs=cpu_count(),   # Use all available CPU cores
@@ -770,196 +770,331 @@ def fixed_length_epochs_braboszcz(raw: mne.io.BaseRaw, event_id_map, subject_gro
 
 def create_analysis_epochs(raw, dataset, eeg_settings, subject, item=None, verbose=True):
     """
-    Create analysis epochs from the raw data. This function creates epochs for analysis and returns the epochs object.
+    Creates analysis-ready epochs from preprocessed raw data based on the dataset type.
+
+    This function acts as a dispatcher, calling dataset-specific epoching functions.
+    The 'item' parameter specifies a session, task, or run, depending on the dataset's structure.
     
     Parameters
     ----------
     raw : mne.io.Raw
-        The raw data object to create analysis epochs.
+        The preprocessed (e.g., ICA-cleaned) raw data object.
     dataset : DatasetConfig
-        The dataset configuration object.
+        The configuration object for the specific dataset.
     eeg_settings : dict
-        The EEG settings dictionary defined in config containing parameters
+        A dictionary containing EEG processing parameters (e.g., epoch length).
     subject : str
-        The subject identifier.
+        The identifier for the subject.
     item : str, optional
-        The item identifier (i.e., session, task or run).
+        An identifier for a specific data segment (e.g., session, task, or run).
+        The interpretation of 'item' depends on the dataset. Defaults to None.
     verbose : bool, optional
-        If True, print additional information (default is True).
+        If True, print detailed information during processing. Defaults to True.
     
     Returns
-    -----------
-    epochs : mne.Epochs
-        The created analysis epochs object.
+    -------
+    dict
+        A dictionary where keys are condition labels (e.g., "task/state" or "class_label")
+        and values are mne.Epochs objects for that condition.
+        The exact structure depends on the dataset-specific epoching function.
+
+    Raises
+    ------
+    ValueError
+        If the dataset name specified in `dataset.f_name` is not recognized.
     """
 
     if dataset.f_name == 'braboszcz2017':
+        # For Braboszcz2017, 'item' corresponds to a task.
         return _create_analysis_epochs_braboszcz2017(raw, dataset, eeg_settings, subject, task=item, verbose=verbose)
     elif dataset.f_name == 'jin2019':
+        # For Jin2019, 'item' corresponds to a session.
         return _create_analysis_epochs_jin2019(raw, dataset, eeg_settings, subject, session=item, verbose=verbose)
     elif dataset.f_name == 'touryan2022':
+        # For Touryan2022, 'item' corresponds to a run.
         return _create_analysis_epochs_touryan2022(raw, dataset, eeg_settings, subject, run=item, verbose=verbose)
     else:
         raise ValueError(f"Unknown dataset: {dataset.f_name}")
     
 def _create_analysis_epochs_braboszcz2017(raw, dataset, eeg_settings, subject, task=None, verbose=True):
-    # Subject group
+    """
+    Creates fixed-length analysis epochs for the Braboszcz2017 dataset.
+
+    Epochs are created based on the specified task, which determines the mental state (Meditative State/OT or Mind-Wandering/MW).
+    The function uses `fixed_length_epochs_braboszcz` to segment the data.
+    
+    Parameters
+    ----------
+    raw : mne.io.Raw
+        The preprocessed raw data object.
+    dataset : DatasetConfig
+        The configuration object for the Braboszcz2017 dataset.
+    eeg_settings : dict
+        EEG processing parameters, including "EPOCH_LENGTH_SEC".
+    subject : str
+        The subject identifier.
+    task : str, optional
+        The specific task (e.g., "med1", "think1") for which to create epochs. Defaults to None.
+    verbose : bool, optional
+        If True, print detailed information. Defaults to True.
+    
+    Returns
+    -------
+    dict
+        A dictionary with a single key representing the task and state (e.g., "med1/OT")
+        and the value being the corresponding mne.Epochs object.
+    """
+    # Determine subject group (e.g., meditators, controls) from dataset configuration.
     subject_group = dataset.extra_info["subject_groups"][subject]
 
-    # Classify the state with task
+    # Classify the mental state (OT: On-Task, MW: Mind-Wandering) based on the task.
     if task=="med1" or task=="med2":
-        state="OT"
+        state="OT" # Meditative tasks are considered On-Task.
     elif task=="think1" or task=="think2":
-        state="MW"
+        state="MW" # Thinking tasks are considered Mind-Wandering.
     
-    # creating fixed-length epochs
+    # Create fixed-length epochs using a helper function.
     epochs = fixed_length_epochs_braboszcz(
         raw,
         duration=eeg_settings["EPOCH_LENGTH_SEC"],
-        event_id_map=dataset.event_id_map,
+        event_id_map=dataset.event_id_map, # Mapping from task labels to event codes.
         subject_group=subject_group,
         task=task,
         verbose=verbose
     )
-    # Return dict with epochs object and description key
+    # Return a dictionary where the key combines task and state, and the value is the Epochs object.
     return {f"{task}/{state}": epochs}
 
     
 def _create_analysis_epochs_jin2019(raw, dataset, eeg_settings, subject, session=None, verbose=True):
-    # Create events with original stim channel
-    events_old = mne.find_events(raw, stim_channel='Status', verbose=False)
+    """
+    Creates analysis epochs for the Jin2019 dataset based on event markers.
 
-    # Load CSV-encoded event labels
-    new_events, event_info = load_new_events(os.path.join(dataset.path_derivatives, 'events'), subject, session)
-    encoded_new_events = encode_events(new_events)
+    This function processes events from the original 'Status' channel,
+    integrates them with new event labels loaded from a CSV file,
+    creates a synthetic 'STIM' channel, and then epochs the data based on classified event types.
+    
+    Parameters
+    ----------
+    raw : mne.io.Raw
+        The preprocessed raw data object.
+    dataset : DatasetConfig
+        The configuration object for the Jin2019 dataset.
+    eeg_settings : dict
+        EEG processing parameters, including "EPOCH_START_SEC" and "EPOCH_LENGTH_SEC".
+    subject : str
+        The subject identifier.
+    session : str, optional
+        The specific session for which to create epochs. Defaults to None.
+    verbose : bool, optional
+        If True, print detailed information. Defaults to True.
+    
+    Returns
+    -------
+    dict
+        A dictionary where keys are class labels (e.g., "target", "distractor")
+        and values are the corresponding mne.Epochs objects.
+    """
+    # Find events from the original 'Status' stimulation channel.
+    events_original_stim_channel = mne.find_events(raw, stim_channel='Status', verbose=False)
+
+    # Load new event labels from a CSV file (presumably manually annotated or corrected).
+    # `event_info` might contain additional metadata not used here.
+    new_events_from_csv, event_info = load_new_events(os.path.join(dataset.path_derivatives, 'events'), subject, session)
+    encoded_new_events_from_csv = encode_events(new_events_from_csv) # Convert string labels to numerical codes.
 
     try:
-        # Keep only events in the 10–21 range
-        filtered_events = events_old[(events_old[:, 2] >= 10) & (events_old[:, 2] <= 21)]
-        assert len(filtered_events) == len(encoded_new_events), "ERROR: Mismatch between filtered events and CSV rows"
+        # Filter original events to keep only those in the relevant range (10-21 for this dataset).
+        filtered_original_events = events_original_stim_channel[
+            (events_original_stim_channel[:, 2] >= 10) & (events_original_stim_channel[:, 2] <= 21)
+        ]
+        # Ensure the number of filtered original events matches the number of events from the CSV.
+        assert len(filtered_original_events) == len(encoded_new_events_from_csv), \
+            "ERROR: Mismatch between filtered events from 'Status' channel and events from CSV."
     except AssertionError as e:
-        print(subject, session, str(e))
+        print(f"Subject: {subject}, Session: {session}, {str(e)}")
 
-    # Replace event codes
-    filtered_events[:, 2] = encoded_new_events
+    # Replace the event codes in the filtered original events with the new encoded event codes from CSV.
+    filtered_original_events[:, 2] = encoded_new_events_from_csv
 
-    # Create synthetic STIM channel and inject events
-    info = mne.create_info(['STIM'], sfreq=raw.info['sfreq'], ch_types=['stim'])
-    stim_data = np.zeros((1, raw.n_times))
-    for event in filtered_events:
-        stim_data[0, event[0]] = event[2]
+    # Create a new synthetic STIM channel to hold the processed event information.
+    stim_channel_info = mne.create_info(['STIM'], sfreq=raw.info['sfreq'], ch_types=['stim'])
+    stim_data_array = np.zeros((1, raw.n_times)) # Initialize with zeros.
+    for event_sample, _, event_code in filtered_original_events:
+        stim_data_array[0, event_sample] = event_code # Place event codes at their respective sample points.
 
-    raw_stim = mne.io.RawArray(stim_data, info)
-    raw.add_channels([raw_stim], force_update_info=True)
-    raw.drop_channels(['Status'])
+    raw_stim_channel = mne.io.RawArray(stim_data_array, stim_channel_info)
+    raw.add_channels([raw_stim_channel], force_update_info=True) # Add the new STIM channel to the raw data.
+    raw.drop_channels(['Status']) # Remove the original 'Status' channel.
 
-    # Get new events
-    events = mne.find_events(raw, stim_channel='STIM', verbose=False)
+    # Find events from the newly created 'STIM' channel.
+    events_from_new_stim = mne.find_events(raw, stim_channel='STIM', verbose=False)
 
-    # Filter out unused event codes
-    unused_event_ids = set(dataset.event_id_map.values()) - set(events[:, 2])
-    event_id = {k: v for k, v in dataset.event_id_map.items() if v not in unused_event_ids}
+    # Filter the dataset's event_id map to include only event codes present in the current data.
+    # This avoids errors if some defined event types do not occur.
+    present_event_codes = set(events_from_new_stim[:, 2])
+    active_event_id_map = {
+        description: code for description, code in dataset.event_id_map.items() if code in present_event_codes
+    }
 
-    if len(filtered_events) != len(events):
-        print(subject, session, f"Number of events changed from {len(filtered_events)} to {len(events)}")
+    if len(filtered_original_events) != len(events_from_new_stim):
+        # This check might indicate issues if events were lost or unexpectedly created.
+        print(subject, session, f"Number of events changed from {len(filtered_original_events)} to {len(events_from_new_stim)}")
 
-    # Map events to class labels
-    class_event_id = {label: idx + 1 for idx, label in enumerate(dataset.event_classes.keys())}
-    classified_events = events.copy()
-    for class_label, codes in dataset.event_classes.items():
-        for code in codes:
-            classified_events[classified_events[:, 2] == code, 2] = class_event_id[class_label]
+    # Map event codes to broader class labels (e.g., target, non-target) defined in dataset config.
+    class_label_to_numeric_id = {label: idx + 1 for idx, label in enumerate(dataset.event_classes.keys())}
+    classified_events_array = events_from_new_stim.copy()
+    for class_label, specific_event_codes in dataset.event_classes.items():
+        for specific_code in specific_event_codes:
+            # Replace specific event codes with their general class's numeric ID.
+            classified_events_array[classified_events_array[:, 2] == specific_code, 2] = class_label_to_numeric_id[class_label]
 
-    # Build per-class Epochs objects
-    epochs_dict = {}
-    for class_label, class_code in class_event_id.items():
-        matching_events = classified_events[classified_events[:, 2] == class_code]
-        if len(matching_events) == 0:
+    # Create MNE Epochs objects for each class label.
+    epochs_per_class_dict = {}
+    for class_label, class_numeric_id in class_label_to_numeric_id.items():
+        # Select events belonging to the current class.
+        events_for_current_class = classified_events_array[classified_events_array[:, 2] == class_numeric_id]
+        
+        if len(events_for_current_class) == 0:
             if verbose:
-                print(f"[INFO] No events found for class {class_label}, skipping.")
+                print(f"[INFO] No events found for class '{class_label}', skipping epoch creation for this class.")
             continue
 
+        # Create epochs for the current class.
         class_epochs = mne.Epochs(
             raw,
-            matching_events,
-            event_id={class_label: class_code},
+            events_for_current_class,
+            event_id={class_label: class_numeric_id}, # Use class label for clarity.
             tmin=eeg_settings["EPOCH_START_SEC"],
             tmax=eeg_settings["EPOCH_START_SEC"] + eeg_settings["EPOCH_LENGTH_SEC"],
-            baseline=None,
-            detrend=1,
-            reject=None,
+            baseline=None, # Baseline correction will be applied later if needed.
+            detrend=1,     # Apply linear detrending.
+            reject=None,   # Rejection is typically done before this stage or on the epochs later.
             preload=True,
             verbose=verbose
         )
-        class_epochs.apply_baseline((None, None))
-        epochs_dict[class_label] = class_epochs
+        class_epochs.apply_baseline((None, None)) # Apply baseline correction across the entire epoch.
+        epochs_per_class_dict[class_label] = class_epochs
 
-    return epochs_dict
+    return epochs_per_class_dict
 
 
 
 def _create_analysis_epochs_touryan2022(raw, dataset, eeg_settings, subject, run=None, verbose=True):
-    # Create events from annotations
-    events, event_id = prepare_custom_events(raw, dataset.event_id_map)
+    """
+    Creates analysis epochs for the Touryan2022 dataset, handling custom event logic.
 
-    # Add missed detection events
-    events = np.vstack([events, add_missed_detection_events(events)])
+    This function extracts events from annotations, adds events for missed detections
+    (e.g., a police car appearing but no button press), and creates synthetic post-collision
+    events for consistent epoching around collision events. Epochs are then created for
+    predefined conditions (combinations of event type and mental state).
+    
+    Parameters
+    ----------
+    raw : mne.io.Raw
+        The preprocessed raw data object.
+    dataset : DatasetConfig
+        The configuration object for the Touryan2022 dataset.
+    eeg_settings : dict
+        EEG processing parameters, including "EPOCH_LENGTH_SEC".
+    subject : str
+        The subject identifier.
+    run : str, optional
+        The specific run for which to create epochs. Defaults to None.
+    verbose : bool, optional
+        If True, print detailed information. Defaults to True.
+    
+    Returns
+    -------
+    dict
+        A dictionary where keys are condition labels (e.g., "police_detection/MW")
+        and values are the corresponding mne.Epochs objects.
 
-    # Add synthetic post-collision events for uniform epoching
-    POST_COLLISION_CODE = 8888
-    sfreq = raw.info["sfreq"]
-    post_events = []
-    for ev in events:
-        if ev[2] == 4421:
-            shifted_sample = int(ev[0] + sfreq * eeg_settings["EPOCH_LENGTH_SEC"])
-            post_events.append([shifted_sample, 0, POST_COLLISION_CODE])
+    Raises
+    ------
+    RuntimeError
+        If no valid epochs can be created for any of the specified conditions.
+    """
+    # Prepare custom events from raw annotations using the dataset's event_id map.
+    # `event_id_map_from_annotations` maps human-readable descriptions to integer codes.
+    events_from_annotations, event_id_map_from_annotations = prepare_custom_events(raw, dataset.event_id_map)
 
-    if post_events:
-        events = np.vstack([events, np.array(post_events)])
+    # Identify and add events for missed police car detections.
+    # This involves checking for 'police car appears' (2811) not followed by a button press before 'police car disappears' (2812).
+    missed_detection_events_array = add_missed_detection_events(events_from_annotations)
+    all_events = np.vstack([events_from_annotations, missed_detection_events_array])
 
-    # Define uniform window: always tmin=0, tmax=5s
-    tmin = 0
-    tmax = eeg_settings["EPOCH_LENGTH_SEC"]
 
-    condition_specs = {
-        'police_detection/MW': 9999,
-        'collision/MW': 4421,
-        'police_detection/OT': 4621,
-        'collision/OT': POST_COLLISION_CODE,
+    # Create synthetic "post-collision" events to allow uniform epoching after a collision (event code 4421).
+    # These events are placed `EPOCH_LENGTH_SEC` after the actual collision event.
+    POST_COLLISION_EVENT_CODE = 8888 # Arbitrary code for synthetic post-collision markers.
+    sampling_frequency = raw.info["sfreq"]
+    post_collision_event_list = []
+    for event_sample, _, event_code in all_events:
+        if event_code == 4421: # 4421 is the code for a collision.
+            # Calculate the sample point for the synthetic post-collision event.
+            shifted_sample_onset = int(event_sample + sampling_frequency * eeg_settings["EPOCH_LENGTH_SEC"])
+            post_collision_event_list.append([shifted_sample_onset, 0, POST_COLLISION_EVENT_CODE])
+
+    if post_collision_event_list:
+        all_events = np.vstack([all_events, np.array(post_collision_event_list)])
+
+    # Define a uniform window for all epochs: tmin=0, tmax=EPOCH_LENGTH_SEC.
+    epoch_tmin = 0
+    epoch_tmax = eeg_settings["EPOCH_LENGTH_SEC"]
+
+    # Define conditions of interest: a mapping from a descriptive label to an event code.
+    # MW = Mind Wandering, OT = On Task (attentive).
+    # 9999: Missed police detection (implies MW)
+    # 4421: Actual collision event (implies MW at time of collision)
+    # 4621: Successful police detection (button press, implies OT)
+    # POST_COLLISION_EVENT_CODE (8888): Synthetic event after collision (used to epoch post-collision period, implies OT if task resumed)
+    # Note: The mental state (MW/OT) association here is based on the event type itself.
+    condition_specifications = {
+        'police_detection/MW': 9999,    # Missed detection, classified as Mind-Wandering
+        'collision/MW': 4421,           # Collision event, classified as Mind-Wandering
+        'police_detection/OT': 4621,    # Successful detection, classified as On-Task
+        'collision/OT': POST_COLLISION_EVENT_CODE, # Post-collision period, potentially On-Task
     }
 
-    epochs_dict = {}
-    for label, code in condition_specs.items():
-        if code not in events[:, 2]:
+    epochs_per_condition_dict = {}
+    for condition_label, event_code_for_condition in condition_specifications.items():
+        # Check if the event code for the current condition exists in the data.
+        if event_code_for_condition not in all_events[:, 2]:
             if verbose:
-                print(f"[INFO] No events found for '{label}' (code {code}). Skipping.")
+                print(f"[INFO] No events found for condition '{condition_label}' (code {event_code_for_condition}). Skipping epoch creation.")
             continue
-        # remove events that are not in the event_id_map
-        events_to_epoch = events[events[:, 2] == code]
+        
+        # Select events that match the current condition's event code.
+        events_for_current_condition = all_events[all_events[:, 2] == event_code_for_condition]
 
         try:
             if verbose:
-                print(f"[INFO] Creating epochs for '{label}' (code {code})...")
-            epochs = mne.Epochs(
+                print(f"[INFO] Creating epochs for condition '{condition_label}' (code {event_code_for_condition})...")
+            
+            # Create epochs for the current condition.
+            condition_epochs = mne.Epochs(
                 raw,
-                events_to_epoch,
-                event_id={label: code},
-                tmin=tmin,
-                tmax=tmax,
-                detrend=1,
-                reject_by_annotation=False,
-                baseline=None,
-                verbose=False,
+                events_for_current_condition,
+                event_id={condition_label: event_code_for_condition}, # Use the descriptive label.
+                tmin=epoch_tmin,
+                tmax=epoch_tmax,
+                detrend=1,                      # Apply linear detrending.
+                reject_by_annotation=False,     # Do not reject based on 'BAD_' annotations here.
+                baseline=None,                  # No baseline correction at this stage.
+                verbose=False,                  # Reduce MNE's verbosity for this specific call.
                 preload=True
             )
-            epochs_dict[label] = epochs
+            epochs_per_condition_dict[condition_label] = condition_epochs
             if verbose:
-                print(f"[INFO] Created epochs for '{label}' with {len(epochs)} epochs.")
+                print(f"[INFO] Created epochs for '{condition_label}' with {len(condition_epochs)} epochs.")
         except Exception as e:
-            print(f"[WARNING] Failed to create epochs for '{label}': {e}")
+            # Catch potential errors during epoch creation for a specific condition.
+            print(f"[WARNING] Failed to create epochs for condition '{condition_label}': {e}")
 
-    if not epochs_dict:
-        raise RuntimeError("No valid epochs could be created for this subject.")
+    if not epochs_per_condition_dict:
+        # If no epochs were created for any condition, raise an error.
+        raise RuntimeError("No valid epochs could be created for this subject and run.")
 
-    return epochs_dict
+    return epochs_per_condition_dict
 
