@@ -38,7 +38,7 @@ class Metrics:
         return np.std(psd, axis=0) / np.sqrt(psd.shape[0])
 
     @staticmethod
-    def band_power(psd: np.ndarray, freqs: np.ndarray, band: tuple[float, float], operation: str = 'sum') -> np.ndarray:
+    def band_power(psd: np.ndarray, freqs: np.ndarray, band: tuple[float, float], operation: str = 'mean') -> np.ndarray:
         """
         Compute power within a frequency band using the specified aggregation.
 
@@ -66,10 +66,10 @@ class Metrics:
             raise ValueError("Invalid operation. Use 'mean' or 'sum'.")
 
     @staticmethod
-    def band_decibel(psd: np.ndarray, freqs: np.ndarray, band: tuple[float, float], operation: str = 'mean') -> np.ndarray:
+    def band_log(psd: np.ndarray, freqs: np.ndarray, band: tuple[float, float], operation: str = 'mean') -> np.ndarray:
         """
-        Compute decibel values within a frequency band using the specified aggregation.
-        The PSD data is first converted to dB scale.
+        Compute log-transformed values within a frequency band using the specified aggregation.
+        The PSD data is first aggregated over the frequency band, then converted to log scale.
 
         Parameters:
             psd (ndarray): PSD data (epochs × channels × frequencies).
@@ -80,21 +80,8 @@ class Metrics:
         Returns:
             ndarray: Aggregated log-power (epochs × channels).
         """
-        psd_db = Metrics.to_db(psd)  
-
-        low, high = band
-        band_idx = (freqs >= low) & (freqs <= high)
-
-        if not np.any(band_idx):
-            raise ValueError(f"No frequencies found in band range {band}")
-
-        operation = operation.lower()
-        if operation == 'mean':
-            return psd_db[..., band_idx].mean(axis=-1)
-        elif operation == 'sum':
-            return psd_db[..., band_idx].sum(axis=-1)
-        else:
-            raise ValueError("Invalid operation. Use 'mean' or 'sum'.")
+        power_in_band = Metrics.band_power(psd, freqs, band, operation)
+        return Metrics.log_transform(power_in_band)
 
     @staticmethod
     def aggregate_frequency_bands(psd, freqs, bands, operation='sum'):
@@ -164,12 +151,12 @@ class Metrics:
         }
     
     @staticmethod
-    def to_db(psd: np.ndarray, epsilon: float = 1e-20) -> np.ndarray:
+    def log_transform(psd: np.ndarray, epsilon: float = 1e-20) -> np.ndarray:
         """
-        Convert PSD from µV²/Hz to dB scale using 10 * log10(psd).
+        Convert PSD from µV²/Hz to natural logarithm scale using ln(psd).
         Clips values to prevent log of zero.
         """
-        return 10 * np.log10(np.maximum(psd * 1e-12, epsilon))  # Convert to V² first, then to dB
+        return np.log(np.maximum(psd, epsilon))  # Natural logarithm transformation to ln(microvolts squared per Hz)
 
     @staticmethod
     def normalize_psd(psd: np.ndarray) -> np.ndarray:

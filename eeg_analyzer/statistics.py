@@ -14,11 +14,10 @@ NOTE: Ensures logging of all statistical tests, measures, and models.
 """
 from typing import Union
 
-from scipy.stats import mannwhitneyu, iqr, skew, kurtosis, wilcoxon, PermutationMethod
+from scipy.stats import iqr, skew, kurtosis, wilcoxon, PermutationMethod
 import statsmodels.formula.api as smf
 import numpy as np
 import pandas as pd
-
 
 
 class Statistics:

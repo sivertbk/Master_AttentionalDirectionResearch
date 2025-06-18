@@ -324,7 +324,7 @@ class Dataset:
                 - "task"
                 - "state" (int: 0=OT, 1=MW)
                 - "band_power" (float: band power in µV²)
-                - "band_db" (float: band power in dB)
+                - "band_log_power" (float: band power in natural logarithm)
                 - "is_bad" (bool: True if the epoch is marked as bad)
         """
         from eeg_analyzer.metrics import Metrics  # local import to avoid circular
@@ -347,7 +347,7 @@ class Dataset:
                         psd = rec.get_psd(task, state)
                         freqs = rec.get_freqs(task, state)
                         band_power = Metrics.band_power(psd, freqs, freq_band, operation='mean')  # shape: (epochs, channels)
-                        band_decibel = Metrics.band_decibel(psd, freqs, freq_band, operation='mean')  # shape: (epochs, channels)
+                        band_log = Metrics.band_log(psd, freqs, freq_band, operation='mean')  # shape: (epochs, channels)
                         n_epochs, n_channels = band_power.shape
                         for epoch_idx in range(n_epochs):
                             for ch_idx, ch_name in enumerate(rec.channels):
@@ -365,7 +365,7 @@ class Dataset:
                                     "task_orientation": self.task_orientation,
                                     "state": state,
                                     "band_power": float(band_power[epoch_idx, ch_idx]),
-                                    "band_db": float(band_decibel[epoch_idx, ch_idx]),
+                                    "band_log": float(band_log[epoch_idx, ch_idx]),
                                     "is_bad": False
                                 })
                                 if ch_idx == n_channels - 1:

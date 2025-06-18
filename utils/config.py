@@ -233,6 +233,32 @@ for dataset in DATASETS.values():
     dataset.path_derivatives = os.path.join(dataset_dir, "derivatives")
 
 
+# =============================================================================
+#                            OUTLIER DETECTION SETTINGS
+# =============================================================================
+
+OUTLIER_DETECTION = {
+    "MIN_EPOCHS_FOR_FILTERING": 20,  # m: minimum epochs required for filtering
+    "IQR_MULTIPLIER": 2.0,          # k: IQR multiplier for outlier bounds
+    "SKEWNESS_THRESHOLD": 2.0,       # s: skewness threshold for one-sided filtering
+    "SUSPICIOUS_SKEWNESS_THRESHOLD": 2.0,     # threshold for flagging suspicious skewness
+    "SUSPICIOUS_KURTOSIS_THRESHOLD": 7.0,     # threshold for flagging suspicious kurtosis
+    "MIN_EPOCH_COUNT_THRESHOLD": 5,           # minimum epochs to not flag as suspicious
+    "NORMALITY_P_VALUE_THRESHOLD": 0.01,     # p-value threshold for normality (a bitstrict)
+}
+
+
+# =============================================================================
+#                           QUALITY CONTROL SETTINGS
+# =============================================================================
+
+QUALITY_CONTROL = {
+    "STATE_RATIO_THRESHOLD": 1/9,           # minimum ratio for state balance (r >= 1/9)
+    "MIN_EPOCHS_PER_STATE": 10,             # minimum epochs required per state
+    "MW_OT_STATES": ["MW", "OT"],           # valid state names for mind-wandering and on-task
+}
+
+
 if __name__ == "__main__":
     print("Global configuration loaded successfully.")
     for dataset in DATASETS.values():
@@ -242,8 +268,6 @@ if __name__ == "__main__":
         print(f"  Epochs Path: {dataset.path_epochs}")
         print(f"  PSD Path: {dataset.path_psd}")
         print(f"  Derivatives Path: {dataset.path_derivatives}")
-
-
 
 
 # =============================================================================

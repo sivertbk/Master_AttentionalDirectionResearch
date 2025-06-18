@@ -15,27 +15,31 @@ Notes:
 """
 
 from collections import defaultdict
+from typing import Optional, Tuple, Any
 import numpy as np
 import os
 import seaborn as sns
 import pandas as pd
 
 from eeg_analyzer.metrics import Metrics
-from utils.config import EEG_SETTINGS, set_plot_style, PLOTS_PATH
+from eeg_analyzer.band_power_stats import BandPowerStats
+from utils.config import EEG_SETTINGS, set_plot_style, PLOTS_PATH, OUTLIER_DETECTION, QUALITY_CONTROL
 import mne
 import matplotlib.pyplot as plt
 
 set_plot_style()  # Set the plotting style for MNE and Matplotlib
 class Recording:
-    def __init__(self, session_id: int, psd_entries: list[np.ndarray], metadata_entries: list[dict], freq_entries: list[np.ndarray], channels: list[str]):
+    def __init__(self, session_id: int, psd_entries: list[np.ndarray], metadata_entries: list[dict], freq_entries: list[np.ndarray], channels: list[str], band: Optional[tuple[float, float]] = None):
         self.session_id = session_id
-        self.dataset_name = None 
-        self.dataset_f_name = None 
-        self.subject_id = None  
         self.psd_map = defaultdict(dict)     # task -> state -> PSD
         self.meta_map = defaultdict(dict)    # task -> state -> metadata
         self.freq_map = defaultdict(dict)    # task -> state -> frequencies
+        self.band_power_map = defaultdict(dict) # task -> state -> band_power
+        self.log_band_power_map = defaultdict(dict) # task -> state -> log band_power
+        self.outlier_mask_map = defaultdict(dict) # task -> state -> outlier mask        self.band_range: Optional[Tuple[float, float]] = None # The band used for band_power calculation
         self.channels = channels             # List of channel names
+        self.band_power_stats: Optional[BandPowerStats] = None  # Statistics calculator
+        self.exclude: bool = False          # Flag to exclude session from analysis
 
         for psd, meta, freqs in zip(psd_entries, metadata_entries, freq_entries):
             task = meta["task"]
@@ -43,12 +47,9 @@ class Recording:
             self.psd_map[task][state] = psd
             self.meta_map[task][state] = meta
             self.freq_map[task][state] = freqs
-            if self.dataset_name is None:
-                self.dataset_name = meta.get("dataset_name", "Unknown Dataset")
-            if self.dataset_f_name is None:
-                self.dataset_f_name = meta.get("dataset_f_name", "Unknown Dataset Filename")
-            if self.subject_id is None:
-                self.subject_id = meta.get("subject", "Unknown Subject")
+
+        if band:
+            self.calculate_band_power(band)
 
     def __repr__(self):
         total_conditions = sum(len(states) for states in self.psd_map.values())
@@ -57,6 +58,510 @@ class Recording:
     #                                           Public API
     ##########################################################################################################
     
+    def calculate_band_power(self, band: tuple[float, float] = (8, 12)):
+        """
+        Calculate power for a given frequency band for all conditions.
+        The result is stored in `self.band_power_map`.
+        Also calculates log-transformed band power, initializes an outlier mask,
+        and computes comprehensive statistics.
+
+        Parameters:
+        - band: tuple (low_freq, high_freq) specifying the frequency band in Hz.
+        """
+        self.band_range = band
+        self.band_power_map.clear()  # Clear previous calculations
+        self.log_band_power_map.clear()
+        self.outlier_mask_map.clear()
+        
+        for task, states in self.psd_map.items():
+            for state, psd in states.items():
+                freqs = self.get_freqs(task, state)
+                # The result of Metrics.band_power has shape (n_epochs, n_channels)
+                band_power = Metrics.band_power(psd, freqs, band)
+                self.band_power_map[task][state] = band_power
+                self.log_band_power_map[task][state] = Metrics.log_transform(band_power)
+                self.outlier_mask_map[task][state] = np.ones_like(band_power, dtype=bool)
+        
+        # Calculate comprehensive statistics
+        self.band_power_stats = BandPowerStats(self.channels)
+        self.band_power_stats.calculate_all_stats(
+            self.band_power_map, 
+            self.log_band_power_map, 
+            self.outlier_mask_map
+        )
+
+    def recalculate_stats(self):
+        """
+        Recalculate statistics after outlier mask changes.
+        Call this method after modifying outlier masks.
+        """
+        if self.band_power_stats is None:
+            raise ValueError("Band power has not been calculated. Call calculate_band_power() first.")
+        
+        self.band_power_stats.calculate_all_stats(
+            self.band_power_map,
+            self.log_band_power_map,
+            self.outlier_mask_map
+        )
+
+    def get_stat(self, stat_name: str, channel: str, data_type: str = 'band_power',
+                 task: Optional[str] = None, state: Optional[str] = None, 
+                 filtered: bool = False) -> Any:
+        """
+        Unified method to get any statistic using the BandPowerStats class.
+        
+        Parameters:
+        - stat_name: Name of the statistic ('mean', 'variance', 'median', etc.)
+        - channel: Channel name
+        - data_type: 'band_power' or 'log_band_power'
+        - task: Task name (if None, uses state-level or all_data stats)
+        - state: State name (if None, uses all_data stats)
+        - filtered: Whether to use filtered (outlier-removed) data
+        
+        Returns:
+        - The requested statistic value
+        """
+        if self.band_power_stats is None:
+            raise ValueError("Band power statistics have not been calculated. Call calculate_band_power() first.")
+        
+        return self.band_power_stats.get_stat(stat_name, channel, data_type, task, state, filtered)
+
+    def calculate_state_ratio(self, filtered: bool = False) -> float:
+        """
+        Calculate the state ratio for quality control assessment.
+        
+        The state ratio is defined as:
+        r = min(n_MW, n_OT) / max(n_MW, n_OT)
+        
+        where n_MW and n_OT are the total number of valid epochs for 
+        mind-wandering and on-task states respectively.
+        
+        Parameters:
+        - filtered: If True, uses outlier-filtered data. If False, uses all data.
+        
+        Returns:
+        - float: State ratio between 0 and 1
+        """
+        n_mw = 0
+        n_ot = 0
+        
+        for task, states in self.psd_map.items():
+            for state, psd in states.items():
+                if filtered and self.outlier_mask_map:
+                    # Count valid epochs after filtering
+                    mask = self.outlier_mask_map[task][state]
+                    valid_epochs = np.sum(np.any(mask, axis=1))  # At least one valid channel per epoch
+                else:                    # Count all epochs
+                    valid_epochs = psd.shape[0]
+                
+                if state == QUALITY_CONTROL["MW_OT_STATES"][0]:  # "MW"
+                    n_mw += valid_epochs
+                elif state == QUALITY_CONTROL["MW_OT_STATES"][1]:  # "OT"
+                    n_ot += valid_epochs
+        
+        if n_mw == 0 and n_ot == 0:
+            return 0.0
+        elif n_mw == 0 or n_ot == 0:
+            return 0.0
+        else:
+            return min(n_mw, n_ot) / max(n_mw, n_ot)
+
+    def check_state_imbalance(self, threshold: float = None, filtered: bool = False) -> bool:
+        """
+        Check if the session has state imbalance based on the state ratio.
+        
+        Parameters:
+        - threshold: Minimum ratio threshold (uses config default if None)
+        - filtered: If True, uses outlier-filtered data. If False, uses all data.
+        
+        Returns:
+        - bool: True if state_imbalance (ratio < threshold), False otherwise
+        """
+        if threshold is None:
+            threshold = QUALITY_CONTROL["STATE_RATIO_THRESHOLD"]
+        
+        ratio = self.calculate_state_ratio(filtered=filtered)
+        return ratio < threshold
+
+    def get_epoch_counts_by_state(self, filtered: bool = False) -> dict:
+        """
+        Get the number of valid epochs for each state.
+        
+        Parameters:
+        - filtered: If True, uses outlier-filtered data. If False, uses all data.
+        
+        Returns:
+        - dict: Dictionary with state names as keys and epoch counts as values
+        """
+        state_counts = {state: 0 for state in QUALITY_CONTROL["MW_OT_STATES"]}
+        
+        for task, states in self.psd_map.items():
+            for state, psd in states.items():
+                if filtered and self.outlier_mask_map:
+                    # Count valid epochs after filtering
+                    mask = self.outlier_mask_map[task][state]
+                    valid_epochs = np.sum(np.any(mask, axis=1))  # At least one valid channel per epoch
+                else:
+                    # Count all epochs
+                    valid_epochs = psd.shape[0]
+                
+                if state in state_counts:
+                    state_counts[state] += valid_epochs
+        
+        return state_counts
+
+    def check_minimum_epochs(self, min_epochs_per_state: int = None, filtered: bool = False) -> bool:
+        """
+        Check if each state has the minimum required number of epochs.
+        
+        Parameters:
+        - min_epochs_per_state: Minimum number of epochs required per state (uses config default if None)
+        - filtered: If True, uses outlier-filtered data. If False, uses all data.
+        
+        Returns:
+        - bool: True if minimum epoch requirement is met for all states, False otherwise
+        """
+        if min_epochs_per_state is None:
+            min_epochs_per_state = QUALITY_CONTROL["MIN_EPOCHS_PER_STATE"]
+        
+        state_counts = self.get_epoch_counts_by_state(filtered=filtered)
+          # Check if both MW and OT states have minimum epochs
+        mw_state, ot_state = QUALITY_CONTROL["MW_OT_STATES"]
+        return (state_counts.get(mw_state, 0) >= min_epochs_per_state and 
+                state_counts.get(ot_state, 0) >= min_epochs_per_state)
+
+    def get_quality_control_summary(self, ratio_threshold: float = None, 
+                                   min_epochs_per_state: int = None) -> dict:
+        """
+        Get a comprehensive quality control summary for the session.
+        
+        Parameters:
+        - ratio_threshold: Minimum ratio threshold for state balance (uses config default if None)
+        - min_epochs_per_state: Minimum epochs required per state (uses config default if None)
+        
+        Returns:
+        - dict: Quality control summary with metrics for both filtered and unfiltered data
+        """
+        if ratio_threshold is None:
+            ratio_threshold = QUALITY_CONTROL["STATE_RATIO_THRESHOLD"]
+        if min_epochs_per_state is None:
+            min_epochs_per_state = QUALITY_CONTROL["MIN_EPOCHS_PER_STATE"]
+        
+        summary = {}
+        
+        for filtered in [False, True]:
+            filter_key = "filtered" if filtered else "unfiltered"
+            
+            state_counts = self.get_epoch_counts_by_state(filtered=filtered)
+            state_ratio = self.calculate_state_ratio(filtered=filtered)
+            state_imbalance = self.check_state_imbalance(ratio_threshold, filtered=filtered)
+            meets_min_epochs = self.check_minimum_epochs(min_epochs_per_state, filtered=filtered)
+            
+            summary[filter_key] = {
+                "epoch_counts": state_counts,
+                "state_ratio": state_ratio,
+                "state_imbalance": state_imbalance,
+                "meets_minimum_epochs": meets_min_epochs,                "passes_quality_control": not state_imbalance and meets_min_epochs
+            }
+        
+        return summary
+
+    def update_exclude_flag(self, ratio_threshold: float = None,
+                           min_epochs_per_state: int = None, 
+                           use_filtered: bool = False) -> bool:
+        """
+        Update the exclude flag based on quality control criteria.
+        
+        Parameters:
+        - ratio_threshold: Minimum ratio threshold for state balance (uses config default if None)
+        - min_epochs_per_state: Minimum epochs required per state (uses config default if None)
+        - use_filtered: Whether to use filtered data for the assessment
+        
+        Returns:
+        - bool: The updated exclude flag value
+        """
+        if ratio_threshold is None:
+            ratio_threshold = QUALITY_CONTROL["STATE_RATIO_THRESHOLD"]
+        if min_epochs_per_state is None:
+            min_epochs_per_state = QUALITY_CONTROL["MIN_EPOCHS_PER_STATE"]
+        
+        qc_summary = self.get_quality_control_summary(ratio_threshold, min_epochs_per_state)
+        data_key = "filtered" if use_filtered else "unfiltered"        
+        # Exclude if quality control fails
+        self.exclude = not qc_summary[data_key]["passes_quality_control"]
+        
+        return self.exclude
+
+    def apply_outlier_filtering(self, data_type: str = 'band_power', 
+                               m: int = None, k: float = None, s: float = None) -> bool:
+        """
+        Apply outlier filtering based on IQR and skewness criteria, using global stats across all epochs.
+        """
+        if self.band_power_stats is None:
+            raise ValueError("Band power statistics have not been calculated. Call calculate_band_power() first.")
+        m = m or OUTLIER_DETECTION["MIN_EPOCHS_FOR_FILTERING"]
+        k = k or OUTLIER_DETECTION["IQR_MULTIPLIER"]
+        s = s or OUTLIER_DETECTION["SKEWNESS_THRESHOLD"]
+        outliers_detected = False
+        if data_type == 'band_power':
+            data_map = self.band_power_map
+        elif data_type == 'log_band_power':
+            data_map = self.log_band_power_map
+        else:
+            raise ValueError("data_type must be 'band_power' or 'log_band_power'")
+        for task, states in data_map.items():
+            for state, data in states.items():
+                current_mask = self.outlier_mask_map[task][state].copy()
+                for ch_idx, channel in enumerate(self.channels):
+                    channel_data = data[:, ch_idx]
+                    channel_mask = current_mask[:, ch_idx]
+                    valid_data = channel_data[channel_mask]
+                    if len(valid_data) >= m:
+                        # Use global stats (all epochs for this channel)
+                        median = self.get_stat('median', channel, data_type)
+                        iqr = self.get_stat('iqr', channel, data_type)
+                        skewness = self.get_stat('skewness', channel, data_type)
+                        lower_bound = median - k * iqr
+                        upper_bound = median + k * iqr
+                        if abs(skewness) > s:
+                            if skewness > 0:
+                                lower_bound = -np.inf
+                            else:
+                                upper_bound = np.inf
+                        outlier_mask = (channel_data >= lower_bound) & (channel_data <= upper_bound)
+                        new_mask = current_mask[:, ch_idx] & outlier_mask
+                        if not np.array_equal(current_mask[:, ch_idx], new_mask):
+                            outliers_detected = True
+                        self.outlier_mask_map[task][state][:, ch_idx] = new_mask
+        if outliers_detected:
+            self.recalculate_stats()
+        return outliers_detected
+
+    def detect_suspicious_distributions(self) -> dict:
+        """
+        Detect channels with suspicious statistical distributions.
+        
+        Returns:
+        - dict: Dictionary with flags for suspicious distributions by data type and level
+        """
+        if self.band_power_stats is None:
+            raise ValueError("Band power statistics have not been calculated. Call calculate_band_power() first.")
+        
+        suspicious_flags = {
+            'band_power': {
+                'all_data': {},
+                'by_condition': {},
+                'by_state': {}
+            },
+            'log_band_power': {
+                'all_data': {},
+                'by_condition': {},
+                'by_state': {}
+            }
+        }
+        
+        # Thresholds from config
+        skew_threshold = OUTLIER_DETECTION["SUSPICIOUS_SKEWNESS_THRESHOLD"]
+        kurt_threshold = OUTLIER_DETECTION["SUSPICIOUS_KURTOSIS_THRESHOLD"]
+        min_epochs = OUTLIER_DETECTION["MIN_EPOCH_COUNT_THRESHOLD"]
+        p_value_threshold = OUTLIER_DETECTION["NORMALITY_P_VALUE_THRESHOLD"]
+        
+        for data_type in ['band_power', 'log_band_power']:
+            # Check all_data level
+            for channel in self.channels:
+                flags = []
+                
+                # Get unfiltered stats for all data
+                try:
+                    skewness = self.get_stat('skewness', channel, data_type, filtered=False)
+                    kurtosis = self.get_stat('kurtosis', channel, data_type, filtered=False)
+                    epoch_count = self.get_stat('epoch_count', channel, data_type, filtered=False)
+                    is_normal = self.get_stat('is_normal', channel, data_type, filtered=False)
+                    normality_p = self.get_stat('normality_p_value', channel, data_type, filtered=False)
+                    
+                    # Check for suspicious characteristics
+                    if abs(skewness) > skew_threshold:
+                        flags.append('high_skewness')
+                    if abs(kurtosis) > kurt_threshold:
+                        flags.append('high_kurtosis')
+                    if epoch_count < min_epochs:
+                        flags.append('low_epoch_count')
+                    if not is_normal and normality_p < p_value_threshold:
+                        flags.append('non_normal')
+                    
+                except (KeyError, ValueError):
+                    flags.append('missing_data')
+                
+                suspicious_flags[data_type]['all_data'][channel] = flags
+              # Check by_state level
+            for state in QUALITY_CONTROL["MW_OT_STATES"]:
+                for channel in self.channels:
+                    flags = []
+                    
+                    try:
+                        skewness = self.get_stat('skewness', channel, data_type, state=state, filtered=False)
+                        kurtosis = self.get_stat('kurtosis', channel, data_type, state=state, filtered=False)
+                        epoch_count = self.get_stat('epoch_count', channel, data_type, state=state, filtered=False)
+                        is_normal = self.get_stat('is_normal', channel, data_type, state=state, filtered=False)
+                        normality_p = self.get_stat('normality_p_value', channel, data_type, state=state, filtered=False)
+                        
+                        if abs(skewness) > skew_threshold:
+                            flags.append('high_skewness')
+                        if abs(kurtosis) > kurt_threshold:
+                            flags.append('high_kurtosis')
+                        if epoch_count < min_epochs:
+                            flags.append('low_epoch_count')
+                        if not is_normal and normality_p < p_value_threshold:
+                            flags.append('non_normal')
+                        
+                    except (KeyError, ValueError):
+                        flags.append('missing_data')
+                    
+                    if state not in suspicious_flags[data_type]['by_state']:
+                        suspicious_flags[data_type]['by_state'][state] = {}
+                    suspicious_flags[data_type]['by_state'][state][channel] = flags
+            
+            # Check by_condition level
+            for task, states in self.psd_map.items():
+                for state in states.keys():
+                    condition_key = (task, state)
+                    
+                    for channel in self.channels:
+                        flags = []
+                        
+                        try:
+                            skewness = self.get_stat('skewness', channel, data_type, task, state, filtered=False)
+                            kurtosis = self.get_stat('kurtosis', channel, data_type, task, state, filtered=False)
+                            epoch_count = self.get_stat('epoch_count', channel, data_type, task, state, filtered=False)
+                            is_normal = self.get_stat('is_normal', channel, data_type, task, state, filtered=False)
+                            normality_p = self.get_stat('normality_p_value', channel, data_type, task, state, filtered=False)
+                            
+                            if abs(skewness) > skew_threshold:
+                                flags.append('high_skewness')
+                            if abs(kurtosis) > kurt_threshold:
+                                flags.append('high_kurtosis')
+                            if epoch_count < min_epochs:
+                                flags.append('low_epoch_count')
+                            if not is_normal and normality_p < p_value_threshold:
+                                flags.append('non_normal')
+                        
+                        except (KeyError, ValueError):
+                            flags.append('missing_data')
+                        
+                        if condition_key not in suspicious_flags[data_type]['by_condition']:
+                            suspicious_flags[data_type]['by_condition'][condition_key] = {}
+                        suspicious_flags[data_type]['by_condition'][condition_key][channel] = flags
+        
+        return suspicious_flags
+
+    def has_outliers_after_filtering(self) -> bool:
+        """
+        Quick check to see if any outliers were detected after filtering.
+        
+        Returns:
+        - bool: True if any data points are marked as outliers (False in mask), False otherwise
+        """
+        if not self.outlier_mask_map:
+            return False
+        
+        for task, states in self.outlier_mask_map.items():
+            for state, mask in states.items():
+                # If any value in the mask is False, outliers were detected
+                if not np.all(mask):
+                    return True
+        
+        return False
+
+    def get_outlier_summary(self) -> dict:
+        """
+        Get a summary of outliers detected across all conditions.
+        Reports the number of band power values (channel-epoch pairs) marked as outliers.
+        Returns:
+        - dict: Summary of outlier detection results
+        """
+        summary = {
+            'has_outliers': self.has_outliers_after_filtering(),
+            'outlier_counts': {},  # Number of band power values (not epochs) marked as outliers
+            'outlier_percentages': {},
+            'total_band_power_values_removed': 0,
+            'total_band_power_values': 0
+        }
+        for task, states in self.outlier_mask_map.items():
+            for state, mask in states.items():
+                condition_key = f"{task}_{state}"
+                total_points = mask.size  # total band power values (epochs * channels)
+                outliers = np.sum(~mask)  # Count False values (outliers)
+                valid_points = np.sum(mask)  # Count True values
+                summary['outlier_counts'][condition_key] = outliers
+                summary['outlier_percentages'][condition_key] = (outliers / total_points * 100) if total_points > 0 else 0
+                summary['total_band_power_values_removed'] += outliers
+                summary['total_band_power_values'] += total_points
+        # Overall percentage
+        if summary['total_band_power_values'] > 0:
+            summary['overall_outlier_percentage'] = (summary['total_band_power_values_removed'] / summary['total_band_power_values'] * 100)
+        else:
+            summary['overall_outlier_percentage'] = 0
+        return summary
+
+    def get_band_power(self, task: str, state: str):
+        """
+        Get pre-calculated band power for a given task and state.
+
+        Raises:
+        - ValueError: If band power has not been calculated for the given condition.
+                      Call `calculate_band_power()` first.
+        """
+        try:
+            return self.band_power_map[task][state]
+        except KeyError:
+            raise ValueError(f"Band power not calculated for task '{task}' and state '{state}'. "
+                             f"Call `calculate_band_power()` first.")
+
+    def get_log_band_power(self, task: str, state: str):
+        """
+        Get pre-calculated log-transformed band power for a given task and state.
+
+        Raises:
+        - ValueError: If band power has not been calculated for the given condition.
+                      Call `calculate_band_power()` first.
+        """
+        try:
+            return self.log_band_power_map[task][state]
+        except KeyError:
+            raise ValueError(f"Log band power not calculated for task '{task}' and state '{state}'. "
+                             f"Call `calculate_band_power()` first.")
+
+    def get_outlier_mask(self, task: str, state: str) -> np.ndarray:
+        """
+        Get the outlier mask for a given task and state.
+
+        Raises:
+        - ValueError: If band power has not been calculated for the given condition.
+        """
+        try:
+            return self.outlier_mask_map[task][state]
+        except KeyError:
+            raise ValueError(f"Outlier mask not available for task '{task}' and state '{state}'. "
+                             f"Call `calculate_band_power()` first.")
+
+    def set_outlier_mask(self, task: str, state: str, mask: np.ndarray):
+        """
+        Set the outlier mask for a given task and state.
+        
+        Parameters:
+        - task: Task name
+        - state: State name  
+        - mask: Boolean array of shape (epochs, channels). True = valid data, False = outlier
+        """
+        if (task, state) not in [(t, s) for t, states in self.band_power_map.items() for s in states]:
+            raise ValueError(f"No band power data for task '{task}' and state '{state}'.")
+        
+        expected_shape = self.band_power_map[task][state].shape
+        if mask.shape != expected_shape:
+            raise ValueError(f"Mask shape {mask.shape} does not match data shape {expected_shape}")
+        
+        self.outlier_mask_map[task][state] = mask
+
     def get_psd(self, task: str, state: str):
         try:
             return self.psd_map[task][state]
@@ -108,13 +613,13 @@ class Recording:
         """
         total_mw_epochs = 0
         total_ot_epochs = 0
-
+        
         for task, states_data in self.psd_map.items():
             for state, psd_array in states_data.items():
                 num_epochs_for_condition = psd_array.shape[0]
-                if state == "MW":
+                if state == QUALITY_CONTROL["MW_OT_STATES"][0]:  # "MW"
                     total_mw_epochs += num_epochs_for_condition
-                elif state == "OT":
+                elif state == QUALITY_CONTROL["MW_OT_STATES"][1]:  # "OT"
                     total_ot_epochs += num_epochs_for_condition
         
         if total_ot_epochs == 0:
@@ -123,19 +628,25 @@ class Recording:
         return total_mw_epochs / total_ot_epochs
     
     def alpha_power(self, task: str, state: str) -> np.ndarray:
-        """Compute alpha power for a given task and state."""
-        psd = self.get_psd(task, state)
-        freqs = self.get_freqs(task, state)
-        return Metrics.alpha_power(psd, freqs)
+        """Compute alpha power for a given task and state using pre-calculated band power if available."""
+        if self.band_range == (8, 12) and (task, state) in [(t, s) for t, states in self.band_power_map.items() for s in states]:
+            # Use pre-calculated alpha band power
+            return self.get_band_power(task, state)
+        else:
+            # Fall back to direct calculation
+            psd = self.get_psd(task, state)
+            freqs = self.get_freqs(task, state)
+            return Metrics.alpha_power(psd, freqs)
     
     def mean_alpha_power_per_channel(self, task: str, state: str) -> np.ndarray:
-        """Compute mean alpha power per channel for a given task and state."""
+        """Compute mean alpha power per channel for a given task and state using pre-calculated data."""
         alpha_power = self.alpha_power(task, state)
         return alpha_power.mean(axis=0)
     
     def stats_band_power_per_channel(self, task: str, state: str, band: tuple[float, float]) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Compute mean, variance, and standard error of band power for a given task and state.
+        Uses pre-calculated band power if the band matches, otherwise calculates on-demand.
 
         Parameters:
         - task: Task name (e.g., 'task1').
@@ -148,18 +659,27 @@ class Recording:
             - Variance of band power per channel.
             - Standard error of band power per channel.
         """
-        psd = self.get_psd(task, state)
-        freqs = self.get_freqs(task, state)
-        band_power = Metrics.band_power(psd, freqs, band)
+        if self.band_range == band and (task, state) in [(t, s) for t, states in self.band_power_map.items() for s in states]:
+            # Use pre-calculated band power
+            band_power = self.get_band_power(task, state)
+        else:
+            # Calculate on-demand
+            psd = self.get_psd(task, state)
+            freqs = self.get_freqs(task, state)
+            band_power = Metrics.band_power(psd, freqs, band)
+        
         mean = band_power.mean(axis=0)
         var = band_power.var(axis=0)
         std_err = band_power.std(axis=0) / np.sqrt(band_power.shape[0])
         return mean, var, std_err
 
+    #                                           Visualization
+    ##########################################################################################################
 
     def plot_topo_power(self, condition: tuple[str, str], band: tuple[float, float] = (8, 12), show: bool = True) -> tuple[plt.Figure, plt.Axes]:
         """
         Plot topographic power map for a given task and state or for OT–MW difference.
+        Uses pre-calculated band power when available.
 
         Parameters:
         - condition: tuple (task, state), where state can be 'MW', 'OT', or 'difference'.
@@ -184,18 +704,28 @@ class Recording:
         for task in tasks:
             if state == "difference":
                 available_tasks = self.get_available_tasks()
-
-                mw_tasks = [t for t in available_tasks if "MW" in self.get_available_states(t)]
-                ot_tasks = [t for t in available_tasks if "OT" in self.get_available_states(t)]
+                mw_state, ot_state = QUALITY_CONTROL["MW_OT_STATES"]
+                mw_tasks = [t for t in available_tasks if mw_state in self.get_available_states(t)]
+                ot_tasks = [t for t in available_tasks if ot_state in self.get_available_states(t)]
 
                 mw_arrays, ot_arrays = [], []
 
                 for t in mw_tasks:
-                    alpha = self.stats_band_power_per_channel(t, "MW", band)[0]
+                    if self.band_range == band and (t, mw_state) in [(task, s) for task, states in self.band_power_map.items() for s in states]:
+                        # Use pre-calculated band power
+                        alpha = self.get_band_power(t, mw_state).mean(axis=0)
+                    else:
+                        # Calculate on-demand
+                        alpha = self.stats_band_power_per_channel(t, mw_state, band)[0]
                     mw_arrays.append(alpha)
 
                 for t in ot_tasks:
-                    alpha = self.stats_band_power_per_channel(t, "OT", band)[0]
+                    if self.band_range == band and (t, ot_state) in [(task, s) for task, states in self.band_power_map.items() for s in states]:
+                        # Use pre-calculated band power
+                        alpha = self.get_band_power(t, ot_state).mean(axis=0)
+                    else:
+                        # Calculate on-demand
+                        alpha = self.stats_band_power_per_channel(t, ot_state, band)[0]
                     ot_arrays.append(alpha)
 
                 if not mw_arrays or not ot_arrays:
@@ -209,9 +739,15 @@ class Recording:
             else:
                 if (task, state) not in available_conditions:
                     continue
-                psd = self.get_psd(task, state)
-                freqs = self.get_freqs(task, state)
-                alpha = Metrics.band_power(psd, freqs, band, operation='mean').mean(axis=0)
+                
+                if self.band_range == band and (task, state) in [(t, s) for t, states in self.band_power_map.items() for s in states]:
+                    # Use pre-calculated band power
+                    alpha = self.get_band_power(task, state).mean(axis=0)
+                else:
+                    # Calculate on-demand
+                    psd = self.get_psd(task, state)
+                    freqs = self.get_freqs(task, state)
+                    alpha = Metrics.band_power(psd, freqs, band, operation='mean').mean(axis=0)
                 power_arrays.append(alpha)
 
         if not power_arrays:
@@ -275,12 +811,20 @@ class Recording:
             for task_iter in tasks_list:
                 if (task_iter, state_str) in available_conditions:
                     try:
-                        psd_val = self.get_psd(task_iter, state_str)
-                        freqs_val = self.get_freqs(task_iter, state_str)
-                        if use_decibel:
-                            power_val = Metrics.band_decibel(psd_val, freqs_val, band_tuple, operation='mean').mean(axis=0)
+                        if self.band_range == band_tuple and (task_iter, state_str) in [(t, s) for t, states in self.band_power_map.items() for s in states]:
+                            # Use pre-calculated band power
+                            if use_decibel:
+                                power_val = self.get_log_band_power(task_iter, state_str).mean(axis=0)
+                            else:
+                                power_val = self.get_band_power(task_iter, state_str).mean(axis=0)
                         else:
-                            power_val = Metrics.band_power(psd_val, freqs_val, band_tuple, operation='mean').mean(axis=0)
+                            # Calculate on-demand
+                            psd_val = self.get_psd(task_iter, state_str)
+                            freqs_val = self.get_freqs(task_iter, state_str)
+                            if use_decibel:
+                                power_val = Metrics.band_log(psd_val, freqs_val, band_tuple, operation='mean').mean(axis=0)
+                            else:
+                                power_val = Metrics.band_power(psd_val, freqs_val, band_tuple, operation='mean').mean(axis=0)
                         power_arrays_for_state.append(power_val)
                     except ValueError:
                         # This might happen if data is corrupted or unexpectedly missing
@@ -357,8 +901,6 @@ class Recording:
                 ax.axis('off')
 
         main_title_parts = [
-            f"Dataset: {self.dataset_name}",
-            f"Subject: {self.subject_id}",
             f"Session: {self.session_id}",
             f"Band: {band[0]}–{band[1]} Hz"
         ]
@@ -372,12 +914,12 @@ class Recording:
 
         # Save figure to Plots path
         if use_decibel:
-            save_dir = os.path.join(PLOTS_PATH, self.dataset_f_name, "topo_power_comparison", f"band-{band[0]}-{band[1]}", "decibel")
+            save_dir = os.path.join(PLOTS_PATH, "topo_power_comparison", f"band-{band[0]}-{band[1]}", "decibel")
         else:
-            save_dir = os.path.join(PLOTS_PATH, self.dataset_f_name, "topo_power_comparison", f"band-{band[0]}-{band[1]}")
+            save_dir = os.path.join(PLOTS_PATH, "topo_power_comparison", f"band-{band[0]}-{band[1]}")
         os.makedirs(save_dir, exist_ok=True)
         decibel_suffix = "_db" if use_decibel else ""
-        file_name = f"topo_power_comparison_sub-{self.subject_id}_ses-{self.session_id}_task-{task_input}_band-{band[0]}-{band[1]}{decibel_suffix}.svg"
+        file_name = f"topo_power_comparison_ses-{self.session_id}_task-{task_input}_band-{band[0]}-{band[1]}{decibel_suffix}.svg"
         file_path = os.path.join(save_dir, file_name)
         fig.savefig(file_path, format='svg', bbox_inches='tight')
         print(f"Topographic power comparison saved to {file_path}")
@@ -397,7 +939,7 @@ class Recording:
         
         conditions = self.list_conditions()
         if not conditions:
-            print(f"No conditions to plot for subject {self.subject_id}, session {self.session_id}.")
+            print(f"No conditions to plot for session {self.session_id}.")
             plt.close() # Close the empty figure
             return
 
@@ -429,16 +971,16 @@ class Recording:
             plt.plot(freqs, mean_psd_db, label=f"{current_task} - {current_state}", color=line_color)
             plt.fill_between(freqs, mean_psd_db, y2=fill_baseline, alpha=0.3, color=line_color, interpolate=True)
 
-        plt.title(f"Dataset: {self.dataset_name} | Subject: {self.subject_id} | Session: {self.session_id} | All Task-State PSDs")
+        plt.title(f"Session: {self.session_id} | All Task-State PSDs")
         plt.xlabel("Frequency (Hz)")
         plt.ylabel("Power Spectral Density (dB)")
         plt.legend()
         plt.grid(True)
 
         # save the figure to Plots path
-        save_dir = os.path.join(PLOTS_PATH, self.dataset_f_name, "psd_plots")
+        save_dir = os.path.join(PLOTS_PATH, "psd_plots")
         os.makedirs(save_dir, exist_ok=True)
-        file_name = f"psd_plot_sub-{self.subject_id}_ses-{self.session_id}.svg"
+        file_name = f"psd_plot_ses-{self.session_id}.svg"
         file_path = os.path.join(save_dir, file_name)
         plt.savefig(file_path, format='svg', bbox_inches='tight')
         print(f"PSD plot saved to {file_path}")
@@ -458,18 +1000,27 @@ class Recording:
         """
         channel_names = self.get_channel_names()
         if not channel_names:
-            print(f"No channels available for subject {self.subject_id}, session {self.session_id}.")
+            print(f"No channels available for session {self.session_id}.")
             return
         
         # Prepare data for Seaborn
         data = []
         for task, states in self.psd_map.items():
             for state, psd in states.items():
-                freqs = self.freq_map[task][state]
-                if use_decibel:
-                    band_power = Metrics.band_decibel(psd, freqs, band, operation='mean')
+                if self.band_range == band and (task, state) in [(t, s) for t, states in self.band_power_map.items() for s in states]:
+                    # Use pre-calculated band power
+                    if use_decibel:
+                        band_power = self.get_log_band_power(task, state)
+                    else:
+                        band_power = self.get_band_power(task, state)
                 else:
-                    band_power = Metrics.band_power(psd, freqs, band, operation='mean')
+                    # Calculate on-demand
+                    freqs = self.freq_map[task][state]
+                    if use_decibel:
+                        band_power = Metrics.band_log(psd, freqs, band, operation='mean')
+                    else:
+                        band_power = Metrics.band_power(psd, freqs, band, operation='mean')
+                
                 # band_power shape: (epochs, channels)
                 for epoch_idx in range(band_power.shape[0]):
                     for ch_idx, ch_name in enumerate(channel_names):
@@ -480,7 +1031,7 @@ class Recording:
                         })
 
         if not data:
-            print(f"No data available for plotting distribution for subject {self.subject_id}, session {self.session_id}.")
+            print(f"No data available for plotting distribution for session {self.session_id}.")
             return
 
         df = pd.DataFrame(data)
@@ -500,17 +1051,17 @@ class Recording:
                 common_norm=False
             )
             
-            plt.title(f'Band Power Distribution for Channel {channel_name} (Subject {self.subject_id})')
+            plt.title(f'Band Power Distribution for Channel {channel_name} (Session {self.session_id})')
             plt.xlabel('Band Power (dB)' if use_decibel else 'Band Power (µV²/Hz)')
             plt.ylabel('Density')
             plt.grid(True, alpha=0.3)
             plt.tight_layout()
 
             # Save the figure to Plots path
-            save_dir = os.path.join(PLOTS_PATH, self.dataset_f_name, "distribution_plots", f"band-{band[0]}-{band[1]}")
+            save_dir = os.path.join(PLOTS_PATH, "distribution_plots", f"band-{band[0]}-{band[1]}")
             os.makedirs(save_dir, exist_ok=True)
             decibel_suffix = "_db" if use_decibel else ""
-            file_name = f"distribution_plot_sub-{self.subject_id}_ses-{self.session_id}_channel-{channel_name}{decibel_suffix}.svg"
+            file_name = f"distribution_plot_ses-{self.session_id}_channel-{channel_name}{decibel_suffix}.svg"
             file_path = os.path.join(save_dir, file_name)
             plt.savefig(file_path, format='svg', bbox_inches='tight')
             print(f"Distribution plot saved to {file_path}")
