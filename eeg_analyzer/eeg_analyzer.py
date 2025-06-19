@@ -222,6 +222,14 @@ class EEGAnalyzer:
         self._df_hash_at_last_summary_gen = None # DF might change if recreated
         return None
     
+    def get_channel_names(self) -> list:
+        """
+        Get the names of all channels in the current DataFrame in the order they appear.
+        """
+        if self.df is not None:
+            return self.df['channel'].unique().tolist()
+        return []
+
     def exclude_subjects(self, exclude: dict):
         """
         Remove subjects from a specific dataset. Exclude is either a dictionary
