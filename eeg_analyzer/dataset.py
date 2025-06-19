@@ -15,6 +15,7 @@ Notes:
 
 from typing import Optional, List, Set, Union
 import numpy as np
+from tqdm import tqdm
 
 from utils.dataset_config import DatasetConfig
 from utils.config import EEG_SETTINGS, channel_positions, cortical_regions, ROIs
@@ -98,7 +99,7 @@ class Dataset:
         This calls subject.load_data(variant) for each subject.
         Also gather other stats about the dataset.
         """
-        for subject_id in self.subject_IDs:
+        for subject_id in tqdm(self.subject_IDs, desc="Loading subjects"):
             subject = Subject(self.config, subject_id)
             subject.load_data(variant=variant)
             if subject.recordings == {}:
@@ -161,7 +162,7 @@ class Dataset:
                 self.epochs_info[(task, state)].append(num_epochs)
         self.state_ratios = {}
         for id, subject in self.subjects.items():
-            self.state_ratios[id] = subject.get_state_ratio()
+            self.state_ratios[id] = None
 
     def get_subject_group(self, subject_id: str) -> Optional[str]:
         """Return the group name of a given subject, or None if not assigned."""

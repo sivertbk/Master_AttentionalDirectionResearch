@@ -31,8 +31,7 @@ class BandPowerStats:
                 'all_data': {},
                 'by_condition': {},
                 'by_state': {}
-            },
-            'log_band_power': {
+            },              'log_band_power': {
                 'all_data': {},
                 'by_condition': {},
                 'by_state': {}
@@ -49,22 +48,24 @@ class BandPowerStats:
         - log_band_power_map: Dictionary with structure task -> state -> array(epochs, channels)
         - outlier_mask_map: Dictionary with structure task -> state -> boolean_mask(epochs, channels)
         """
-        # Calculate stats for band power
+          # Calculate stats for band power
         self._calculate_stats_for_data_type('band_power', band_power_map, outlier_mask_map)
         
         # Calculate stats for log band power
         self._calculate_stats_for_data_type('log_band_power', log_band_power_map, outlier_mask_map)
+        
     
     def _calculate_stats_for_data_type(self, data_type: str, data_map: dict, 
                                       outlier_mask_map: dict):
         """Calculate statistics for a specific data type (band_power or log_band_power)."""
         
         # 1. Calculate by_condition stats
+        
         for task, states in data_map.items():
             for state, data in states.items():
                 condition_key = (task, state)
                 mask = outlier_mask_map[task][state]
-                
+
                 self.stats[data_type]['by_condition'][condition_key] = {
                     'unfiltered': self._calculate_channel_stats(data),
                     'filtered': self._calculate_channel_stats(data, mask)
@@ -87,8 +88,7 @@ class BandPowerStats:
                 'unfiltered': self._calculate_channel_stats(combined_data),
                 'filtered': self._calculate_channel_stats(combined_data, combined_mask)
             }
-        
-        # 3. Calculate all_data stats (combine everything)
+          # 3. Calculate all_data stats (combine everything)
         all_data_list = []
         all_masks_list = []
         
@@ -101,9 +101,12 @@ class BandPowerStats:
             combined_all_data = np.concatenate(all_data_list, axis=0)
             combined_all_masks = np.concatenate(all_masks_list, axis=0)
             
+            unfiltered_stats = self._calculate_channel_stats(combined_all_data)
+            filtered_stats = self._calculate_channel_stats(combined_all_data, combined_all_masks)
+            
             self.stats[data_type]['all_data'] = {
-                'unfiltered': self._calculate_channel_stats(combined_all_data),
-                'filtered': self._calculate_channel_stats(combined_all_data, combined_all_masks)
+                'unfiltered': unfiltered_stats,
+                'filtered': filtered_stats
             }
     
     def _calculate_channel_stats(self, data: np.ndarray, mask: Optional[np.ndarray] = None) -> dict:
@@ -113,8 +116,7 @@ class BandPowerStats:
         Parameters:
         - data: Array of shape (epochs, channels)
         - mask: Optional boolean mask of shape (epochs, channels). True = valid data
-        
-        Returns:
+          Returns:
         - Dictionary with channel -> statistics mapping
         """
         channel_stats = {}
