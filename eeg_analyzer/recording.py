@@ -518,6 +518,7 @@ class Recording(Iterable[Tuple[str, str]]):
                 summary['outlier_percentages'][condition_key] = (outliers / total_points * 100) if total_points > 0 else 0
                 summary['total_band_power_values_removed'] += outliers
                 summary['total_band_power_values'] += total_points
+                
         # Overall percentage
         if summary['total_band_power_values'] > 0:
             summary['overall_outlier_percentage'] = (summary['total_band_power_values_removed'] / summary['total_band_power_values'] * 100)
@@ -528,6 +529,11 @@ class Recording(Iterable[Tuple[str, str]]):
     def get_band_power(self, task: str, state: str):
         """
         Get pre-calculated band power for a given task and state.
+        Parameters:
+        - task: Task name
+        - state: State name
+        Returns:
+        - np.ndarray: The band power values for the specified task and state with shape (n_epochs, n_channels).
 
         Raises:
         - ValueError: If band power has not been calculated for the given condition.

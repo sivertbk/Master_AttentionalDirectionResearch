@@ -1,26 +1,39 @@
 from eeg_analyzer.eeg_analyzer import EEGAnalyzer
 from utils.config import DATASETS
 
+def gather_data(analyzer: EEGAnalyzer = None):
+    """
+    Gathers the alpha power data in micro volts squared per Hz and decibels
+    for each subject and channel in the EEG data.
+    """
+    if analyzer is None:
+        raise ValueError("Analyzer must be provided.")
+
+    data = []
+    for dataset in analyzer:
+        for subject in dataset:
+            for recording in subject:
+                if recording.exclude:
+                    continue
+                # Gather alpha power data
+                alpha_power = recording.get_band_power()
+    return data
 
 def plot_histogram(analyzer: EEGAnalyzer = None):
     """
     Plots the distribution of alpha power in micro volts squared per Hz and decibels
     for each subject and channel in the EEG data.
     """
-    if analyzer is None:
-        raise ValueError("EEGAnalyzer instance is required to plot histogram.")
 
-    for dataset_name, dataset in analyzer.datasets.items():
-        print(f"Processing dataset: {dataset_name}")
-        for subject_id, subject in dataset.subjects.items():
-            for session_id, session in subject.recordings.items():
-                print(f"Subject: {subject_id}, Session: {session_id}")
-                # Plot histogram
-                session.plot_distribution(show=False)
-                print(f"Histogram plots for {subject_id} - {session_id} completed.")
 
 
 if __name__ == "__main__":
-    ANALYZER_NAME = "UnprocessedAnalyzer"
-    analyzer = EEGAnalyzer(DATASETS)
-    plot_histogram(analyzer)
+    ANALYZER_NAME = "eeg_analyzer_test"
+
+    analyzer = EEGAnalyzer.load_analyzer(ANALYZER_NAME)
+    if analyzer is None:
+        print(f"Analyzer {ANALYZER_NAME} not found. Creating a new one.")
+        analyzer = EEGAnalyzer(DATASETS, ANALYZER_NAME)
+        analyzer.save_analyzer()
+
+    data = gather_data(analyzer)
