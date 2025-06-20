@@ -17,11 +17,12 @@ Notes:
 import os
 import json
 import numpy as np
+from typing import List, Dict, Iterable, Iterator
 
 from utils.dataset_config import DatasetConfig
 from eeg_analyzer.recording import Recording
 
-class Subject:
+class Subject(Iterable["Recording"]):
     def __init__(self, dataset_config: DatasetConfig, subject_id: str):
         self.dataset = dataset_config
         self.id = subject_id
@@ -30,6 +31,19 @@ class Subject:
 
     def __repr__(self):
         return f"<Subject {self.id} ({self.group or 'no group'}) - {len(self.recordings)} sessions>"
+
+    def __iter__(self) -> Iterator["Recording"]:
+        """
+        Allows iteration over recordings directly.
+        """
+        return iter(self.recordings.values())
+    
+    def __len__(self) -> int:
+        """
+        Returns the number of recordings for this subject.
+        """
+        return len(self.recordings)
+    
     
     #                                  Public API
     ##########################################################################################################
@@ -82,6 +96,7 @@ class Subject:
                         # Load channels only once per session
                         if channels is None:
                             channels = psd_data["channels"].tolist()
+                            self.channels = channels  # Store channels in the subject object
                         
                         # Load metadata
                         with open(meta_file, "r") as f:
@@ -122,6 +137,11 @@ class Subject:
     def get_dataset(self) -> DatasetConfig:
         return self.dataset
     
+    def get_channel_names(self) -> List[str]:
+        if self.channels:
+            return self.channels
+        raise AttributeError("No channels available. Load data first.")
+
     def get_total_epochs(self):
         """
         Returns the number of epochs in all sessions.
@@ -203,15 +223,5 @@ class Subject:
 
         return mean_ot - mean_mw
 
-    def get_channel_names(self):
-        """
-        Retrieves the channel names for the subject. Since channel names are consistent across sessions,
-        this method uses the first valid session to extract the channel names.
 
-        Returns:
-            list: A list of channel names.
-        """
-        for recording in self.recordings.values():
-            return recording.get_channel_names()
-        raise ValueError("No valid recordings available to retrieve channel names.")
 

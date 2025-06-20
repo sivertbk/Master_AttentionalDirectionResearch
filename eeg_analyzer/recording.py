@@ -15,7 +15,7 @@ Notes:
 """
 
 from collections import defaultdict
-from typing import Optional, Tuple, Any
+from typing import Optional, Tuple, Any, Iterator, Iterable
 import numpy as np
 import os
 import seaborn as sns
@@ -28,7 +28,7 @@ import mne
 import matplotlib.pyplot as plt
 
 set_plot_style()  # Set the plotting style for MNE and Matplotlib
-class Recording:
+class Recording(Iterable[Tuple[str, str]]):
     def __init__(self, session_id: int, psd_entries: list[np.ndarray], metadata_entries: list[dict], freq_entries: list[np.ndarray], channels: list[str], band: Optional[tuple[float, float]] = None):
         self.session_id = session_id
         self.psd_map = defaultdict(dict)     # task -> state -> PSD
@@ -51,10 +51,25 @@ class Recording:
         if band:
             self.calculate_band_power(band)
 
+        # Automatic quality control and outlier filtering during initialization
+        self.update_exclude_flag()
+        self.apply_outlier_filtering()
+
     def __repr__(self):
         total_conditions = sum(len(states) for states in self.psd_map.values())
         return f"<Recording session-{self.session_id} with {total_conditions} condition(s)>"
     
+    def __str__(self):
+        return f"Recording session-{self.session_id} with {len(self.channels)} channels and {len(self.psd_map)} tasks"
+
+    def __iter__(self) -> Iterator[Tuple[str, str]]:
+        """
+        Allows iteration over (task, state) pairs for which PSD data exists.
+        """
+        for task, state_map in self.psd_map.items():
+            for state in state_map:
+                yield task, state
+
     #                                           Public API
     ##########################################################################################################
     
@@ -104,7 +119,7 @@ class Recording:
             self.outlier_mask_map
         )
 
-    def get_stat(self, stat_name: str, channel: str, data_type: str = 'band_power',
+    def get_stat(self, stat_name: str, channel: Optional[str] = None, data_type: str = 'log_band_power',
                  task: Optional[str] = None, state: Optional[str] = None, 
                  filtered: bool = False) -> Any:
         """
@@ -112,18 +127,25 @@ class Recording:
         
         Parameters:
         - stat_name: Name of the statistic ('mean', 'variance', 'median', etc.)
-        - channel: Channel name
+        - channel: Channel name (if None, returns an array of values for all channels)
         - data_type: 'band_power' or 'log_band_power'
         - task: Task name (if None, uses state-level or all_data stats)
         - state: State name (if None, uses all_data stats)
         - filtered: Whether to use filtered (outlier-removed) data
         
         Returns:
-        - The requested statistic value
+        - The requested statistic value or an array of values for all channels
         """
         if self.band_power_stats is None:
             raise ValueError("Band power statistics have not been calculated. Call calculate_band_power() first.")
-        
+
+        if channel is None:
+            # Return an array of values for all channels
+            return np.array([
+                self.band_power_stats.get_stat(stat_name, ch, data_type, task, state, filtered)
+                for ch in self.channels
+            ])
+
         return self.band_power_stats.get_stat(stat_name, channel, data_type, task, state, filtered)
 
     def calculate_state_ratio(self, filtered: bool = False) -> float:
@@ -481,7 +503,7 @@ class Recording:
         """
         summary = {
             'has_outliers': self.has_outliers_after_filtering(),
-            'outlier_counts': {},  # Number of band power values (not epochs) marked as outliers
+            'outlier_counts': {},  # Number of band power values (epochs * channels) marked as outliers
             'outlier_percentages': {},
             'total_band_power_values_removed': 0,
             'total_band_power_values': 0

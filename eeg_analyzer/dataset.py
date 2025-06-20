@@ -13,7 +13,7 @@ Notes:
 - Subject group assignments are dataset-specific and loaded from config.
 """
 
-from typing import Optional, List, Set, Union
+from typing import Optional, List, Set, Union, Dict, Iterable, Iterator
 import numpy as np
 from tqdm import tqdm
 
@@ -22,7 +22,7 @@ from utils.config import EEG_SETTINGS, channel_positions, cortical_regions, ROIs
 from . import Subject
 
 
-class Dataset:
+class Dataset(Iterable["Subject"]):
     def __init__(self, config: DatasetConfig):
         self.config = config
         self.name = config.name
@@ -45,6 +45,13 @@ class Dataset:
 
     def __repr__(self):
         return f"<Dataset {self.name} with {len(self.subject_IDs)} subjects>"
+    
+    def __iter__(self) -> Iterator["Subject"]:
+        """
+        Allows iteration over subjects directly.
+        """
+        self._ensure_data_loaded()
+        return iter(self.subjects.values())
     
     def __str__(self):
         subjects_str = f"\n Subjects:\n    - {len(self.subject_IDs)} subjects, {len(self.subject_groups)} groups: [{', '.join(self.subject_groups)}]"
@@ -181,7 +188,8 @@ class Dataset:
         """Return the list of channel names from the first subject."""
         self._ensure_data_loaded()
         if self.subjects:
-            return self.subjects[next(iter(self.subjects))].get_channel_names()
+            for subject in self.subjects.values():
+                return subject.get_channel_names()
         return []
 
     def get_subject(self, subject_id: str) -> Optional['Subject']:

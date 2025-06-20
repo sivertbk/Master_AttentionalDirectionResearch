@@ -14,17 +14,18 @@ Usage:
 """
 import pandas as pd
 import numpy as np
-import os
-import random
+import os, random
 from datetime import datetime
 import pickle # Added for saving/loading analyzer objects
-from typing import Union # Import Union for older Python versions
+from typing import Union, Dict, Iterator, Iterable # Import Union for older Python versions
+#from __future__ import annotations   # ← avoids quoting forward references in ≥3.11
 
 from eeg_analyzer.dataset import Dataset
 from eeg_analyzer.statistics import Statistics # Import the Statistics class
 from eeg_analyzer.processor import Processor # Import the Processor class
 from eeg_analyzer.visualizer import Visualizer # Import the Visualizer class
-from utils.config import EEGANALYZER_OBJECT_DERIVATIVES_PATH, NAME_LIST, cortical_regions, ROIs
+from utils.config import EEG_SETTINGS, EEGANALYZER_OBJECT_DERIVATIVES_PATH, NAME_LIST, cortical_regions, ROIs
+from utils.dataset_config import DatasetConfig
 
 STANDARD_SUMMARY_TABLE_CONFIGS = [
     {
@@ -78,8 +79,11 @@ STANDARD_SUMMARY_TABLE_CONFIGS = [
 ]
 
 
-class EEGAnalyzer:
-    def __init__(self, dataset_configs: dict, analyzer_name: str = None, description: str = None):
+class EEGAnalyzer(Iterable["Dataset"]):
+    def __init__(self, 
+                 dataset_configs: Dict[str, DatasetConfig],
+                 analyzer_name: str | None = None,
+                 description: str | None = None):
         """
         Initialize the EEGAnalyzer.
         - If analyzer_name is provided: uses/creates a directory with that name.
@@ -140,6 +144,43 @@ class EEGAnalyzer:
         # Initialize Visualizer
         self.viz = Visualizer(self)
 
+    def __iter__(self) -> Iterator["Dataset"]:
+        """
+        Allows iteration over datasets directly.
+        """
+        return iter(self.datasets.values())
+
+    def __repr__(self):
+        df_info = "No DataFrame"
+        if self.df is not None:
+            df_info = f"DataFrame with shape {self.df.shape}"
+        return (f"<EEGAnalyzer(name='{self.analyzer_name}', "
+                f"datasets={len(self.datasets)}, "
+                f"{df_info}, "
+                f"derivatives_path='{self.derivatives_path}')>")
+    
+    def __str__(self):
+        dataset_names = ', '.join(self.datasets.keys()) if self.datasets else "None"
+        df_status = f"DataFrame with shape {self.df.shape}" if self.df is not None else "No DataFrame"
+        return (f"--- EEGAnalyzer Instance: '{self.analyzer_name}' ---\n"
+                f"  Description: {self.description}\n"
+                f"  Datasets ({len(self.datasets)}): {dataset_names}\n"
+                f"  DataFrame Status: {df_status}\n"
+                f"  Derivatives Path: {self.derivatives_path}\n"
+                f"--------------------------------------")
+    
+    def items(self) -> Iterator[tuple[str, "Dataset"]]:
+        # allow dict-style iteration with names
+        return self.datasets.items()
+
+    def keys(self) -> Iterator[str]:
+        return self.datasets.keys()
+
+    def values(self) -> Iterator["Dataset"]:
+        return self.datasets.values()
+
+    def get(self, name: str) -> "Dataset":
+        return self.datasets.get(name)
 
     def _log_event(self, event_name: str, details: dict = None):
         """Appends an event to the analyzer's history."""
@@ -186,25 +227,6 @@ class EEGAnalyzer:
                 history_str += "---\n"
             return history_str
         return self._history
-
-    def __repr__(self):
-        df_info = "No DataFrame"
-        if self.df is not None:
-            df_info = f"DataFrame with shape {self.df.shape}"
-        return (f"<EEGAnalyzer(name='{self.analyzer_name}', "
-                f"datasets={len(self.datasets)}, "
-                f"{df_info}, "
-                f"derivatives_path='{self.derivatives_path}')>")
-    
-    def __str__(self):
-        dataset_names = ', '.join(self.datasets.keys()) if self.datasets else "None"
-        df_status = f"DataFrame with shape {self.df.shape}" if self.df is not None else "No DataFrame"
-        return (f"--- EEGAnalyzer Instance: '{self.analyzer_name}' ---\n"
-                f"  Description: {self.description}\n"
-                f"  Datasets ({len(self.datasets)}): {dataset_names}\n"
-                f"  DataFrame Status: {df_status}\n"
-                f"  Derivatives Path: {self.derivatives_path}\n"
-                f"--------------------------------------")
     
     def get_dataset(self, name) -> Union[Dataset, None]:
         """
@@ -229,6 +251,10 @@ class EEGAnalyzer:
         if self.df is not None:
             return self.df['channel'].unique().tolist()
         return []
+    
+    @staticmethod
+    def get_montage() -> str:
+        return EEG_SETTINGS['MONTAGE']
 
     def exclude_subjects(self, exclude: dict):
         """
