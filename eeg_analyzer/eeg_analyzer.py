@@ -281,20 +281,19 @@ class EEGAnalyzer(Iterable["Dataset"]):
         self._df_hash_at_last_summary_gen = None # DataFrame will change if recreated after exclusion
 
 
-    def create_dataframe(self, freq_band = (8,12)) -> pd.DataFrame:
+    def create_dataframe(self) -> pd.DataFrame:
         """
         Create a DataFrame containing all subjects for all datasets.
         Uses to_long_band_power_list() to get the data.
         """
         #empty dataframe
         self.df = pd.DataFrame()
-        self.freq_band = freq_band
         print(f"[EEGAnalyzer - {self.analyzer_name}] Creating DataFrame from datasets...")
         dataset_details_log = {}
         for name, dataset in self.datasets.items():
             print(f"[EEGAnalyzer - {self.analyzer_name}] Processing dataset: {name}")
             # get list of dicts for each dataset
-            dataset_data = dataset.to_long_band_power_list(freq_band)
+            dataset_data = dataset.to_long_band_power_list()
             # Convert list of dicts to DataFrame
             dataset_df = pd.DataFrame(dataset_data)
             dataset_details_log[name] = f"{len(dataset_df)} rows"
@@ -303,8 +302,7 @@ class EEGAnalyzer(Iterable["Dataset"]):
     
         log_msg = f"DataFrame created with {len(self.df)} rows and {len(self.df.columns)} columns."
         print(f"[EEGAnalyzer - {self.analyzer_name}] {log_msg}")
-        self._log_event("DataFrame Created", {
-            "freq_band": freq_band, 
+        self._log_event("DataFrame Created", { 
             "rows": len(self.df), 
             "columns": len(self.df.columns),
             "dataset_contributions": dataset_details_log,
@@ -455,7 +453,7 @@ class EEGAnalyzer(Iterable["Dataset"]):
 
     def generate_summary_table(self, 
                                groupby_cols: list, 
-                               target_col: str = 'band_db', 
+                               target_col: str = 'log_band_power', 
                                filter_type: str = "processed",
                                output_filename_suffix: str = None,
                                source_df: pd.DataFrame = None,
@@ -471,8 +469,8 @@ class EEGAnalyzer(Iterable["Dataset"]):
 
         Parameters:
         - groupby_cols (list): List of columns to group by.
-        - target_col (str): The column to calculate statistics on (default: 'band_db').
-        - filter_type (str): A descriptor for the data state (e.g., "unfiltered", "zscore_flagged").
+        - target_col (str): The column to calculate statistics on (default: 'log_band_power').
+        - filter_type (str): A descriptor for the data state.
                              Used for logging and filename generation.
         - output_filename_suffix (str): Optional suffix for the output CSV file. If None,
                                         a default name based on groupby_cols and filter_type is used.
@@ -806,7 +804,7 @@ class EEGAnalyzer(Iterable["Dataset"]):
 
     def fit_models_by_channel(self, 
                               formula: str, 
-                              value_col: str = 'band_db', 
+                              value_col: str = 'log_band_power', 
                               state_col: str = 'state', 
                               group_col: str = 'subject_session', 
                               re_formula: str = None, 

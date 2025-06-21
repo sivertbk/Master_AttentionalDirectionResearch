@@ -13,12 +13,12 @@ Notes:
 - Subject group assignments are dataset-specific and loaded from config.
 """
 
-from typing import Optional, List, Set, Union, Dict, Iterable, Iterator
+from typing import Optional, List, Set, Union, Iterable, Iterator
 import numpy as np
 from tqdm import tqdm
 
 from utils.dataset_config import DatasetConfig
-from utils.config import EEG_SETTINGS, channel_positions, cortical_regions, ROIs
+from utils.config import channel_positions, cortical_regions
 from . import Subject
 
 
@@ -312,32 +312,33 @@ class Dataset(Iterable["Subject"]):
             for subj in self.subjects.values()
         }
 
-    def to_long_band_power_list(self, freq_band: tuple[float, float]) -> list[dict]:
+    def to_long_band_power_list(self) -> list[dict]:
         """
-        Extract per-epoch band power data from all subjects and recordings in the dataset.
+        Extract band power data into a long-format list of dictionaries.
 
-        Args:
-            freq_band (tuple): Frequency band as (low, high) in Hz.
+        This method iterates through all subjects, recordings, conditions, epochs,
+        and channels to create a flat list of data points. It filters out
+        epochs marked as outliers.
 
         Returns:
-            list[dict]: Each dict contains:
-                - "dataset"
-                - "subject_session": "<subject_id>_<session_id>"
-                - "subject_id"
-                - "session_id"
-                - "group"
-                - "epoch_idx"
-                - "channel"
-                - "cortical_region"
-                - "hemisphere"
-                - "task"
-                - "state" (int: 0=OT, 1=MW)
-                - "band_power" (float: band power in µV²)
-                - "band_log_power" (float: band power in natural logarithm)
-                - "is_bad" (bool: True if the epoch is marked as bad)
+            list[dict]: A list where each dictionary represents a single
+                        channel's band power for a single epoch. Each dict contains:
+                - "dataset": The dataset's functional name (f_name).
+                - "subject_session": A unique identifier combining subject and session IDs.
+                - "subject_id": The subject identifier.
+                - "session_id": The session identifier.
+                - "group": The subject's group assignment.
+                - "epoch_idx": The original index of the epoch within its condition.
+                - "task": The task name (e.g., 'sart', 'vs').
+                - "task_orientation": The orientation of the task (e.g., 'focused', 'unfocused').
+                - "state": The cognitive state (e.g., 'on-task', 'mind-wandering').
+                - "channel": The EEG channel name.
+                - "cortical_region": The cortical region the channel belongs to.
+                - "hemisphere": The hemisphere ('left', 'right', 'central').
+                - "band_power": The raw band power value (in µV²).
+                - "log_band_power": The natural logarithm of the band power.
         """
-        from eeg_analyzer.metrics import Metrics  # local import to avoid circular
-        long_list = []
+        data_rows = []
         self._ensure_data_loaded()
         
         cortical_regions_map = {}
@@ -345,67 +346,53 @@ class Dataset(Iterable["Subject"]):
             for ch_name in ch_names:
                 cortical_regions_map[ch_name] = region
 
-        for subject in self.subjects.values():
-            subj_id = subject.id
-            for rec in subject.get_all_recordings():
-                sess_id = rec.session_id
-                subject_session = f"{subj_id}_{sess_id}"
-                epoch_counter = 0  # Unique epoch index within subject_session
-                for task in rec.get_available_tasks():
-                    for state in rec.get_available_states(task):
-                        psd = rec.get_psd(task, state)
-                        freqs = rec.get_freqs(task, state)
-                        band_power = Metrics.band_power(psd, freqs, freq_band, operation='mean')  # shape: (epochs, channels)
-                        band_log = Metrics.band_log(psd, freqs, freq_band, operation='mean')  # shape: (epochs, channels)
-                        n_epochs, n_channels = band_power.shape
-                        for epoch_idx in range(n_epochs):
-                            for ch_idx, ch_name in enumerate(rec.channels):
-                                long_list.append({
-                                    "dataset": self.f_name,
-                                    "subject_session": subject_session,
-                                    "subject_id": subj_id,
-                                    "session_id": sess_id,
-                                    "group": subject.group,
-                                    "epoch_idx": epoch_counter,
-                                    "channel": ch_name,
-                                    "cortical_region": cortical_regions_map.get(ch_name, None),
-                                    "hemisphere": "central" if channel_positions[ch_name][0] == 0 else "left" if channel_positions[ch_name][0] < 0 else "right",
-                                    "task": task,
-                                    "task_orientation": self.task_orientation,
-                                    "state": state,
-                                    "band_power": float(band_power[epoch_idx, ch_idx]),
-                                    "band_log": float(band_log[epoch_idx, ch_idx]),
-                                    "is_bad": False
-                                })
-                                if ch_idx == n_channels - 1:
-                                    epoch_counter += 1
-        return long_list
+        for subject in self:
+            for recording in subject:
+                if recording.exclude:
+                    continue
+                ch_names = recording.get_channel_names()
+                condition_list = recording.list_conditions()
 
-    def estimate_long_band_length(self, variant: str = "mean") -> int:
-        """
-        Estimate the total number of rows in the long-format band power DataFrame
-        (i.e., sum of epochs × channels for all subject-session-task-state combinations).
+                for task, state in condition_list:
+                    # Gather log alpha power data and outlier mask
+                    band_power = recording.get_band_power(task, state)
+                    log_band_power = recording.get_log_band_power(task, state)
+                    outlier_mask = recording.get_outlier_mask(task, state)
 
-        Args:
-            variant (str): PSD variant to load (default: "mean").
+                    # Determine which epochs to keep (non-outliers)
+                    if outlier_mask is not None:
+                        # Indices of epochs that are NOT outliers
+                        epoch_indices = np.where(~outlier_mask)[0]
+                        # Filter the alpha power data to only include non-outlier epochs
+                        filtered_band_power = band_power[epoch_indices, :]
+                        filtered_log_band_power = log_band_power[epoch_indices, :]
+                    else:
+                        # If no outlier mask is present, keep all epochs
+                        epoch_indices = np.arange(band_power.shape[0])
+                        filtered_band_power = band_power
+                        filtered_log_band_power = log_band_power
 
-        Returns:
-            int: Total expected number of rows.
-        """
-        # Ensure subjects are loaded
-        if not self.subjects:
-            self.load_subjects(variant=variant)
-        total = 0
-        for subject in self.subjects.values():
-            for rec in subject.get_all_recordings():
-                for task in rec.get_available_tasks():
-                    for state in rec.get_available_states(task):
-                        psd = rec.get_psd(task, state)
-                        # psd shape: (epochs, channels, freqs) or (epochs, channels)
-                        n_epochs = psd.shape[0]
-                        n_channels = psd.shape[1]
-                        total += n_epochs * n_channels
-        return total
+                    # Create a row for each epoch and channel
+                    for i, epoch_idx in enumerate(epoch_indices):
+                        for ch_idx, ch_name in enumerate(ch_names):
+                            data_rows.append({
+                                "dataset": self.f_name,
+                                "subject_session": f"{subject.id}_{recording.session_id}",
+                                "subject_id": subject.id,
+                                "session_id": recording.session_id,
+                                "group": subject.group,
+                                "epoch_idx": epoch_idx,
+                                "task": task,
+                                "task_orientation": self.task_orientation,
+                                "state": state,
+                                "channel": ch_name,
+                                "cortical_region": cortical_regions_map.get(ch_name, None),
+                                "hemisphere": "central" if channel_positions[ch_name][0] == 0 else "left" if channel_positions[ch_name][0] < 0 else "right",
+                                "band_power": float(filtered_band_power[i, ch_idx]),
+                                "log_band_power": float(filtered_log_band_power[i, ch_idx]),  
+                            })
+        return data_rows
+
 
     #                                 Private API
     ##########################################################################################################

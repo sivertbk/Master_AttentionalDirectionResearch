@@ -1,0 +1,200 @@
+[EEGAnalyzer - eeg_analyzer_test] Creating DataFrame from datasets...
+[EEGAnalyzer - eeg_analyzer_test] Processing dataset: braboszcz2017
+[EEGAnalyzer - eeg_analyzer_test] Processing dataset: jin2019
+[EEGAnalyzer - eeg_analyzer_test] Processing dataset: touryan2022
+[EEGAnalyzer - eeg_analyzer_test] DataFrame created with 5165632 rows and 14 columns.
+DataFrame Information:
+==============================
+Total number of rows: 5165632
+Datasets: ['braboszcz2017', 'jin2019']
+
+--- Dataset: braboszcz2017 ---
+  Task orientation: internal
+  Subjects: 50 (['025', '026', '027', '028', '029', '030', '031', '032', '033', '034', '035', '036', '037', '038', '039', '040', '041', '042', '043', '044', '045', '046', '047', '048', '049', '050', '051', '052', '053', '054', '055', '060', '061', '062', '063', '064', '065', '066', '067', '068', '069', '070', '071', '072', '073', 
+'074', '075', '076', '077', '078'])
+  Sessions: 1
+  Channels: 64
+  Groups: ['ctr', 'vip']
+  States: ['OT', 'MW']
+  Total data points: 1358976
+
+  Data points per channel:
+channel
+AF3    21234
+AF4    21234
+AF7    21234
+AF8    21234
+AFz    21234
+       ...
+Pz     21234
+T7     21234
+T8     21234
+TP7    21234
+TP8    21234
+Name: log_band_power, Length: 64, dtype: int64
+
+  Data points per subject:
+subject_id
+025    13312
+026    16192
+027    18176
+028    34176
+029    20480
+030    12032
+031    40896
+032      640
+033    17088
+034    59584
+035    17664
+036    23808
+037    62400
+038    36736
+039    20992
+040    31616
+041    83840
+042    46528
+043    57152
+044    54720
+045     7040
+046    18560
+047    38592
+048    50624
+049    15552
+050    31936
+051     9344
+052    34688
+053    24384
+054    13952
+055    12480
+060    20928
+061    12352
+062    27200
+063    48128
+064    30720
+065     4672
+066    23296
+067    15680
+068    45248
+069    17344
+070    21504
+071    20928
+072    41472
+073    18688
+074    12992
+075    15424
+076    16192
+077    14720
+078    26304
+Name: log_band_power, dtype: int64
+
+--- Dataset: jin2019 ---
+  Task orientation: external
+  Subjects: 30 ([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30])
+  Sessions: 2
+  Channels: 64
+  Groups: ['jin2019']
+  States: ['MW', 'OT']
+  Total data points: 3806656
+
+  Data points per channel:
+channel
+AF3    59479
+AF4    59479
+AF7    59479
+AF8    59479
+AFz    59479
+       ...
+Pz     59479
+T7     59479
+T8     59479
+TP7    59479
+TP8    59479
+Name: log_band_power, Length: 64, dtype: int64
+
+  Data points per subject:
+subject_id
+1     219392
+2      72640
+3      75136
+4     170496
+5     287296
+6     177536
+7     114176
+8     128640
+9      91904
+10    162368
+11     73088
+12    130816
+13    112832
+14    162240
+15     90176
+16    123584
+17     88256
+18    130240
+19     48256
+20    117056
+21     95104
+22     74880
+23    144896
+24    206272
+25    170368
+26    143616
+27     35008
+28    151168
+29     89728
+30    119488
+Name: log_band_power, dtype: int64
+
+
+Fitting model for dataset: braboszcz2017
+           Mixed Linear Model Regression Results
+============================================================
+Model:            MixedLM Dependent Variable: log_band_power
+No. Observations: 1358976 Method:             REML
+No. Groups:       50      Scale:              0.2073
+Min. group size:  640     Log-Likelihood:     -875229.7597
+Max. group size:  83840   Converged:          Yes
+Mean group size:  27179.5
+------------------------------------------------------------
+                   Coef. Std.Err.   z    P>|z| [0.025 0.975]
+------------------------------------------------------------
+Intercept          1.578    0.093 17.036 0.000  1.397  1.760
+C(state)[T.OT]     0.060    0.007  8.476 0.000  0.046  0.073
+Group Var          0.212
+channel Var        0.285    0.018
+channel_state Var  0.076    0.004
+session Var        0.212
+============================================================
+
+
+
+Fitting model for dataset: jin2019
+C:\Users\si_ve\anaconda3\envs\mne\Lib\site-packages\statsmodels\regression\mixed_linear_model.py:2261: ConvergenceWarning: The Hessian matrix at the estimated parameter values is not positive definite.
+  warnings.warn(msg, ConvergenceWarning)
+            Mixed Linear Model Regression Results
+=============================================================
+Model:            MixedLM  Dependent Variable: log_band_power
+No. Observations: 3806656  Method:             REML
+No. Groups:       30       Scale:              0.2721
+Min. group size:  35008    Log-Likelihood:     -2935650.9267
+Max. group size:  287296   Converged:          Yes
+Mean group size:  126888.5
+-------------------------------------------------------------
+                     Coef. Std.Err.   z   P>|z| [0.025 0.975]
+-------------------------------------------------------------
+Intercept            0.832    0.120 6.920 0.000  0.596  1.067
+C(state)[T.OT]       0.023    0.004 5.483 0.000  0.015  0.032
+Group Var            0.286    0.081
+channel Var          0.294    0.019
+channel_state Var    0.017    0.001
+session Var          0.266
+=============================================================
+
+(mne) PS C:\Users\si_ve\Documents\Master_AttentionalDirectionResearch>
+
+
+
+
+
+
+
