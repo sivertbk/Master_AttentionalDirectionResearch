@@ -1,7 +1,7 @@
 from typing import Union, Dict, Any, Optional, Tuple
 from collections import defaultdict
 
-from scipy.stats import mannwhitneyu, iqr, skew, kurtosis, wilcoxon, PermutationMethod, mode, shapiro
+from scipy.stats import mannwhitneyu, iqr, skew, kurtosis, wilcoxon, PermutationMethod, mode, shapiro, sem
 import statsmodels.formula.api as smf
 import numpy as np
 import pandas as pd
@@ -31,7 +31,8 @@ class BandPowerStats:
                 'all_data': {},
                 'by_condition': {},
                 'by_state': {}
-            },              'log_band_power': {
+            },              
+            'log_band_power': {
                 'all_data': {},
                 'by_condition': {},
                 'by_state': {}
@@ -154,6 +155,7 @@ class BandPowerStats:
         stats = {
             'mean': np.mean(clean_data),
             'variance': np.var(clean_data, ddof=1) if len(clean_data) > 1 else 0.0,
+            'std_error': sem(clean_data) if len(clean_data) > 1 else np.nan,
             'min_value': np.min(clean_data),
             'lower_quartile': np.percentile(clean_data, 25),
             'median': np.median(clean_data),

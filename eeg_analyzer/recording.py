@@ -314,13 +314,13 @@ class Recording(Iterable[Tuple[str, str]]):
         
         return self.exclude
 
-    def apply_outlier_filtering(self, data_type: str = 'band_power', 
+    def apply_outlier_filtering(self, data_type: str = 'log_band_power', 
                                m: int = None, k: float = None, s: float = None) -> bool:
         """
         Apply outlier filtering based on IQR and skewness criteria, using global stats across all epochs.
         """
         if self.band_power_stats is None:
-            raise ValueError("Band power statistics have not been calculated. Call calculate_band_power() first.")
+            raise ValueError("Log band power statistics have not been calculated. Call calculate_log_band_power() first.")
         m = m or OUTLIER_DETECTION["MIN_EPOCHS_FOR_FILTERING"]
         k = k or OUTLIER_DETECTION["IQR_MULTIPLIER"]
         s = s or OUTLIER_DETECTION["SKEWNESS_THRESHOLD"]
@@ -526,51 +526,128 @@ class Recording(Iterable[Tuple[str, str]]):
             summary['overall_outlier_percentage'] = 0
         return summary
 
-    def get_band_power(self, task: str, state: str):
+    def get_band_power(self, task: Optional[str] = None, state: Optional[str] = None) -> np.ndarray:
         """
-        Get pre-calculated band power for a given task and state.
-        Parameters:
-        - task: Task name
-        - state: State name
-        Returns:
-        - np.ndarray: The band power values for the specified task and state with shape (n_epochs, n_channels).
+        Get pre-calculated band power, with flexible filtering.
+
+        Can filter by task and/or state. If a parameter is None, data is concatenated
+        across that dimension. If both are None, all data is returned.
+        The returned array has shape (n_epochs, n_channels).
 
         Raises:
-        - ValueError: If band power has not been calculated for the given condition.
-                      Call `calculate_band_power()` first.
+            ValueError: If band power has not been calculated, or if a specific
+                        task-state pair is requested but does not exist.
         """
-        try:
-            return self.band_power_map[task][state]
-        except KeyError:
-            raise ValueError(f"Band power not calculated for task '{task}' and state '{state}'. "
-                             f"Call `calculate_band_power()` first.")
+        if not self.band_power_map:
+            raise ValueError("Band power has not been calculated. Call `calculate_band_power()` first.")
 
-    def get_log_band_power(self, task: str, state: str):
+        # Specific lookup if both task and state are provided
+        if task is not None and state is not None:
+            try:
+                return self.band_power_map[task][state]
+            except KeyError:
+                raise ValueError(f"Band power not calculated for task '{task}' and state '{state}'. "
+                                 f"Call `calculate_band_power()` first.")
+
+        # Concatenation logic for flexible filtering
+        data_to_concatenate = []
+        conditions_to_check = self.list_conditions()
+
+        if task is not None:
+            conditions_to_check = [(t, s) for t, s in conditions_to_check if t == task]
+        if state is not None:
+            conditions_to_check = [(t, s) for t, s in conditions_to_check if s == state]
+
+        for t, s in conditions_to_check:
+            if t in self.band_power_map and s in self.band_power_map[t]:
+                data_to_concatenate.append(self.band_power_map[t][s])
+
+        if not data_to_concatenate:
+            return np.empty((0, len(self.channels)), dtype=np.float64)
+
+        return np.concatenate(data_to_concatenate, axis=0)
+
+    def get_log_band_power(self, task: Optional[str] = None, state: Optional[str] = None) -> np.ndarray:
         """
-        Get pre-calculated log-transformed band power for a given task and state.
+        Get pre-calculated log-transformed band power, with flexible filtering.
+
+        Can filter by task and/or state. If a parameter is None, data is concatenated
+        across that dimension. If both are None, all data is returned.
+        The returned array has shape (n_epochs, n_channels).
 
         Raises:
-        - ValueError: If band power has not been calculated for the given condition.
-                      Call `calculate_band_power()` first.
+            ValueError: If band power has not been calculated, or if a specific
+                        task-state pair is requested but does not exist.
         """
-        try:
-            return self.log_band_power_map[task][state]
-        except KeyError:
-            raise ValueError(f"Log band power not calculated for task '{task}' and state '{state}'. "
-                             f"Call `calculate_band_power()` first.")
+        if not self.log_band_power_map:
+            raise ValueError("Log band power has not been calculated. Call `calculate_band_power()` first.")
 
-    def get_outlier_mask(self, task: str, state: str) -> np.ndarray:
+        # Specific lookup if both task and state are provided
+        if task is not None and state is not None:
+            try:
+                return self.log_band_power_map[task][state]
+            except KeyError:
+                raise ValueError(f"Log band power not calculated for task '{task}' and state '{state}'. "
+                                 f"Call `calculate_band_power()` first.")
+
+        # Concatenation logic for flexible filtering
+        data_to_concatenate = []
+        conditions_to_check = self.list_conditions()
+
+        if task is not None:
+            conditions_to_check = [(t, s) for t, s in conditions_to_check if t == task]
+        if state is not None:
+            conditions_to_check = [(t, s) for t, s in conditions_to_check if s == state]
+
+        for t, s in conditions_to_check:
+            if t in self.log_band_power_map and s in self.log_band_power_map[t]:
+                data_to_concatenate.append(self.log_band_power_map[t][s])
+
+        if not data_to_concatenate:
+            return np.empty((0, len(self.channels)), dtype=np.float64)
+
+        return np.concatenate(data_to_concatenate, axis=0)
+
+    def get_outlier_mask(self, task: Optional[str] = None, state: Optional[str] = None) -> np.ndarray:
         """
-        Get the outlier mask for a given task and state.
+        Get the outlier mask for band power data, with flexible filtering.
+
+        Can filter by task and/or state. If a parameter is None, the mask is concatenated
+        across that dimension. If both are None, the full mask is returned.
+        The returned array has shape (n_epochs, n_channels).
 
         Raises:
-        - ValueError: If band power has not been calculated for the given condition.
+            ValueError: If the outlier mask is not available, or if a specific
+                        task-state pair is requested but does not exist.
         """
-        try:
-            return self.outlier_mask_map[task][state]
-        except KeyError:
-            raise ValueError(f"Outlier mask not available for task '{task}' and state '{state}'. "
-                             f"Call `calculate_band_power()` first.")
+        if not self.outlier_mask_map:
+            raise ValueError("Outlier mask not available. Call `calculate_band_power()` first.")
+
+        # Specific lookup if both task and state are provided
+        if task is not None and state is not None:
+            try:
+                return self.outlier_mask_map[task][state]
+            except KeyError:
+                raise ValueError(f"Outlier mask not available for task '{task}' and state '{state}'. "
+                                 f"Call `calculate_band_power()` first.")
+
+        # Concatenation logic for flexible filtering
+        data_to_concatenate = []
+        conditions_to_check = self.list_conditions()
+
+        if task is not None:
+            conditions_to_check = [(t, s) for t, s in conditions_to_check if t == task]
+        if state is not None:
+            conditions_to_check = [(t, s) for t, s in conditions_to_check if s == state]
+
+        for t, s in conditions_to_check:
+            if t in self.outlier_mask_map and s in self.outlier_mask_map[t]:
+                data_to_concatenate.append(self.outlier_mask_map[t][s])
+
+        if not data_to_concatenate:
+            return np.empty((0, len(self.channels)), dtype=bool)
+
+        return np.concatenate(data_to_concatenate, axis=0)
 
     def set_outlier_mask(self, task: str, state: str, mask: np.ndarray):
         """

@@ -241,7 +241,7 @@ def test_outlier_detection_and_quality_control():
     if recording.list_conditions():
         task, state = recording.list_conditions()[0]
         original_data = recording.get_band_power(task, state)
-        log_transformed_data = np.log10(original_data + 1e-10)  # Add small constant to avoid log(0)
+        log_transformed_data = np.log(original_data + 1e-15)  # Add small constant to avoid log(0)
         
         plot_distribution_comparison(
             original_data, log_transformed_data,
