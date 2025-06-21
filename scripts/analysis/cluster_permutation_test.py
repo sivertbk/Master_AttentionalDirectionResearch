@@ -283,7 +283,7 @@ def run_analysis_and_save_results(analyzer, df, test_name, adjacency, info, ch_n
 
 
 if __name__ == "__main__":
-    ANALYZER_NAME = "eeg_analyzer_test"
+    ANALYZER_NAME = "eeg_analyzer"
 
     analyzer = EEGAnalyzer.load_analyzer(ANALYZER_NAME)
     if analyzer is None:

@@ -973,7 +973,7 @@ class Recording(Iterable[Tuple[str, str]]):
         
         vlims_list = [vlim_ot_mw, vlim_ot_mw, vlim_diff]
 
-        colorbar_label = "dB" if use_decibel else "µV²"
+        colorbar_label = "ln(µV²)" if use_decibel else "µV²"
 
         for i, ax in enumerate(axes):
             data = plot_data_list[i]
