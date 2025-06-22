@@ -13,6 +13,7 @@ from eeg_analyzer import EEGAnalyzer
 from utils.config import DATASETS
 
 ANALYZER_NAME = "eeg_analyzer"
+MODEL_NAME = "mixedlm_1"
 
 # Trying to load the EEGAnalyzer
 analyzer = EEGAnalyzer.load_analyzer(ANALYZER_NAME)
@@ -24,7 +25,7 @@ if analyzer is None:
 # Creating a DataFrame with the data
 df = analyzer.create_dataframe()
 
-model_path = os.path.join(analyzer.derivatives_path, "mixedlm") 
+model_path = os.path.join(analyzer.derivatives_path, MODEL_NAME) 
 os.makedirs(model_path, exist_ok=True)
 
 # Print out information about the DataFrame
@@ -53,6 +54,7 @@ for dataset_name in df['dataset'].unique():
 
 # Fitting a linear mixed effects model for each dataset
 for dataset_name in df['dataset'].unique():
+    
     print(f"\n\nFitting model for dataset: {dataset_name}")
     df_dataset = df[df['dataset'] == dataset_name].copy()
 
@@ -62,32 +64,32 @@ for dataset_name in df['dataset'].unique():
     df_dataset["sub_ch"] = df_dataset["subject_id"].astype(str) + "_" + df_dataset["channel"]     # unique sensor instance
 
     model = smf.mixedlm(
-        "log_band_power ~ C(state)",
+        "log_band_power ~ C(state, Treatment(reference='MW'))",  # MW is the reference state. Result is OT-MW slope
         df_dataset,
         groups=df_dataset["sub_ch"],      # each physical sensor instance gets its own intercept
         re_formula="1 + C(state)",        # random slope for state, *pooled* because channel label is in vc_formula
         vc_formula={
-            "subject":        "0 + C(subject_id)"   # subject intercepts
+            "subject":"0 + C(subject_id)"   # subject intercepts
         }
     )
+
+    # Save the dataset used here:
+    df_dataset.to_csv(os.path.join(dataset_model_path, "dataset_used.csv"), index=False)
 
     result = model.fit(method='lbfgs')
     print(result.summary())
 
     random_effects = result.random_effects
-    print("\nRandom Effects:")
-    for key, value in random_effects.items():
-        print(f"{key}: {value}")
 
     slopes = {}
     for key, effect in random_effects.items():
-        slopes[key] = effect["C(state)[T.OT]"]  # Adjust based on your state label
+        slopes[key] = effect["C(state)[T.OT]"]  
 
     df_slopes = pd.DataFrame({
         'sub_ch': slopes.keys(),
         'slope': slopes.values()
     })
-    df_slopes['channel'] = df_slopes['sub_ch'].apply(lambda x: x.split('_')[1])
+    df_slopes['channel'] = df_slopes['sub_ch'].apply(lambda x: x.split('_')[1]) 
 
     # Aggregate mean and std
     channel_stats = df_slopes.groupby('channel')['slope'].agg(['mean', 'std', 'count']).reset_index()
@@ -99,6 +101,21 @@ for dataset_name in df['dataset'].unique():
     reject, p_fdr, _, _ = multipletests(channel_stats['p_uncorrected'], method='fdr_bh')
     channel_stats['p_fdr'] = p_fdr
     channel_stats['significant'] = reject
+
+    # Save random effects
+    re_csv_path = os.path.join(dataset_model_path, "random_effects.csv")
+    re_data = []
+    for key, effect in random_effects.items():
+        row = {"sub_ch": key}
+        row.update(effect)
+        re_data.append(row)
+    pd.DataFrame(re_data).to_csv(re_csv_path, index=False)
+    print(f"Saved random effects to {re_csv_path}")
+
+    # Save channel_stats
+    channel_stats_path = os.path.join(dataset_model_path, "channel_stats.csv")
+    channel_stats.to_csv(channel_stats_path, index=False)
+    print(f"Saved channel stats to {channel_stats_path}")
 
     montage = mne.channels.make_standard_montage('biosemi64')  # Use a standard montage for visualization
 
@@ -113,10 +130,11 @@ for dataset_name in df['dataset'].unique():
     fig, ax = plt.subplots()
     im, _ = mne.viz.plot_topomap(topo_data, info, mask=mask, axes=ax, cmap='RdBu_r',
                         contours=0, vlim=(-np.max(np.abs(topo_data)),np.max(np.abs(topo_data))), 
-                        mask_params=dict(marker='o', markerfacecolor='k', markeredgecolor='k', linewidth=2))
+                        mask_params=dict(marker='o', markerfacecolor='k', markeredgecolor='k', 
+                        linewidth=2), show=False)
     cbar = plt.colorbar(im, ax=ax, orientation='vertical', fraction=0.046, pad=0.04)
-    cbar.set_label('Alpha Power [ln(µV²)]', rotation=270, labelpad=15)
-    ax.set_title('Topoplot of state-effect slopes (significant channels marked)')
+    cbar.set_label('Alpha Power [ln(µV²)]', rotation=90, labelpad=15)
+    ax.set_title(f"Mixed Effects Model\n{dataset_name} State-Effect Slopes (OT-MW)", fontsize=16)
     plt.savefig(os.path.join(dataset_model_path, "topoplot_slopes.svg"), format='svg', bbox_inches='tight')
 
     # Creating diagnostic plots
@@ -125,13 +143,13 @@ for dataset_name in df['dataset'].unique():
         "resid":  result.resid,                    # raw residuals
     })
 
-    # Standardised / studentised residuals (optional but useful)
+    # Standardised / studentised residuals 
     sigma = np.sqrt(result.scale)                 # √(residual variance)
     diag["resid_std"] = diag["resid"] / sigma
 
     sm.qqplot(diag["resid_std"], line="45", fit=True)
-    plt.title("Q–Q plot of standardised residuals")
-    plt.savefig(os.path.join(dataset_model_path, "qqplot_residuals.svg"), format='svg', bbox_inches='tight')
+    plt.title("Q–Q Plot of Standardised Residuals")
+    plt.savefig(os.path.join(dataset_model_path, "qqplot_residuals.png"), format='png', bbox_inches='tight')
 
 
     plt.figure()
@@ -139,17 +157,17 @@ for dataset_name in df['dataset'].unique():
     plt.axhline(0, color="k", lw=1)
     plt.xlabel("Fitted values")
     plt.ylabel("Standardised residuals")
-    plt.title("Residuals vs. fitted")
-    plt.savefig(os.path.join(dataset_model_path, "residuals_vs_fitted.svg"), format='svg', bbox_inches='tight')
+    plt.title("Residuals vs. Fitted Values")
+    plt.savefig(os.path.join(dataset_model_path, "residuals_vs_fitted.png"), format='png', bbox_inches='tight')
 
 
     sns.histplot(diag["resid_std"], bins=50, kde=True)
     plt.xlabel("Standardised residuals")
-    plt.title("Distribution of residuals")
-    plt.savefig(os.path.join(dataset_model_path, "residuals_distribution.svg"))
+    plt.title("Distribution of Standardised Residuals")
+    plt.savefig(os.path.join(dataset_model_path, "residuals_distribution.png"), format='png', bbox_inches='tight')
 
 
-    # Assuming you extracted channel-level slopes into `channel_stats`
+    
     channel_stats = (
         pd.DataFrame(result.random_effects)
         .T
@@ -168,17 +186,17 @@ for dataset_name in df['dataset'].unique():
     plt.axvline(0, color="k", lw=1)
     plt.xlabel("Random slope (state effect)")
     plt.ylabel("Sensor instance")
-    plt.title("Caterpillar plot of random slopes")
-    plt.savefig(os.path.join(dataset_model_path, "caterpillar_plot_slopes.svg"), format='svg', bbox_inches='tight')
+    plt.title("Caterpillar Plot of Random Slopes")
+    plt.savefig(os.path.join(dataset_model_path, "caterpillar_plot_slopes.png"), format='png', bbox_inches='tight')
 
     sns.histplot(channel_stats["slope"], bins=30, kde=True)
     plt.axvline(channel_stats["slope"].mean(), color="k", lw=1)
     plt.xlabel("Random slope (state effect)")
-    plt.title("Distribution of channel slopes")
-    plt.savefig(os.path.join(dataset_model_path, "channel_slopes_distribution.svg"), format='svg', bbox_inches='tight')
+    plt.title("Distribution of Channel Slopes")
+    plt.savefig(os.path.join(dataset_model_path, "channel_slopes_distribution.png"), format='png', bbox_inches='tight')
 
     vc = pd.Series(result.cov_re.iloc[:,0], index=result.cov_re.index)
     vc.plot(kind="barh")
     plt.xlabel("Variance")
-    plt.title("Estimated random-effect variances")
-    plt.savefig(os.path.join(dataset_model_path, "random_effect_variances.svg"), format='svg', bbox_inches='tight')
+    plt.title("Estimated Random-Effect Variances")
+    plt.savefig(os.path.join(dataset_model_path, "random_effect_variances.png"), format='png', bbox_inches='tight')

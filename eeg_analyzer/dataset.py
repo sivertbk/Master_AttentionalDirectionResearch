@@ -376,7 +376,7 @@ class Dataset(Iterable["Subject"]):
                     for i, epoch_idx in enumerate(epoch_indices):
                         for ch_idx, ch_name in enumerate(ch_names):
                             data_rows.append({
-                                "dataset": self.f_name,
+                                "dataset": self.name,
                                 "subject_session": f"{subject.id}_{recording.session_id}",
                                 "subject_id": subject.id,
                                 "session_id": recording.session_id,

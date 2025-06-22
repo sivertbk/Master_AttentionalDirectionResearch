@@ -19,7 +19,7 @@ from scipy import stats
 import pandas as pd
 from typing import Tuple, Dict, Any
 
-from eeg_analyzer.subject import Subject
+from eeg_analyzer.eeg_analyzer import EEGAnalyzer
 from utils.config import DATASETS, PLOTS_PATH, OUTLIER_DETECTION, QUALITY_CONTROL, set_plot_style
 
 # Configure plotting style
@@ -69,7 +69,7 @@ def plot_distribution_comparison(data_before: np.ndarray, data_after: np.ndarray
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
         print(f"Saved plot: {save_path}")
     
-    plt.show()
+    plt.close(fig)
 
 def plot_outlier_detection_summary(outlier_summary: Dict, save_path: str = None) -> None:
     """Plot summary of outlier detection results."""
@@ -131,7 +131,7 @@ Suspicious Kurtosis: {OUTLIER_DETECTION['SUSPICIOUS_KURTOSIS_THRESHOLD']}"""
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
         print(f"Saved plot: {save_path}")
     
-    plt.show()
+    plt.close(fig)
 
 def plot_quality_control_summary(recording, save_path: str = None) -> None:
     """Plot quality control metrics."""
@@ -201,8 +201,8 @@ Recording Exclude Flag: {recording.exclude}"""
     if save_path:
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
         print(f"Saved plot: {save_path}")
-    
-    plt.show()
+
+    plt.close(fig)
 
 def test_outlier_detection_and_quality_control():
     """Main testing function."""
@@ -212,146 +212,150 @@ def test_outlier_detection_and_quality_control():
     print("="*80)
     
     # Setup
-    dataset_f_name = 'jin2019'
-    dataset_config = DATASETS[dataset_f_name]
-    output_path = create_output_directory(PLOTS_PATH, f"{dataset_config.f_name}_outlier_testing")
-    
-    print(f"\nDataset: {dataset_config.name}")
-    print(f"Output directory: {output_path}")
-    
-    # Load subject and recording
-    print(f"\nLoading subject data...")
-    subject = Subject(dataset_config, "2")
-    subject.load_data()
-    
-    print(f"Loaded data for subject {subject.get_id()} from dataset {subject.get_dataset().name}")
-    print(f"Subject has {subject.get_total_epochs()} epochs.")
-    
-    # Get recording and calculate band power
-    recording = subject.get_recording(session_id=1)
-    recording.calculate_band_power((8, 12))  # Alpha band
-    
-    print(f"Recording has {len(recording.list_conditions())} conditions")
-    print(f"Available conditions: {recording.list_conditions()}")
-    
-    # 1. Test data distributions before and after log transformation
-    print(f"\n1. Testing data distributions and log transformation...")
-    
-    # Get some sample data (alpha band power)
-    if recording.list_conditions():
-        task, state = recording.list_conditions()[0]
-        original_data = recording.get_band_power(task, state)
-        log_transformed_data = np.log(original_data + 1e-15)  # Add small constant to avoid log(0)
-        
-        plot_distribution_comparison(
-            original_data, log_transformed_data,
-            f'Data Distribution: {task}-{state} (Alpha Band Power)',
-            'Power (μV²/Hz)',
-            os.path.join(output_path, f'distribution_comparison_{task}_{state}.png')
-        )
-        
-        print(f"Original data - Mean: {np.mean(original_data):.4f}, Std: {np.std(original_data):.4f}")
-        print(f"Log-transformed - Mean: {np.mean(log_transformed_data):.4f}, Std: {np.std(log_transformed_data):.4f}")
-    
-    # 2. Test outlier detection
-    print(f"\n2. Testing outlier detection...")
-    
-    # Store original data
-    original_band_power_map = {}
-    for task, states in recording.band_power_map.items():
-        original_band_power_map[task] = {}
-        for state, data in states.items():
-            original_band_power_map[task][state] = data.copy()
-    
-    # Apply outlier filtering
-    print("Applying outlier filtering...")
-    recording.apply_outlier_filtering(data_type='band_power')
-    
-    # Get outlier summary
-    outlier_summary = recording.get_outlier_summary()
-    print(f"Outlier detection summary:")
-    for key, value in outlier_summary.items():
-        print(f"  {key}: {value}")
-    
-    # Plot outlier detection results
-    plot_outlier_detection_summary(
-        outlier_summary,
-        os.path.join(output_path, 'outlier_detection_summary.png')
-    )
-    
-    # 3. Compare distributions before and after outlier removal
-    print(f"\n3. Comparing distributions before and after outlier removal...")
-    
-    if recording.list_conditions():
-        task, state = recording.list_conditions()[0]
-        if task in original_band_power_map and state in original_band_power_map[task]:
-            original_data = original_band_power_map[task][state]
-            filtered_data = recording.get_band_power(task, state)
+    ANALYZER_NAME = "eeg_analyzer"
+
+    analyzer = EEGAnalyzer.load_analyzer(ANALYZER_NAME)
+    if analyzer is None:
+        print(f"Analyzer {ANALYZER_NAME} not found. Creating a new one.")
+        analyzer = EEGAnalyzer(DATASETS, ANALYZER_NAME)
+        analyzer.save_analyzer()
+
+    for dataset in analyzer:
+        for subject in dataset:
+            output_path = create_output_directory(PLOTS_PATH, f"{dataset.f_name}_outlier_testing")
+
+            print(f"\nDataset: {dataset.name}")
+            print(f"Output directory: {output_path}")
             
-            plot_distribution_comparison(
-                original_data, filtered_data,
-                f'Outlier Detection: {task}-{state} (Alpha Band Power)',
-                'Power (μV²/Hz)',
-                os.path.join(output_path, f'outlier_detection_{task}_{state}.png')
+            
+            print(f"Loaded data for subject {subject.get_id()} from dataset {subject.get_dataset().name}")
+            print(f"Subject has {subject.get_total_epochs()} epochs.")
+            
+            # Get recording and calculate band power
+            recording = subject.get_recording(session_id=1)
+            recording.calculate_band_power((8, 12))  # Alpha band
+            
+            print(f"Recording has {len(recording.list_conditions())} conditions")
+            print(f"Available conditions: {recording.list_conditions()}")
+        
+            # 1. Test data distributions before and after log transformation
+            print(f"\n1. Testing data distributions and log transformation...")
+            
+            # Get some sample data (alpha band power)
+            if recording.list_conditions():
+                task, state = recording.list_conditions()[0]
+                original_data = recording.get_band_power(task, state)
+                log_transformed_data = np.log(original_data + 1e-15)  # Add small constant to avoid log(0)
+                
+                plot_distribution_comparison(
+                    original_data, log_transformed_data,
+                    f'Data Distribution: {task}-{state} (Alpha Band Power)',
+                    'Power (μV²/Hz)',
+                    os.path.join(output_path, f'distribution_comparison_{task}_{state}.png')
+                )
+                
+                print(f"Original data - Mean: {np.mean(original_data):.4f}, Std: {np.std(original_data):.4f}")
+                print(f"Log-transformed - Mean: {np.mean(log_transformed_data):.4f}, Std: {np.std(log_transformed_data):.4f}")
+            
+            # 2. Test outlier detection
+            print(f"\n2. Testing outlier detection...")
+            
+            # Store original data
+            original_band_power_map = {}
+            for task, states in recording.band_power_map.items():
+                original_band_power_map[task] = {}
+                for state, data in states.items():
+                    original_band_power_map[task][state] = data.copy()
+            
+            # Apply outlier filtering
+            print("Applying outlier filtering...")
+            recording.apply_outlier_filtering(data_type='band_power')
+            
+            # Get outlier summary
+            outlier_summary = recording.get_outlier_summary()
+            print(f"Outlier detection summary:")
+            for key, value in outlier_summary.items():
+                print(f"  {key}: {value}")
+            
+            # Plot outlier detection results
+            plot_outlier_detection_summary(
+                outlier_summary,
+                os.path.join(output_path, 'outlier_detection_summary.png')
             )
             
-            print(f"Before outlier removal - Shape: {original_data.shape}, Mean: {np.mean(original_data):.4f}")
-            print(f"After outlier removal - Shape: {filtered_data.shape}, Mean: {np.mean(filtered_data):.4f}")
-            print(f"Epochs removed: {original_data.shape[0] - filtered_data.shape[0]}")
-    
-    # 4. Test suspicious distribution detection
-    print(f"\n4. Testing suspicious distribution detection...")
-    
-    suspicious_flags = recording.detect_suspicious_distributions()
-    print("Suspicious distribution flags:")
-    for key, flags in suspicious_flags.items():
-        if any(flags.values()):
-            print(f"  {key}: {flags}")
-    
-    # 5. Test quality control
-    print(f"\n5. Testing quality control functionality...")
-    
-    # Get quality control summary
-    qc_summary = recording.get_quality_control_summary()
-    print("Quality control summary:")
-    for key, value in qc_summary.items():
-        print(f"  {key}: {value}")
-    
-    # Plot quality control summary
-    plot_quality_control_summary(
-        recording,
-        os.path.join(output_path, 'quality_control_summary.png')
-    )
-    
-    # 6. Test different parameter configurations
-    print(f"\n6. Testing different outlier detection parameters...")
-    
-    # Test with more stringent parameters
-    print("Testing with more stringent parameters...")
-    recording_strict = subject.get_recording(session_id=1)
-    recording_strict.calculate_band_power((8, 12))
-    
-    # Apply more stringent filtering
-    recording_strict.apply_outlier_filtering(
-        data_type='band_power',
-        k=1.5,  # More stringent IQR multiplier
-        s=1.5   # More stringent skewness threshold
-    )
-    
-    strict_summary = recording_strict.get_outlier_summary()
-    print("Strict parameters outlier summary:")
-    for key, value in strict_summary.items():
-        print(f"  {key}: {value}")
-    
-    # Compare results
-    print(f"\nComparison of outlier detection:")
-    print(f"Default parameters - Total removed: {outlier_summary.get('total_epochs_removed', 0)}")
-    print(f"Strict parameters - Total removed: {strict_summary.get('total_epochs_removed', 0)}")
-    
-    print(f"\n{'='*80}")
-    print("TESTING COMPLETED SUCCESSFULLY!")
-    print(f"All plots saved to: {output_path}")
-    print(f"{'='*80}")
+            # 3. Compare distributions before and after outlier removal
+            print(f"\n3. Comparing distributions before and after outlier removal...")
+            
+            if recording.list_conditions():
+                task, state = recording.list_conditions()[0]
+                if task in original_band_power_map and state in original_band_power_map[task]:
+                    original_data = original_band_power_map[task][state]
+                    filtered_data = recording.get_band_power(task, state)
+                    
+                    plot_distribution_comparison(
+                        original_data, filtered_data,
+                        f'Outlier Detection: {task}-{state} (Alpha Band Power)',
+                        'Power (μV²/Hz)',
+                        os.path.join(output_path, f'outlier_detection_{task}_{state}.png')
+                    )
+                    
+                    print(f"Before outlier removal - Shape: {original_data.shape}, Mean: {np.mean(original_data):.4f}")
+                    print(f"After outlier removal - Shape: {filtered_data.shape}, Mean: {np.mean(filtered_data):.4f}")
+                    print(f"Epochs removed: {original_data.shape[0] - filtered_data.shape[0]}")
+            
+            # 4. Test suspicious distribution detection
+            print(f"\n4. Testing suspicious distribution detection...")
+            
+            suspicious_flags = recording.detect_suspicious_distributions()
+            print("Suspicious distribution flags:")
+            for key, flags in suspicious_flags.items():
+                if any(flags.values()):
+                    print(f"  {key}: {flags}")
+            
+            # 5. Test quality control
+            print(f"\n5. Testing quality control functionality...")
+            
+            # Get quality control summary
+            qc_summary = recording.get_quality_control_summary()
+            print("Quality control summary:")
+            for key, value in qc_summary.items():
+                print(f"  {key}: {value}")
+            
+            # Plot quality control summary
+            plot_quality_control_summary(
+                recording,
+                os.path.join(output_path, 'quality_control_summary.png')
+            )
+            
+            # 6. Test different parameter configurations
+            print(f"\n6. Testing different outlier detection parameters...")
+        
+            # Test with more stringent parameters
+            print("Testing with more stringent parameters...")
+            recording_strict = subject.get_recording(session_id=1)
+            recording_strict.calculate_band_power((8, 12))
+            
+            # Apply more stringent filtering
+            recording_strict.apply_outlier_filtering(
+                data_type='band_power',
+                k=1.5,  # More stringent IQR multiplier
+                s=1.5   # More stringent skewness threshold
+            )
+            
+            strict_summary = recording_strict.get_outlier_summary()
+            print("Strict parameters outlier summary:")
+            for key, value in strict_summary.items():
+                print(f"  {key}: {value}")
+            
+            # Compare results
+            print(f"\nComparison of outlier detection:")
+            print(f"Default parameters - Total removed: {outlier_summary.get('total_epochs_removed', 0)}")
+            print(f"Strict parameters - Total removed: {strict_summary.get('total_epochs_removed', 0)}")
+            
+            print(f"\n{'='*80}")
+            print("TESTING COMPLETED SUCCESSFULLY!")
+            print(f"All plots saved to: {output_path}")
+            print(f"{'='*80}")
 
 if __name__ == "__main__":
     test_outlier_detection_and_quality_control()
