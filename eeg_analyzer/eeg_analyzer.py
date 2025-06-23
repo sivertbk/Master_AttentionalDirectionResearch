@@ -7,10 +7,11 @@ Top-level coordinator class for managing EEG data analysis across multiple datas
 Responsibilities:
 - Manage and access all loaded datasets.
 - Provide unified interfaces for retrieving subjects and groups across datasets.
-- Coordinate workflows such as loading data, running metrics, and executing analysis pipelines.
 
 Usage:
 - Entry point for running full analysis across datasets.
+- Facilitates dataset-level operations like creating DataFrames.
+- Provides methods for saving/loading the analyzer state to save computational loading time.
 """
 import pandas as pd
 import numpy as np
@@ -18,7 +19,6 @@ import os, random
 from datetime import datetime
 import pickle # Added for saving/loading analyzer objects
 from typing import Union, Dict, Iterator, Iterable # Import Union for older Python versions
-#from __future__ import annotations   # ← avoids quoting forward references in ≥3.11
 
 from eeg_analyzer.dataset import Dataset
 from eeg_analyzer.statistics import Statistics # Import the Statistics class

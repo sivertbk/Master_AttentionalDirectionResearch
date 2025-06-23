@@ -8,10 +8,11 @@ Responsibilities:
 - Store subject ID, group membership (if applicable), and a collection of recordings.
 - Provide access to recordings.
 - Encapsulate all subject-specific metadata and logic.
+- Manage loading of EEG data at the session level.
 
 Notes:
-- Group can be 'control', 'vipassana', etc., or None if not applicable.
-- Recordings are typically stored in a dictionary by name.
+- Group can be 'control', 'vipassana', etc., or dataset name if not applicable.
+- Recordings are stored in a dictionary by name.
 """
 
 import os

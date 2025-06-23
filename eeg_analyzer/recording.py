@@ -7,7 +7,7 @@ Represents a single EEG recording session for a subject.
 Responsibilities:
 - Store preprocessed PSD data (e.g., per task and state).
 - Provide methods to access PSDs or derived features like alpha power.
-- Manage loading/saving of EEG data at the session level.
+
 
 Notes:
 - Even if a subject has only one recording, this abstraction keeps the structure consistent.
@@ -31,12 +31,12 @@ set_plot_style()  # Set the plotting style for MNE and Matplotlib
 class Recording(Iterable[Tuple[str, str]]):
     def __init__(self, session_id: int, psd_entries: list[np.ndarray], metadata_entries: list[dict], freq_entries: list[np.ndarray], channels: list[str], band: Optional[tuple[float, float]] = None):
         self.session_id = session_id
-        self.psd_map = defaultdict(dict)     # task -> state -> PSD
+        self.psd_map = defaultdict(dict)     # task -> state -> PSD (epochs, channels, freqs)
         self.meta_map = defaultdict(dict)    # task -> state -> metadata
         self.freq_map = defaultdict(dict)    # task -> state -> frequencies
-        self.band_power_map = defaultdict(dict) # task -> state -> band_power
-        self.log_band_power_map = defaultdict(dict) # task -> state -> log band_power
-        self.outlier_mask_map = defaultdict(dict) # task -> state -> outlier mask        self.band_range: Optional[Tuple[float, float]] = None # The band used for band_power calculation
+        self.band_power_map = defaultdict(dict) # task -> state -> band_power (epochs, channels)
+        self.log_band_power_map = defaultdict(dict) # task -> state -> log band_power (epochs, channels)
+        self.outlier_mask_map = defaultdict(dict) # task -> state -> outlier mask (epochs, channels)       
         self.channels = channels             # List of channel names
         self.band_power_stats: Optional[BandPowerStats] = None  # Statistics calculator
         self.exclude: bool = False          # Flag to exclude session from analysis

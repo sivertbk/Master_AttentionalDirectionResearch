@@ -6,11 +6,9 @@ Represents a full EEG dataset, including multiple subjects, tasks, and sessions.
 
 Responsibilities:
 - Store metadata and subject list for a given dataset (e.g., 'jin2019').
-- Filter subjects by group membership or other metadata.
 - Provide access to individual subjects and their recordings.
-
-Notes:
-- Subject group assignments are dataset-specific and loaded from config.
+- Manage loading of all subjects and their recordings.
+- Provide methods to retrieve long-format band power data lists for creating Dataframes.
 """
 
 from typing import Optional, List, Set, Union, Iterable, Iterator

@@ -1,10 +1,25 @@
-from typing import Union, Dict, Any, Optional, Tuple
+"""
+BandPowerStats Class
+---------------------
+
+Responsibilities:
+- Compute and store comprehensive statistics for band power data across epochs.
+- Support statistics by condition (task, state), by state only (combined across tasks), and all data combined.
+- Handle both filtered (outlier-removed) and unfiltered data.
+- Provide a unified method to retrieve any statistic for a specific channel, task, and state.
+- Calculate a wide range of statistics including mean, variance, standard error, quartiles, skewness, kurtosis, modes, and normality tests.
+
+Notes:
+- The class is designed to work with band power data structured as dictionaries mapping tasks to states.
+- It uses numpy and scipy for numerical operations and statistical tests.
+"""
+
+
+from typing import Any, Optional
 from collections import defaultdict
 
-from scipy.stats import mannwhitneyu, iqr, skew, kurtosis, wilcoxon, PermutationMethod, mode, shapiro, sem
-import statsmodels.formula.api as smf
+from scipy.stats import iqr, skew, kurtosis, mode, shapiro, sem
 import numpy as np
-import pandas as pd
 
 
 class BandPowerStats:
