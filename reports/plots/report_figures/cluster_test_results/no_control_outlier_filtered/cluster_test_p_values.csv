@@ -1,0 +1,6 @@
+task_orientation,tail,cluster_index,p_value
+internal,greater,0,0.2388
+internal,greater,1,0.2745
+internal,greater,2,0.3063
+internal,less,0,0.2904
+external,greater,0,0.0024

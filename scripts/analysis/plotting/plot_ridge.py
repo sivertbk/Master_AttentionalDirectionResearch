@@ -156,7 +156,7 @@ def plot_ridge(data: pd.DataFrame, ridge_slices, x_col='log_alpha_power', dist_c
 
 
 if __name__ == "__main__":
-    ANALYZER_NAME = "eeg_analyzer_test"
+    ANALYZER_NAME = "eeg_analyzer_2"
 
     analyzer = EEGAnalyzer.load_analyzer(ANALYZER_NAME)
     if analyzer is None:

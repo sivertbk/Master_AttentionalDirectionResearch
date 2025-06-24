@@ -28,7 +28,7 @@ import mne
 import matplotlib.pyplot as plt
 
 set_plot_style()  # Set the plotting style for MNE and Matplotlib
-class Recording(Iterable[Tuple[str, str]]):
+class Recording:
     def __init__(self, session_id: int, psd_entries: list[np.ndarray], metadata_entries: list[dict], freq_entries: list[np.ndarray], channels: list[str], band: Optional[tuple[float, float]] = None):
         self.session_id = session_id
         self.psd_map = defaultdict(dict)     # task -> state -> PSD (epochs, channels, freqs)
@@ -62,13 +62,6 @@ class Recording(Iterable[Tuple[str, str]]):
     def __str__(self):
         return f"Recording session-{self.session_id} with {len(self.channels)} channels and {len(self.psd_map)} tasks"
 
-    def __iter__(self) -> Iterator[Tuple[str, str]]:
-        """
-        Allows iteration over (task, state) pairs for which PSD data exists.
-        """
-        for task, state_map in self.psd_map.items():
-            for state in state_map:
-                yield task, state
 
     #                                           Public API
     ##########################################################################################################

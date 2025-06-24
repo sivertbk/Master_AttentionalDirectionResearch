@@ -49,9 +49,9 @@ EEG_SETTINGS = {
     "PSD_OUTPUT": "power",
     "PSD_WINDOW": "hann",
     "PSD_AVERAGE_METHOD": "mean",
-    "PSD_N_FFT": 256,
-    "PSD_N_PER_SEG": 128,
-    "PSD_N_OVERLAP": 64,
+    "PSD_N_FFT": 64,     # No zero-padding, 64 samples at 128 Hz = 0.5 seconds
+    "PSD_N_PER_SEG": 64, # 0.5 seconds at 128 Hz
+    "PSD_N_OVERLAP": 32, # 0.25 seconds overlap at 128 Hz 
     "PSD_FMIN": 4.0,
     "PSD_FMAX": 40.0,
     "PSD_REMOVE_DC": True,

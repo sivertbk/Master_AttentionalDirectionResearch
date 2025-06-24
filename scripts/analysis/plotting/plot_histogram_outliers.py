@@ -73,7 +73,7 @@ def stacked_dot_histogram(data, mask=None, bins=30, palette=('gray', 'crimson'),
 
 
 if __name__ == "__main__":
-    ANALYZER_NAME = "eeg_analyzer"
+    ANALYZER_NAME = "eeg_analyzer_2"
 
     analyzer = EEGAnalyzer.load_analyzer(ANALYZER_NAME)
     if analyzer is None:

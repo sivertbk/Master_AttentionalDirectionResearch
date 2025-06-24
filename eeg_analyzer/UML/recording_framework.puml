@@ -1,0 +1,50 @@
+@startuml
+skinparam classAttributeIconSize 0
+skinparam classFontSize 11
+skinparam classAttributeFontSize 10
+skinparam classMethodFontSize 10
+hide empty methods
+
+
+class Recording {
+    - session_id: int
+    - psd_map: Dict[str, Dict[str, np.ndarray]]
+    - band_power_map: Dict[str, Dict[str, np.ndarray]]
+    - log_band_power_map: Dict[str, Dict[str, np.ndarray]]
+    - outlier_mask_map: Dict[str, Dict[str, np.ndarray]]
+    - meta_map: Dict[str, Dict[str, dict]]
+    - freq_map: Dict[str, Dict[str, np.ndarray]]
+    - band_power_stats: BandPowerStats
+    - exclude: bool
+    + calculate_band_power(band: tuple): None
+    + get_band_power(task, state): np.ndarray
+    + get_log_band_power(task, state): np.ndarray
+    + get_outlier_mask(task, state): np.ndarray
+}
+
+
+class BandPowerStats {
+    - channels: List[str]
+    - stats: StatsRoot
+    + calculate_all_stats(...): None
+    + get_stat(...): Any
+}
+
+'=====================================
+' Relationships
+'=====================================
+
+Recording "1  " o-- "1" BandPowerStats
+BandPowerStats *-- StatsRoot : stats
+
+
+
+note right of Recording::band_power_map
+  Shape: (epochs, channels)
+end note
+
+note right of BandPowerStats::stats
+  Dict[data_type][scope][key][filter][channel] = stat_dict
+end note
+
+@enduml

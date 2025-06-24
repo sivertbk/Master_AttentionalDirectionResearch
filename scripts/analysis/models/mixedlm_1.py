@@ -12,7 +12,7 @@ from statsmodels.stats.multitest import multipletests
 from eeg_analyzer import EEGAnalyzer
 from utils.config import DATASETS
 
-ANALYZER_NAME = "eeg_analyzer"
+ANALYZER_NAME = "eeg_analyzer_2"
 MODEL_NAME = "mixedlm_1"
 
 # Trying to load the EEGAnalyzer

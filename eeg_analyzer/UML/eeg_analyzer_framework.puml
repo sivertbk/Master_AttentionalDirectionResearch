@@ -1,0 +1,81 @@
+@startuml
+skinparam classAttributeIconSize 0
+skinparam classFontSize 11
+skinparam classAttributeFontSize 10
+skinparam classMethodFontSize 10
+hide empty methods
+
+'=====================================
+' Core Classes
+'=====================================
+
+package "EEG Analyzer Framework" {
+  class EEGAnalyzer {
+  - analyzer_name: str
+  - description: str
+  - derivatives_path: str
+  - datasets: Dict[str, Dataset]
+  - df: pd.DataFrame
+  + create_dataframe(): pd.DataFrame
+  + save_analyzer(filename: str): None
+  + load_analyzer(analyzer_name: str): EEGAnalyzer
+  }
+  class Dataset {
+  - name: str
+  - f_name: str
+  - tasks: List[str]
+  - states: List[str]
+  - task_orientation: str
+  - subjects: Dict[str, Subject]
+  + load_subjects(): None
+  + to_long_band_power_list(): List[dict]
+  }
+
+  class Subject {
+    - id: str
+    - group: str
+    - recordings: Dict[int, Recording]
+    + load_data(variant: str, band: tuple): None
+  }
+
+  class Recording {
+    - session_id: int
+    - psd_map: Dict[str, Dict[str, np.ndarray]]
+    - band_power_map: Dict[str, Dict[str, np.ndarray]]
+    - log_band_power_map: Dict[str, Dict[str, np.ndarray]]
+    - outlier_mask_map: Dict[str, Dict[str, np.ndarray]]
+    - meta_map: Dict[str, Dict[str, dict]]
+    - freq_map: Dict[str, Dict[str, np.ndarray]]
+    - channels: List[str]
+    - band_power_stats: BandPowerStats
+    - exclude: bool
+    + calculate_band_power(band: tuple): None
+    + get_band_power(task, state): np.ndarray
+    + get_log_band_power(task, state): np.ndarray
+    + get_outlier_mask(task, state): np.ndarray
+  }
+
+  class BandPowerStats {
+    - channels: List[str]
+    - stats: dict
+    + calculate_all_stats(...): None
+    + get_stat(...): Any
+  }
+}
+
+
+
+
+'=====================================
+' Relationships
+'=====================================
+
+EEGAnalyzer "1  " *-- "1..*" Dataset
+Dataset "1  " *-- "1..*" Subject
+Subject "1 " *-- "    1..*" Recording
+Recording "1" o-- "1" BandPowerStats
+
+
+
+
+@enduml

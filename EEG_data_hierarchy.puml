@@ -1,0 +1,89 @@
+@startuml
+skinparam classAttributeFontSize 11
+skinparam classFontSize 12
+skinparam defaultTextAlignment left
+
+object Analysis {
+  Hypothesis tests
+  Exploratory tests
+}
+
+object Dataset {
+  Task Orientation
+}
+
+object Subject {
+  ID
+  Group
+}
+
+object Session {
+  Session ID
+}
+
+object Task {
+  label
+  Orientation
+  Cognitive demand
+}
+
+object State {
+  label
+  source: proxy/self-report/design
+}
+
+object Channel {
+  name
+  cortical_region
+  hemisphere
+}
+
+object Epoch {
+  epoch_index
+  duration_s
+  relative_time
+}
+
+object SpectralComponent {
+  band_name: alpha, theta, ...
+  frequency_range
+}
+
+object DependentVariable {
+  value: µV² / log(µV²) / normalized
+}
+
+' Relationships
+Analysis --> Dataset : analyzes 
+Dataset --> Subject : contains 
+Subject --> Session : recorded in 
+Session --> Task : performs 
+Task --> State : defines 
+State --> Channel : recorded on 
+Channel --> Epoch : segmented into 
+Epoch --> SpectralComponent : transformed into 
+SpectralComponent --> DependentVariable : yields 
+
+note right of State
+  In Braboszcz: task = state (1-to-1)
+  In Jin and Touryan: task ≠ state 
+end note
+
+note right of Subject
+  Inter-subject variability
+end note
+
+note right of Session
+  Sessions: 1–2 per subject
+  Intra-subject variability!
+end note
+
+note right of Epoch
+  Relative time not accounted for
+end note
+
+note right of DependentVariable
+  Output: alpha power or log(alpha power)
+  Can be z-scored, normalized etc.
+end note
+@enduml

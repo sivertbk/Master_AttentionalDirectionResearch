@@ -51,7 +51,7 @@ def plot_distribution_comparison(data_before: np.ndarray, data_after: np.ndarray
 
 
 if __name__ == "__main__":
-    ANALYZER_NAME = "eeg_analyzer"
+    ANALYZER_NAME = "eeg_analyzer_2"
 
     analyzer = EEGAnalyzer.load_analyzer(ANALYZER_NAME)
     if analyzer is None:

@@ -1,0 +1,159 @@
+@startjson
+<style>
+  .dict {
+    BackGroundColor #269056
+    FontColor White
+    FontStyle bold
+  }
+  .top_level {
+    BackGroundColor #269c6d
+
+    FontColor Black
+    FontStyle bold
+  }
+  .aggregation {
+    BackGroundColor #44c0a5
+    FontColor Black
+    FontStyle bold
+  }
+  .state {
+    BackGroundColor #79cdca
+    FontColor Black
+    FontStyle bold
+  }
+  .condition {
+    BackGroundColor  #a8d9cb
+    FontColor Black
+    FontStyle bold
+  }
+  .filter {
+    BackGroundColor #4ec1c1
+    FontColor Black
+    FontStyle bold
+  }
+  .channel {
+    BackGroundColor #349ba9
+    FontColor Black
+    FontStyle bold
+  }
+  .stat {
+    BackGroundColor #22a5b9
+    FontColor Black
+    FontStyle bold
+  }
+</style>
+
+#highlight "BandPowerStats.stats" <<dict>>
+#highlight "BandPowerStats.stats" / "data_type" <<top_level>>
+#highlight "BandPowerStats.stats" / "band_power" / "aggregation" <<aggregation>>
+#highlight "BandPowerStats.stats" / "band_power" / "all_data" / "filter_key" <<filter>>
+#highlight "BandPowerStats.stats" / "band_power" / "all_data" / "filtered" / "channel" <<channel>>
+#highlight "BandPowerStats.stats" / "band_power" / "all_data" / "unfiltered" / "channel" <<channel>>
+#highlight "BandPowerStats.stats" / "band_power" / "all_data" / "filtered" / "Fp1" / "stat_name" <<stat>>
+#highlight "BandPowerStats.stats" / "band_power" / "by_state*" / "state" <<state>>
+#highlight "BandPowerStats.stats" / "band_power" / "by_state*" / "OT" / "filter_key" <<filter>>
+#highlight "BandPowerStats.stats" / "band_power" / "by_state*" / "OT" / "filtered" / "channel" <<channel>>
+#highlight "BandPowerStats.stats" / "band_power" / "by_condition**" / "condition" <<condition>>
+#highlight "BandPowerStats.stats" / "band_power" / "by_condition**" / "(sart, OT)" / "filter_key" <<filter>>
+#highlight "BandPowerStats.stats" / "band_power" / "by_condition**" / "(sart, OT)" / "filtered" / "channel" <<channel>>
+#highlight "BandPowerStats.stats
+
+
+
+{
+  "BandPowerStats.stats": {
+    "data_type": "Dict[str, dict]",
+
+    "band_power": {
+      "aggregation": "Dict[str, dict]",
+
+      "all_data": {
+        "filter_key": "Dict[str, dict]",
+
+        "filtered": {
+          "channel": "Dict[str, dict]",
+
+          "Fp1": {
+            "stat_name": "Dict[str, Any]",
+
+            "mean": "float",
+            "variance": "float",
+            "std_error": "float",
+            "min_value": "float",
+            "lower_quartile": "float",
+            "median": "float",
+            "upper_quartile": "float",
+            "max_value": "float",
+            "iqr": "float",
+            "skewness": "float",
+            "kurtosis": "float",
+            "epoch_count": "int",
+            "modes": "list[str]",
+            "modes_count": "int",
+            "modes_freq": "list[int]",
+            "is_normal": "bool"
+          },
+          "Oz": {
+            "...": "..."
+          }
+        },
+        "unfiltered": {
+          "channel": "Dict[str, dict]",
+          "...": "..."
+        }
+      },
+
+      "by_state*": {
+        "state": "Dict[str, dict]",
+
+        "OT": {
+          "filter_key": "Dict[str, dict]",
+
+          "filtered": {
+            "channel": "Dict[str, dict]",
+            "Fp1": { "...": "..." }
+          },
+            "unfiltered": {
+                "...": "..."
+            }
+        },
+
+        "MW": {
+          "...": "..."
+        }
+      },
+
+      "by_condition**": {
+        "condition": "Dict[Tuple[str, str],dict]",
+
+        "(sart, OT)": {
+          "filter_key": "Dict[str, dict]",
+          "filtered": {
+            "channel": "Dict[str, dict]",
+            "Fp1": { "...": "..." }
+          },
+          "unfiltered": {
+            "...": "..."
+          }
+        },
+
+        "(sart, MW)": {
+          "...": "..."
+        },
+
+        "(vs, OT)": {
+          "...": "..."
+        },
+
+        "(..., ...)": {
+          "...": "..."
+        }
+      }
+    },
+
+    "log_band_power": {
+      "identical to": "band_power"
+    }
+  }
+}
+@endjson

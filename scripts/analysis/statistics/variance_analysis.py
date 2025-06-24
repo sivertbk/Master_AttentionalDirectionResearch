@@ -5,26 +5,13 @@ from statsmodels.formula.api import ols
 from eeg_analyzer.eeg_analyzer import EEGAnalyzer
 from utils.config import DATASETS
 
-ANALYSIS_NAME = "VarianceAnalysis"
-ANALYZER_DESCRIPTION = (
-    "Variance analysis of EEG data across different datasets, subjects, "
-    "sessions, channels, ROI, tasks, states, and groups (for braboszcz  "
-    "et al. dataset). This analysis focuses on the variance of band power "
-    "across these dimensions to identify significant differences in EEG "
-    "activity. The pipeline includes loading the EEGAnalyzer instance, "
-    "performing a simple variance analysis, and saving the results. Then,"
-    "Do some filtering of the data including removing outliers, excluding "
-    "subjects with potential bad data quality, and applying "
-    "z-score normalization where applicable. Finally, it generates "
-    "summary tables for the variance analysis results."
-)
+ANALYSIS_NAME = "eeg_analyzer_2"
 # Load the EEGAnalyzer instance
 analyzer = EEGAnalyzer.load_analyzer(analyzer_name=ANALYSIS_NAME)
 if analyzer is None:
     #create a new instance if it does not exist
     analyzer = EEGAnalyzer(dataset_configs=DATASETS,
-                           analyzer_name=ANALYSIS_NAME,
-                           description=ANALYZER_DESCRIPTION
+                           analyzer_name=ANALYSIS_NAME
                            )
     
 
@@ -37,8 +24,8 @@ if analyzer.df is None:
 if analyzer.are_summary_tables_outdated():
     # create new summary tables for the variance analysis
     analyzer.generate_standard_summary_tables(
-        base_filter_type_label="unprocessed",
-        target_value_col="band_db"
+        base_filter_type_label="IQRprocessed",
+        target_value_col="log_band_power"
     )
     analyzer.save_analyzer()
 
@@ -97,7 +84,7 @@ for col in ['dataset', 'composite_subject_id', 'session_id', 'channel', 'task', 
     print(f"\n{col}:\n{analyzer.df[col].value_counts()}")
 
 # You can define interaction or additive model
-model = ols('band_db ~ C(dataset) + C(composite_subject_id) + C(session_id) + C(channel) + C(task) + C(state)', data=analyzer.df).fit()
+model = ols('log_band_power ~ C(dataset) + C(composite_subject_id) + C(session_id) + C(channel) + C(task) + C(state)', data=analyzer.df).fit()
 anova_table = sm.stats.anova_lm(model, typ=2)  # Type 2 is common for unbalanced designs
 print(anova_table)
 
