@@ -355,6 +355,7 @@ class Dataset(Iterable["Subject"]):
                     # Gather log alpha power data and outlier mask
                     band_power = recording.get_band_power(task, state)
                     log_band_power = recording.get_log_band_power(task, state)
+                    z_band_power = recording.get_z_band_power(task, state)
                     outlier_mask = recording.get_outlier_mask(task, state)
 
                     # Determine which epochs to keep (non-outliers)
@@ -387,7 +388,8 @@ class Dataset(Iterable["Subject"]):
                                 "cortical_region": cortical_regions_map.get(ch_name, None),
                                 "hemisphere": "central" if channel_positions[ch_name][0] == 0 else "left" if channel_positions[ch_name][0] < 0 else "right",
                                 "band_power": float(filtered_band_power[i, ch_idx]),
-                                "log_band_power": float(filtered_log_band_power[i, ch_idx]),  
+                                "log_band_power": float(filtered_log_band_power[i, ch_idx]),
+                                "z_band_power" : float(z_band_power[i, ch_idx]) if z_band_power is not None else None
                             })
         return data_rows
 

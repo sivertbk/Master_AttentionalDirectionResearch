@@ -158,39 +158,6 @@ class Metrics:
         """
         return np.log(np.maximum(psd, epsilon))  # Natural logarithm transformation to ln(microvolts squared per Hz)
 
-    @staticmethod
-    def normalize_psd(psd: np.ndarray) -> np.ndarray:
-        """
-        Normalize PSD data using min-max scaling to range [0, 1].
-
-        Normalization is applied across all epochs and channels for each frequency.
-
-        Parameters:
-            psd (ndarray): PSD data (epochs × channels × frequencies).
-
-        Returns:
-            ndarray: Min-max normalized PSD data (epochs × channels × frequencies).
-        """
-        psd_min = psd.min(axis=(0, 1), keepdims=True)
-        psd_max = psd.max(axis=(0, 1), keepdims=True)
-        return (psd - psd_min) / (psd_max - psd_min + 1e-20)
-
-    @staticmethod
-    def zscore_normalize_psd(psd: np.ndarray) -> np.ndarray:
-        """
-        Normalize PSD data using z-score normalization.
-
-        Normalization is applied across all epochs and channels for each frequency.
-
-        Parameters:
-            psd (ndarray): PSD data (epochs × channels × frequencies).
-
-        Returns:
-            ndarray: Z-score normalized PSD data (epochs × channels × frequencies).
-        """
-        psd_mean = psd.mean(axis=(0, 1), keepdims=True)
-        psd_std = psd.std(axis=(0, 1), keepdims=True)
-        return (psd - psd_mean) / (psd_std + 1e-20)
 
     @staticmethod
     def alpha_power(psd: np.ndarray, freqs: np.ndarray) -> np.ndarray:

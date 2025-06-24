@@ -51,75 +51,88 @@ class BandPowerStats:
                 'all_data': {},
                 'by_condition': {},
                 'by_state': {}
+            },
+            'z_band_power': {  # <-- Add this
+                'all_data': {},
+                'by_condition': {},
+                'by_state': {}
             }
         }
     
     def calculate_all_stats(self, band_power_map: dict, log_band_power_map: dict, 
-                           outlier_mask_map: dict):
+                            outlier_mask_map: dict, z_band_power_map: dict = None):
         """
-        Calculate all statistics for both band power and log band power.
-        
-        Parameters:
-        - band_power_map: Dictionary with structure task -> state -> array(epochs, channels)
-        - log_band_power_map: Dictionary with structure task -> state -> array(epochs, channels)
-        - outlier_mask_map: Dictionary with structure task -> state -> boolean_mask(epochs, channels)
+        Calculate all statistics for band power, log band power, and optionally z-scored band power.
         """
-          # Calculate stats for band power
+        if band_power_map is None or log_band_power_map is None:
+            raise ValueError("Both band_power_map and log_band_power_map must be provided.")
         self._calculate_stats_for_data_type('band_power', band_power_map, outlier_mask_map)
-        
-        # Calculate stats for log band power
         self._calculate_stats_for_data_type('log_band_power', log_band_power_map, outlier_mask_map)
+        if z_band_power_map is not None:
+            # For z-scores, mask is not needed (outliers should already be nan)
+            self._calculate_stats_for_data_type('z_band_power', z_band_power_map, None)
         
     
     def _calculate_stats_for_data_type(self, data_type: str, data_map: dict, 
                                       outlier_mask_map: dict):
-        """Calculate statistics for a specific data type (band_power or log_band_power)."""
-        
+        """Calculate statistics for a specific data type (band_power, log_band_power, or z_band_power)."""
+
         # 1. Calculate by_condition stats
-        
         for task, states in data_map.items():
             for state, data in states.items():
                 condition_key = (task, state)
-                mask = outlier_mask_map[task][state]
+                if outlier_mask_map is not None:
+                    mask = outlier_mask_map[task][state]
+                    self.stats[data_type]['by_condition'][condition_key] = {
+                        'unfiltered': self._calculate_channel_stats(data),
+                        'filtered': self._calculate_channel_stats(data, mask)
+                    }
+                else:
+                    # For z-scores, just treat all non-nan as valid
+                    self.stats[data_type]['by_condition'][condition_key] = {
+                        'unfiltered': self._calculate_channel_stats(data),
+                        'filtered': self._calculate_channel_stats(data)
+                    }
 
-                self.stats[data_type]['by_condition'][condition_key] = {
-                    'unfiltered': self._calculate_channel_stats(data),
-                    'filtered': self._calculate_channel_stats(data, mask)
-                }
-        
         # 2. Calculate by_state stats (combine across tasks)
         state_data = defaultdict(list)
         state_masks = defaultdict(list)
-        
         for task, states in data_map.items():
             for state, data in states.items():
                 state_data[state].append(data)
-                state_masks[state].append(outlier_mask_map[task][state])
-        
+                if outlier_mask_map is not None:
+                    state_masks[state].append(outlier_mask_map[task][state])
         for state, data_list in state_data.items():
             combined_data = np.concatenate(data_list, axis=0)
-            combined_mask = np.concatenate(state_masks[state], axis=0)
-            
-            self.stats[data_type]['by_state'][state] = {
-                'unfiltered': self._calculate_channel_stats(combined_data),
-                'filtered': self._calculate_channel_stats(combined_data, combined_mask)
-            }
-          # 3. Calculate all_data stats (combine everything)
+            if outlier_mask_map is not None:
+                combined_mask = np.concatenate(state_masks[state], axis=0)
+                self.stats[data_type]['by_state'][state] = {
+                    'unfiltered': self._calculate_channel_stats(combined_data),
+                    'filtered': self._calculate_channel_stats(combined_data, combined_mask)
+                }
+            else:
+                self.stats[data_type]['by_state'][state] = {
+                    'unfiltered': self._calculate_channel_stats(combined_data),
+                    'filtered': self._calculate_channel_stats(combined_data)
+                }
+
+        # 3. Calculate all_data stats (combine everything)
         all_data_list = []
         all_masks_list = []
-        
         for task, states in data_map.items():
             for state, data in states.items():
                 all_data_list.append(data)
-                all_masks_list.append(outlier_mask_map[task][state])
-        
+                if outlier_mask_map is not None:
+                    all_masks_list.append(outlier_mask_map[task][state])
         if all_data_list:
             combined_all_data = np.concatenate(all_data_list, axis=0)
-            combined_all_masks = np.concatenate(all_masks_list, axis=0)
-            
-            unfiltered_stats = self._calculate_channel_stats(combined_all_data)
-            filtered_stats = self._calculate_channel_stats(combined_all_data, combined_all_masks)
-            
+            if outlier_mask_map is not None:
+                combined_all_masks = np.concatenate(all_masks_list, axis=0)
+                unfiltered_stats = self._calculate_channel_stats(combined_all_data)
+                filtered_stats = self._calculate_channel_stats(combined_all_data, combined_all_masks)
+            else:
+                unfiltered_stats = self._calculate_channel_stats(combined_all_data)
+                filtered_stats = self._calculate_channel_stats(combined_all_data)
             self.stats[data_type]['all_data'] = {
                 'unfiltered': unfiltered_stats,
                 'filtered': filtered_stats

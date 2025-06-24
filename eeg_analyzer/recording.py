@@ -36,6 +36,7 @@ class Recording:
         self.freq_map = defaultdict(dict)    # task -> state -> frequencies
         self.band_power_map = defaultdict(dict) # task -> state -> band_power (epochs, channels)
         self.log_band_power_map = defaultdict(dict) # task -> state -> log band_power (epochs, channels)
+        self.z_band_power_map = defaultdict(dict) # task -> state -> z-scored band_power (epochs, channels)
         self.outlier_mask_map = defaultdict(dict) # task -> state -> outlier mask (epochs, channels)       
         self.channels = channels             # List of channel names
         self.band_power_stats: Optional[BandPowerStats] = None  # Statistics calculator
@@ -51,9 +52,10 @@ class Recording:
         if band:
             self.calculate_band_power(band)
 
-        # Automatic quality control and outlier filtering during initialization
+        # Automatic quality control, outlier filtering, and normalization during initialization
         self.update_exclude_flag()
         self.apply_outlier_filtering()
+        self.normalize()
 
     def __repr__(self):
         total_conditions = sum(len(states) for states in self.psd_map.values())
@@ -79,6 +81,7 @@ class Recording:
         self.band_range = band
         self.band_power_map.clear()  # Clear previous calculations
         self.log_band_power_map.clear()
+        self.z_band_power_map.clear()
         self.outlier_mask_map.clear()
         
         for task, states in self.psd_map.items():
@@ -97,6 +100,39 @@ class Recording:
             self.log_band_power_map, 
             self.outlier_mask_map
         )
+
+    def normalize(self):
+        """
+        Normalize the filtered (no outliers) log-transformed band power data using z-score normalization.
+        Normalization is done per channel across all epochs. Outliers are set to np.nan.
+        """
+        if self.band_power_stats is None:
+            raise ValueError("Band power statistics have not been calculated. Call calculate_band_power() first.")
+
+        for task, states in self.log_band_power_map.items():
+            for state, log_power in states.items():
+                mask = self.outlier_mask_map[task][state]
+                z_scores = np.full_like(log_power, np.nan, dtype=np.float64)  # same shape, fill with nan
+
+                for ch_idx, channel in enumerate(self.channels):
+                    mean = self.get_stat('mean', channel, data_type='log_band_power', filtered=True)
+                    std = np.sqrt(self.get_stat('variance', channel, data_type='log_band_power', filtered=True))
+                    # Avoid division by zero
+                    if np.isnan(mean) or np.isnan(std) or std == 0:
+                        continue
+                    # Only normalize non-outlier values
+                    valid_idx = mask[:, ch_idx]
+                    z_scores[valid_idx, ch_idx] = (log_power[valid_idx, ch_idx] - mean) / std
+
+                self.z_band_power_map[task][state] = z_scores
+        
+        # Recalculate statistics after normalization
+        self.band_power_stats._calculate_stats_for_data_type(
+            data_type='z_band_power',
+            data_map=self.z_band_power_map,
+            outlier_mask_map=None # No outliers in z_band_power, so mask is not needed
+        )
+
 
     def recalculate_stats(self):
         """
@@ -639,6 +675,47 @@ class Recording:
 
         if not data_to_concatenate:
             return np.empty((0, len(self.channels)), dtype=bool)
+
+        return np.concatenate(data_to_concatenate, axis=0)
+    
+    def get_z_band_power(self, task: Optional[str] = None, state: Optional[str] = None) -> np.ndarray:
+        """
+        Get pre-calculated z-scored band power, with flexible filtering.
+
+        Can filter by task and/or state. If a parameter is None, data is concatenated
+        across that dimension. If both are None, all data is returned.
+        The returned array has shape (n_epochs, n_channels).
+
+        Raises:
+            ValueError: If z-scored band power has not been calculated, or if a specific
+                        task-state pair is requested but does not exist.
+        """
+        if not self.z_band_power_map:
+            raise ValueError("Z-scored band power has not been calculated. Call `calculate_band_power()` first.")
+
+        # Specific lookup if both task and state are provided
+        if task is not None and state is not None:
+            try:
+                return self.z_band_power_map[task][state]
+            except KeyError:
+                raise ValueError(f"Z-scored band power not calculated for task '{task}' and state '{state}'. "
+                                 f"Call `calculate_band_power()` first.")
+
+        # Concatenation logic for flexible filtering
+        data_to_concatenate = []
+        conditions_to_check = self.list_conditions()
+
+        if task is not None:
+            conditions_to_check = [(t, s) for t, s in conditions_to_check if t == task]
+        if state is not None:
+            conditions_to_check = [(t, s) for t, s in conditions_to_check if s == state]
+
+        for t, s in conditions_to_check:
+            if t in self.z_band_power_map and s in self.z_band_power_map[t]:
+                data_to_concatenate.append(self.z_band_power_map[t][s])
+
+        if not data_to_concatenate:
+            return np.empty((0, len(self.channels)), dtype=np.float64)
 
         return np.concatenate(data_to_concatenate, axis=0)
 
