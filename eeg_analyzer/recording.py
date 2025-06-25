@@ -343,49 +343,65 @@ class Recording:
         
         return self.exclude
 
-    def apply_outlier_filtering(self, data_type: str = 'log_band_power', 
-                               m: int = None, k: float = None, s: float = None) -> bool:
+    def apply_outlier_filtering(self, M: int = None, K: float = None, S: float = None) -> bool:
         """
-        Apply outlier filtering based on IQR and skewness criteria, using global stats across all epochs.
+        Apply outlier filtering to log-band power data using global IQR and skewness statistics.
+        Updates the outlier mask per channel, task, and state.
+
+        Parameters:
+            M (int): Minimum number of valid epochs required to apply filtering
+            K (float): IQR multiplier to define outlier bounds
+            S (float): Skewness threshold to switch to one-sided filtering
+
+        Returns:
+            bool: True if any outliers were newly detected, False otherwise.
         """
         if self.band_power_stats is None:
             raise ValueError("Log band power statistics have not been calculated. Call calculate_log_band_power() first.")
-        m = m or OUTLIER_DETECTION["MIN_EPOCHS_FOR_FILTERING"]
-        k = k or OUTLIER_DETECTION["IQR_MULTIPLIER"]
-        s = s or OUTLIER_DETECTION["SKEWNESS_THRESHOLD"]
+        if self.log_band_power_map is None:
+            raise ValueError("Log band power has not been calculated. Call calculate_band_power() first.")
+
+        # Use defaults if not provided
+        M = M or OUTLIER_DETECTION["MIN_EPOCHS_FOR_FILTERING"]
+        K = K or OUTLIER_DETECTION["IQR_MULTIPLIER"]
+        S = S or OUTLIER_DETECTION["SKEWNESS_THRESHOLD"]
+
+        data_map = self.log_band_power_map
         outliers_detected = False
-        if data_type == 'band_power':
-            data_map = self.band_power_map
-        elif data_type == 'log_band_power':
-            data_map = self.log_band_power_map
-        else:
-            raise ValueError("data_type must be 'band_power' or 'log_band_power'")
-        for task, states in data_map.items():
-            for state, data in states.items():
-                current_mask = self.outlier_mask_map[task][state].copy()
+
+        for task, state_dict in data_map.items():
+            for state, data in state_dict.items():
+                mask = self.outlier_mask_map[task][state]
                 for ch_idx, channel in enumerate(self.channels):
-                    channel_data = data[:, ch_idx]
-                    channel_mask = current_mask[:, ch_idx]
-                    valid_data = channel_data[channel_mask]
-                    if len(valid_data) >= m:
-                        # Use global stats (all epochs for this channel)
-                        median = self.get_stat('median', channel, data_type)
-                        iqr = self.get_stat('iqr', channel, data_type)
-                        skewness = self.get_stat('skewness', channel, data_type)
-                        lower_bound = median - k * iqr
-                        upper_bound = median + k * iqr
-                        if abs(skewness) > s:
-                            if skewness > 0:
-                                lower_bound = -np.inf
-                            else:
-                                upper_bound = np.inf
-                        outlier_mask = (channel_data >= lower_bound) & (channel_data <= upper_bound)
-                        new_mask = current_mask[:, ch_idx] & outlier_mask
-                        if not np.array_equal(current_mask[:, ch_idx], new_mask):
-                            outliers_detected = True
-                        self.outlier_mask_map[task][state][:, ch_idx] = new_mask
+                    x = data[:, ch_idx]
+                    m = mask[:, ch_idx]
+                    valid_x = x[m]
+
+                    if len(valid_x) < M:
+                        continue  # Skip channel if not enough valid data
+
+                    median = self.get_stat('median', channel, 'log_band_power')
+                    iqr = self.get_stat('iqr', channel, 'log_band_power')
+                    skewness = self.get_stat('skewness', channel, 'log_band_power')
+
+                    # Determine outlier bounds
+                    if abs(skewness) > S:
+                        if skewness > 0:
+                            lower, upper = -np.inf, median + K * iqr
+                        else:
+                            lower, upper = median - K * iqr, np.inf
+                    else:
+                        lower, upper = median - K * iqr, median + K * iqr
+
+                    new_channel_mask = m & (x >= lower) & (x <= upper)
+
+                    if not np.array_equal(new_channel_mask, m):
+                        mask[:, ch_idx] = new_channel_mask
+                        outliers_detected = True
+
         if outliers_detected:
             self.recalculate_stats()
+
         return outliers_detected
 
     def detect_suspicious_distributions(self) -> dict:

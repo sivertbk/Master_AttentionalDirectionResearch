@@ -38,15 +38,17 @@ class Metrics:
         return np.std(psd, axis=0) / np.sqrt(psd.shape[0])
 
     @staticmethod
-    def band_power(psd: np.ndarray, freqs: np.ndarray, band: tuple[float, float], operation: str = 'mean') -> np.ndarray:
+    def band_power(psd: np.ndarray, freqs: np.ndarray, band: tuple[float, float], operation: str = 'sum') -> np.ndarray:
         """
-        Compute power within a frequency band using the specified aggregation.
+        Compute total or mean power within a frequency band using the specified aggregation.
 
         Parameters:
-            psd (ndarray): PSD data (epochs × channels × frequencies).
+            psd (ndarray): PSD data (epochs × channels × frequencies), in μV²/Hz.
             freqs (ndarray): Frequencies corresponding to PSD data.
             band (tuple): Frequency range as (low_freq, high_freq).
-            operation (str): Aggregation method ('mean' or 'sum').
+            operation (str): Aggregation method:
+                            'mean' → returns mean power spectral density (μV²/Hz),
+                            'sum'  → returns total power (μV²), i.e. PSD × Δf summed over band.
 
         Returns:
             ndarray: Aggregated power (epochs × channels).
@@ -57,11 +59,14 @@ class Metrics:
         if not np.any(band_idx):
             raise ValueError(f"No frequencies found in band range {band}")
 
+        # Get frequency bin width assuming uniform spacing
+        df = np.mean(np.diff(freqs))
+
         operation = operation.lower()
         if operation == 'mean':
-            return psd[..., band_idx].mean(axis=-1)
+            return psd[..., band_idx].mean(axis=-1)  # μV²/Hz
         elif operation == 'sum':
-            return psd[..., band_idx].sum(axis=-1)
+            return psd[..., band_idx].sum(axis=-1) * df  # μV²
         else:
             raise ValueError("Invalid operation. Use 'mean' or 'sum'.")
 

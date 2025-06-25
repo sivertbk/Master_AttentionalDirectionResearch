@@ -240,7 +240,7 @@ OUTLIER_DETECTION = {
     "MIN_EPOCHS_FOR_FILTERING": 20,  # m: minimum epochs required for filtering
     "IQR_MULTIPLIER": 2.0,          # k: IQR multiplier for outlier bounds
     "SKEWNESS_THRESHOLD": 2.0,       # s: skewness threshold for one-sided filtering
-    "SUSPICIOUS_SKEWNESS_THRESHOLD": 2.0,     # threshold for flagging suspicious skewness
+    "SUSPICIOUS_SKEWNESS_THRESHOLD": 2.5,     # threshold for flagging suspicious skewness
     "SUSPICIOUS_KURTOSIS_THRESHOLD": 7.0,     # threshold for flagging suspicious kurtosis
     "MIN_EPOCH_COUNT_THRESHOLD": 5,           # minimum epochs to not flag as suspicious
     "NORMALITY_P_VALUE_THRESHOLD": 0.01,     # p-value threshold for normality (a bitstrict)
