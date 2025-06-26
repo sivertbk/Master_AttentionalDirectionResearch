@@ -55,6 +55,7 @@ class Recording:
         # Automatic quality control, outlier filtering, and normalization during initialization
         self.update_exclude_flag()
         self.apply_outlier_filtering()
+        self.update_exclude_flag(use_filtered=True)  # Re-evaluate exclude flag after filtering
         self.normalize()
 
     def __repr__(self):
@@ -115,6 +116,7 @@ class Recording:
                 z_scores = np.full_like(log_power, np.nan, dtype=np.float64)  # same shape, fill with nan
 
                 for ch_idx, channel in enumerate(self.channels):
+                    # Retrieve mean and std for the all available epochs in the channel, after filtering. 
                     mean = self.get_stat('mean', channel, data_type='log_band_power', filtered=True)
                     std = np.sqrt(self.get_stat('variance', channel, data_type='log_band_power', filtered=True))
                     # Avoid division by zero
@@ -276,7 +278,7 @@ class Recording:
             min_epochs_per_state = QUALITY_CONTROL["MIN_EPOCHS_PER_STATE"]
         
         state_counts = self.get_epoch_counts_by_state(filtered=filtered)
-          # Check if both MW and OT states have minimum epochs
+        # Check if both MW and OT states have minimum epochs
         mw_state, ot_state = QUALITY_CONTROL["MW_OT_STATES"]
         return (state_counts.get(mw_state, 0) >= min_epochs_per_state and 
                 state_counts.get(ot_state, 0) >= min_epochs_per_state)
@@ -312,7 +314,8 @@ class Recording:
                 "epoch_counts": state_counts,
                 "state_ratio": state_ratio,
                 "state_imbalance": state_imbalance,
-                "meets_minimum_epochs": meets_min_epochs,                "passes_quality_control": not state_imbalance and meets_min_epochs
+                "meets_minimum_epochs": meets_min_epochs,                
+                "passes_quality_control": not state_imbalance and meets_min_epochs
             }
         
         return summary
