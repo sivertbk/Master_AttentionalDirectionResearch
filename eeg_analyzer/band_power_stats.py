@@ -52,7 +52,7 @@ class BandPowerStats:
                 'by_condition': {},
                 'by_state': {}
             },
-            'z_band_power': {  # <-- Add this
+            'z_band_power': {  
                 'all_data': {},
                 'by_condition': {},
                 'by_state': {}

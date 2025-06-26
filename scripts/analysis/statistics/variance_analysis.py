@@ -3,16 +3,17 @@ import statsmodels.api as sm
 from statsmodels.formula.api import ols
 
 from eeg_analyzer.eeg_analyzer import EEGAnalyzer
-from utils.config import DATASETS
+from utils.config import EEGANALYZER_SETTINGS
 
-ANALYSIS_NAME = "eeg_analyzer_2"
-# Load the EEGAnalyzer instance
-analyzer = EEGAnalyzer.load_analyzer(analyzer_name=ANALYSIS_NAME)
+eeganalyzer_kwargs = EEGANALYZER_SETTINGS.copy()
+ANALYZER_NAME = EEGANALYZER_SETTINGS["analyzer_name"]
+
+# Trying to load the EEGAnalyzer
+analyzer = EEGAnalyzer.load_analyzer(ANALYZER_NAME)
 if analyzer is None:
-    #create a new instance if it does not exist
-    analyzer = EEGAnalyzer(dataset_configs=DATASETS,
-                           analyzer_name=ANALYSIS_NAME
-                           )
+    print(f"Analyzer {ANALYZER_NAME} not found. Creating a new one.")
+    analyzer = EEGAnalyzer(**eeganalyzer_kwargs)
+    analyzer.save_analyzer()
     
 
 # create the DataFrame if it does not exist

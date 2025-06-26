@@ -5,7 +5,7 @@ import seaborn as sns
 import os
 
 from eeg_analyzer.eeg_analyzer import EEGAnalyzer
-from utils.config import DATASETS
+from utils.config import EEGANALYZER_SETTINGS
 
 
 def stacked_dot_histogram(data, mask=None, bins=30, palette=('gray', 'crimson'),
@@ -73,12 +73,14 @@ def stacked_dot_histogram(data, mask=None, bins=30, palette=('gray', 'crimson'),
 
 
 if __name__ == "__main__":
-    ANALYZER_NAME = "eeg_analyzer_2"
+    eeganalyzer_kwargs = EEGANALYZER_SETTINGS.copy()
+    ANALYZER_NAME = EEGANALYZER_SETTINGS["analyzer_name"]
 
+    # Trying to load the EEGAnalyzer
     analyzer = EEGAnalyzer.load_analyzer(ANALYZER_NAME)
     if analyzer is None:
         print(f"Analyzer {ANALYZER_NAME} not found. Creating a new one.")
-        analyzer = EEGAnalyzer(DATASETS, ANALYZER_NAME)
+        analyzer = EEGAnalyzer(**eeganalyzer_kwargs)
         analyzer.save_analyzer()
 
     # Prepare for plotting

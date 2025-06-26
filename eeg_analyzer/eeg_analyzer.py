@@ -281,7 +281,7 @@ class EEGAnalyzer(Iterable["Dataset"]):
         self._df_hash_at_last_summary_gen = None # DataFrame will change if recreated after exclusion
 
 
-    def create_dataframe(self) -> pd.DataFrame:
+    def create_dataframe(self, exclude_outliers: bool = True, exclude_bad_recordings: bool = True) -> pd.DataFrame:
         """
         Create a DataFrame containing all subjects for all datasets.
         Uses to_long_band_power_list() to get the data.
@@ -293,7 +293,7 @@ class EEGAnalyzer(Iterable["Dataset"]):
         for name, dataset in self.datasets.items():
             print(f"[EEGAnalyzer - {self.analyzer_name}] Processing dataset: {name}")
             # get list of dicts for each dataset
-            dataset_data = dataset.to_long_band_power_list()
+            dataset_data = dataset.to_long_band_power_list(exclude_outliers=exclude_outliers, exclude_bad_recordings=exclude_bad_recordings)
             # Convert list of dicts to DataFrame
             dataset_df = pd.DataFrame(dataset_data)
             dataset_details_log[name] = f"{len(dataset_df)} rows"

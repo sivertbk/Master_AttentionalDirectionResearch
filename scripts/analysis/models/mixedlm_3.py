@@ -10,16 +10,17 @@ from scipy.stats import norm
 from statsmodels.stats.multitest import multipletests
 
 from eeg_analyzer import EEGAnalyzer
-from utils.config import DATASETS
+from utils.config import EEGANALYZER_SETTINGS
 
-ANALYZER_NAME = "eeg_analyzer_2"
+eeganalyzer_kwargs = EEGANALYZER_SETTINGS.copy()
+ANALYZER_NAME = EEGANALYZER_SETTINGS["analyzer_name"]
 MODEL_NAME = "mixedlm_3"
 
 # Trying to load the EEGAnalyzer
 analyzer = EEGAnalyzer.load_analyzer(ANALYZER_NAME)
 if analyzer is None:
     print(f"Analyzer {ANALYZER_NAME} not found. Creating a new one.")
-    analyzer = EEGAnalyzer(DATASETS, ANALYZER_NAME)
+    analyzer = EEGAnalyzer(**eeganalyzer_kwargs)
     analyzer.save_analyzer()
 
 # Creating a DataFrame with the data

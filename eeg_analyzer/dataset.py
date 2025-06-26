@@ -310,35 +310,16 @@ class Dataset(Iterable["Subject"]):
             for subj in self.subjects.values()
         }
 
-    def to_long_band_power_list(self) -> list[dict]:
+    def to_long_band_power_list(self, exclude_outliers: bool = True, exclude_bad_recordings: bool = True) -> list[dict]:
         """
         Extract band power data into a long-format list of dictionaries.
-
-        This method iterates through all subjects, recordings, conditions, epochs,
-        and channels to create a flat list of data points. It filters out
-        epochs marked as outliers.
-
-        Returns:
-            list[dict]: A list where each dictionary represents a single
-                        channel's band power for a single epoch. Each dict contains:
-                - "dataset": The dataset's functional name (f_name).
-                - "subject_session": A unique identifier combining subject and session IDs.
-                - "subject_id": The subject identifier.
-                - "session_id": The session identifier.
-                - "group": The subject's group assignment.
-                - "epoch_idx": The original index of the epoch within its condition.
-                - "task": The task name (e.g., 'sart', 'vs').
-                - "task_orientation": The orientation of the task (e.g., 'focused', 'unfocused').
-                - "state": The cognitive state (e.g., 'on-task', 'mind-wandering').
-                - "channel": The EEG channel name.
-                - "cortical_region": The cortical region the channel belongs to.
-                - "hemisphere": The hemisphere ('left', 'right', 'central').
-                - "band_power": The raw band power value (in µV²).
-                - "log_band_power": The natural logarithm of the band power.
+        Iterates through all subjects, recordings, conditions, epochs, and channels.
+        Optionally excludes outliers and bad recordings.
         """
         data_rows = []
         self._ensure_data_loaded()
-        
+
+        # Map channel name to region
         cortical_regions_map = {}
         for region, ch_names in cortical_regions.items():
             for ch_name in ch_names:
@@ -346,52 +327,55 @@ class Dataset(Iterable["Subject"]):
 
         for subject in self:
             for recording in subject:
-                if recording.exclude:
+                if recording.exclude and exclude_bad_recordings:
                     continue
                 ch_names = recording.get_channel_names()
                 condition_list = recording.list_conditions()
 
                 for task, state in condition_list:
-                    # Gather log alpha power data and outlier mask
                     band_power = recording.get_band_power(task, state)
                     log_band_power = recording.get_log_band_power(task, state)
                     z_band_power = recording.get_z_band_power(task, state)
-                    outlier_mask = recording.get_outlier_mask(task, state)
+                    not_outlier_mask = recording.get_outlier_mask(task, state)
 
-                    # Determine which epochs to keep (non-outliers)
-                    if outlier_mask is not None:
-                        # Indices of epochs that are NOT outliers
-                        epoch_indices = np.where(~outlier_mask)[0]
-                        # Filter the alpha power data to only include non-outlier epochs
-                        filtered_band_power = band_power[epoch_indices, :]
-                        filtered_log_band_power = log_band_power[epoch_indices, :]
-                    else:
-                        # If no outlier mask is present, keep all epochs
-                        epoch_indices = np.arange(band_power.shape[0])
-                        filtered_band_power = band_power
-                        filtered_log_band_power = log_band_power
+                    # --- Sanity check ---
+                    n_epochs, n_channels = band_power.shape
+                    assert (
+                        log_band_power.shape == band_power.shape == z_band_power.shape == not_outlier_mask.shape
+                    ), (
+                        f"Shape mismatch: band_power {band_power.shape}, "
+                        f"log_band_power {log_band_power.shape}, "
+                        f"z_band_power {z_band_power.shape}, "
+                        f"not_outlier_mask {not_outlier_mask.shape}"
+                    )
 
-                    # Create a row for each epoch and channel
-                    for i, epoch_idx in enumerate(epoch_indices):
+                    for i_epoch in range(n_epochs):
                         for ch_idx, ch_name in enumerate(ch_names):
-                            data_rows.append({
-                                "dataset": self.name,
-                                "subject_session": f"{subject.id}_{recording.session_id}",
-                                "subject_id": subject.id,
-                                "session_id": recording.session_id,
-                                "group": subject.group,
-                                "epoch_idx": epoch_idx,
-                                "task": task,
-                                "task_orientation": self.task_orientation,
-                                "state": state,
-                                "channel": ch_name,
-                                "cortical_region": cortical_regions_map.get(ch_name, None),
-                                "hemisphere": "central" if channel_positions[ch_name][0] == 0 else "left" if channel_positions[ch_name][0] < 0 else "right",
-                                "band_power": float(filtered_band_power[i, ch_idx]),
-                                "log_band_power": float(filtered_log_band_power[i, ch_idx]),
-                                "z_band_power" : float(z_band_power[i, ch_idx]) if z_band_power is not None else None
-                            })
+                            include_point = not_outlier_mask[i_epoch, ch_idx] if exclude_outliers else True
+                            if include_point:
+                                data_rows.append({
+                                    "dataset": self.name,
+                                    "subject_session": f"{subject.id}_{recording.session_id}",
+                                    "subject_id": subject.id,
+                                    "session_id": recording.session_id,
+                                    "group": subject.group,
+                                    "epoch_idx": i_epoch,
+                                    "task": task,
+                                    "task_orientation": self.task_orientation,
+                                    "state": state,
+                                    "channel": ch_name,
+                                    "cortical_region": cortical_regions_map.get(ch_name, None),
+                                    "hemisphere": (
+                                        "central" if channel_positions[ch_name][0] == 0
+                                        else "left" if channel_positions[ch_name][0] < 0
+                                        else "right"
+                                    ),
+                                    "band_power": float(band_power[i_epoch, ch_idx]),
+                                    "log_band_power": float(log_band_power[i_epoch, ch_idx]),
+                                    "z_band_power": float(z_band_power[i_epoch, ch_idx])
+                                })
         return data_rows
+
 
 
     #                                 Private API

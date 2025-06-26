@@ -6,7 +6,7 @@ import os
 from scipy.stats import gaussian_kde
 
 from eeg_analyzer.eeg_analyzer import EEGAnalyzer
-from utils.config import DATASETS, set_plot_style
+from utils.config import EEGANALYZER_SETTINGS, set_plot_style
 set_plot_style()  # Set the plotting style for matplotlib
 
 def gather_data(analyzer: EEGAnalyzer = None):
@@ -55,19 +55,19 @@ def gather_data(analyzer: EEGAnalyzer = None):
                                 "task": task,
                                 "state": state,
                                 "channel": ch_name,
-                                "log_alpha_power": filtered_alpha_power[i, ch_idx]
+                                "log_band_power": filtered_alpha_power[i, ch_idx]
                             })
 
     return pd.DataFrame(data_rows)
 
-def plot_ridge(data: pd.DataFrame, ridge_slices, x_col='log_alpha_power', dist_cols=None, title="", output_path=None, show=False, return_fig=True, add_global_dist=False, overlap=0.5):
+def plot_ridge(data: pd.DataFrame, ridge_slices, x_col='log_band_power', dist_cols=None, title="", output_path=None, show=False, return_fig=True, add_global_dist=False, overlap=0.5):
     """
     Creates a ridge plot from a DataFrame, inspired by seaborn's ridge plot examples.
 
     Args:
         data (pd.DataFrame): The input data.
         ridge_slices (str or list): The column(s) to define the ridges.
-        x_col (str, optional): The column for the x-axis values. Defaults to 'log_alpha_power'.
+        x_col (str, optional): The column for the x-axis values. Defaults to 'log_band_power'.
         dist_cols (str or list, optional): Column(s) to separate distributions within a ridge. Defaults to None.
         title (str, optional): The plot title. Defaults to "".
         output_path (str, optional): Path to save the figure. If None, not saved. Defaults to None.
@@ -156,23 +156,28 @@ def plot_ridge(data: pd.DataFrame, ridge_slices, x_col='log_alpha_power', dist_c
 
 
 if __name__ == "__main__":
-    ANALYZER_NAME = "eeg_analyzer_2"
+    eeganalyzer_kwargs = EEGANALYZER_SETTINGS.copy()
+    ANALYZER_NAME = EEGANALYZER_SETTINGS["analyzer_name"]
 
+    # Trying to load the EEGAnalyzer
     analyzer = EEGAnalyzer.load_analyzer(ANALYZER_NAME)
     if analyzer is None:
         print(f"Analyzer {ANALYZER_NAME} not found. Creating a new one.")
-        analyzer = EEGAnalyzer(DATASETS, ANALYZER_NAME)
+        analyzer = EEGAnalyzer(**eeganalyzer_kwargs)
         analyzer.save_analyzer()
 
-    data = gather_data(analyzer)
+    analyzer.create_dataframe(exclude_bad_recordings=False)
+    data = analyzer.df
 
-
+    if data is None:
+        print("No valid data available for plotting.")
+        exit()
 
     # Making ridge plots for a subset of subjects in each dataset over one specified channel
-    # the ridgeback is made up by the subset of subjects (i.e. ridge_slice is 'subject') and the channel
+    # the ridgeback is made up by the subset of subjects (i.e. ridge_slice is 'subject_id') and the channel
     # This is useful for comparing subjects within a dataset
     channel_to_plot = 'Cz'  # Specify the channel to plot
-    n_subjects_per_plot = 15  # Max number of subjects to plot per dataset
+    n_subjects_per_plot = 32  # Max number of subjects to plot per dataset
 
     for dataset in analyzer:
         # Filter data for the current dataset and the specified channel
@@ -183,14 +188,14 @@ if __name__ == "__main__":
             continue
 
         # Get a subset of subjects to plot
-        unique_subjects = dataset_channel_data['subject'].unique()
+        unique_subjects = dataset_channel_data['subject_id'].unique()
         subjects_to_plot = unique_subjects[:n_subjects_per_plot]
 
         if len(subjects_to_plot) == 0:
             continue
 
         # Filter the data for the selected subjects
-        plot_data = dataset_channel_data[dataset_channel_data['subject'].isin(subjects_to_plot)]
+        plot_data = dataset_channel_data[dataset_channel_data['subject_id'].isin(subjects_to_plot)]
 
         # Define the output path for the ridge plot
         output_path = os.path.join(analyzer.derivatives_path, "ridge_plots", f"{dataset.name}_channel-{channel_to_plot}_subjects_ridge_plot.svg")
@@ -199,10 +204,10 @@ if __name__ == "__main__":
 
         # Create the ridge plot
         plot_ridge(plot_data,
-                   ridge_slices=['subject'],
-                   dist_cols=['task', 'state'],
+                   ridge_slices=['subject_id'],
+                   dist_cols='state',
                    add_global_dist=True,
-                   x_col='log_alpha_power',
+                   x_col='log_band_power',
                    title=f"Log Alpha Power on Ch. {channel_to_plot} for {dataset.name}",
                    output_path=output_path, show=False
                    )
@@ -213,13 +218,17 @@ if __name__ == "__main__":
     else:
         # Define the output path for the combined ridge plot
         output_path = os.path.join(analyzer.derivatives_path, "ridge_plots", "combined_ridge_plot.svg")
+
+        # remove every other channel to avoid cluttering the plot
+        channels_to_remove = data['channel'].unique()[1::2]
+        data = data[~data['channel'].isin(channels_to_remove)]
         
         # Create the combined ridge plot
         plot_ridge(data, 
                    ridge_slices=['channel'], 
                    dist_cols=None,
                    add_global_dist=False,
-                   x_col='log_alpha_power',
+                   x_col='log_band_power',
                    title="Log Alpha Power Distribution Across Datasets", 
                    output_path=output_path, show=False
                    )
@@ -237,9 +246,9 @@ if __name__ == "__main__":
         # Create the ridge plot
         plot_ridge(dataset_data, 
                    ridge_slices=['channel'], 
-                   dist_cols=['task', 'state'],
+                   dist_cols='state',
                    add_global_dist=True,
-                   x_col='log_alpha_power',
+                   x_col='log_band_power',
                    title=f"Log Alpha Power Distribution for {dataset.name}", 
                    output_path=output_path, show=False
                    )
@@ -249,7 +258,7 @@ if __name__ == "__main__":
         for subject in dataset.subjects:
             if subject_data is not None:
                 continue
-            subject_data = dataset_data[dataset_data['subject'] == subject]
+            subject_data = dataset_data[dataset_data['subject_id'] == subject]
             if subject_data.empty:
                 print(f"No data available for subject {subject} in dataset {dataset.name}. Skipping ridge plot.")
                 continue
@@ -260,9 +269,9 @@ if __name__ == "__main__":
             # Create the ridge plot
             plot_ridge(subject_data,
                     ridge_slices=['channel'],
-                    dist_cols=['task', 'state'],
+                    dist_cols='state',
                     add_global_dist=True,
-                    x_col='log_alpha_power',
+                    x_col='log_band_power',
                     title=f"Log Alpha Power Distribution for {dataset.name} - Subject-{subject}",
                     output_path=output_path, show=False
                     )

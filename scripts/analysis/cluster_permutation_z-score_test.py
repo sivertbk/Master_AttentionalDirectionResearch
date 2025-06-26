@@ -94,39 +94,39 @@ def plot_task_orientation_map(mean_alpha_power_OT, mean_alpha_power_MW, mean_alp
     fig, axes = plt.subplots(1, 4, figsize=(24, 6))
     fig.suptitle(main_title, fontsize=16)
 
-    # Common vlim for OT and MW plots
-    vlim_min = np.min([mean_alpha_power_OT, mean_alpha_power_MW])
-    vlim_max = np.max([mean_alpha_power_OT, mean_alpha_power_MW])
+    # Find the largest absolute z-score value across both maps
+    abs_max = np.max(np.abs([mean_alpha_power_OT, mean_alpha_power_MW]))
+    vlim_symmetric = (-abs_max, abs_max)
 
     # Plot 1: Mean Alpha Power On-Target
     im1, _ = plot_topomap(
         mean_alpha_power_OT,
         pos=info,
         cmap="RdBu_r",
-        vlim=(vlim_min, vlim_max),
+        vlim=vlim_symmetric,
         contours=0,
         show=False,
         axes=axes[0],
         sphere=0.1
     )
     cbar1 = plt.colorbar(im1, ax=axes[0], shrink=0.7, pad=0.05)
-    cbar1.set_label("ln(µV²)", fontsize=10)
-    axes[0].set_title("Mean Alpha Power On-Target")
+    cbar1.set_label("Z-score", fontsize=10)
+    axes[0].set_title("Mean Z-score On-Target")
 
     # Plot 2: Mean Alpha Power Mind-Wandering
     im2, _ = plot_topomap(
         mean_alpha_power_MW,
         pos=info,
         cmap="RdBu_r",
-        vlim=(vlim_min, vlim_max),
+        vlim=vlim_symmetric,
         contours=0,
         show=False,
         axes=axes[1],
         sphere=0.1
     )
     cbar2 = plt.colorbar(im2, ax=axes[1], shrink=0.7, pad=0.05)
-    cbar2.set_label("ln(µV²)", fontsize=10)
-    axes[1].set_title("Mean Alpha Power Mind-Wandering")
+    cbar2.set_label("Z-score", fontsize=10)
+    axes[1].set_title("Mean Z-score Mind-Wandering")
 
     # Plot 3: Mean Alpha Power Difference
     vmax_diff = np.max(np.abs(mean_alpha_power_diff))
@@ -142,8 +142,8 @@ def plot_task_orientation_map(mean_alpha_power_OT, mean_alpha_power_MW, mean_alp
         sphere=0.1
     )
     cbar3 = plt.colorbar(im3, ax=axes[2], shrink=0.7, pad=0.05)
-    cbar3.set_label("ln(µV²)", fontsize=10)
-    axes[2].set_title("Mean Alpha Power Difference (OT-MW)")
+    cbar3.set_label("Z-score", fontsize=10)
+    axes[2].set_title("Mean Z-score Difference (OT-MW)")
 
     # Plot 4: T-values
     im4, _ = plot_topomap(
@@ -171,7 +171,7 @@ def plot_task_orientation_map(mean_alpha_power_OT, mean_alpha_power_MW, mean_alp
     plt.close(fig)
 
 
-def extract_dataframe(analyzer: EEGAnalyzer, skip_controls: bool, filter_task: bool, filtered: bool) -> pd.DataFrame:
+def extract_dataframe(analyzer: EEGAnalyzer, data_type: str, skip_controls: bool, filter_task: bool, filtered: bool) -> pd.DataFrame:
     """
     Extracts mean log band power data from the analyzer into a DataFrame.
     """
@@ -188,11 +188,11 @@ def extract_dataframe(analyzer: EEGAnalyzer, skip_controls: bool, filter_task: b
 
                 if filter_task and dataset.f_name == 'jin2019':
                     print(f"Filtering task-specific data for dataset {dataset.name} and subject {subject.id}.")
-                    mean_OT = recording.get_stat('mean', data_type='log_band_power', state='OT', filtered=filtered, task='vs')
-                    mean_MW = recording.get_stat('mean', data_type='log_band_power', state='MW', filtered=filtered, task='vs')
+                    mean_OT = recording.get_stat('mean', data_type=data_type, state='OT', filtered=filtered, task='vs')
+                    mean_MW = recording.get_stat('mean', data_type=data_type, state='MW', filtered=filtered, task='vs')
                 else:
-                    mean_OT = recording.get_stat('mean', data_type='log_band_power', state='OT', filtered=filtered)
-                    mean_MW = recording.get_stat('mean', data_type='log_band_power', state='MW', filtered=filtered)
+                    mean_OT = recording.get_stat('mean', data_type=data_type, state='OT', filtered=filtered)
+                    mean_MW = recording.get_stat('mean', data_type=data_type, state='MW', filtered=filtered)
 
                 if mean_OT is None or mean_MW is None:
                     print(f"Skipping recording for subject {subject.id} due to missing data.")
@@ -248,7 +248,7 @@ def run_analysis_and_save_results(analyzer, df, test_name, adjacency, info, ch_n
     """
     Runs the full analysis pipeline for a given DataFrame and saves the results.
     """
-    output_dir = os.path.join(analyzer.derivatives_path, "cluster_test_results", test_name)
+    output_dir = os.path.join(analyzer.derivatives_path, "cluster_z_test_results", test_name)
     os.makedirs(output_dir, exist_ok=True)
 
     df.to_csv(os.path.join(output_dir, "recordings_and_data.csv"), index=False)
@@ -308,29 +308,30 @@ if __name__ == "__main__":
     info.set_montage(analyzer.get_montage())
     adjacency, _ = find_ch_adjacency(info, ch_type='eeg')
 
+    print("Starting cluster permutation analysis...")
     # --- Test 1: No control subjects ---
     print("--- Running analysis with no control subjects ---")
-    df_exp_only = extract_dataframe(analyzer, skip_controls=True, filter_task=False, filtered=True)
+    df_exp_only = extract_dataframe(analyzer, data_type='z_band_power', skip_controls=True, filter_task=False, filtered=True)
     run_analysis_and_save_results(analyzer, df_exp_only, "no_control_outlier_filtered", adjacency, info, ch_names)
 
     # --- Test 2: All subjects ---
     print("--- Running analysis for all subjects ---")
-    df_all_subjects = extract_dataframe(analyzer, skip_controls=False, filter_task=False, filtered=True)
+    df_all_subjects = extract_dataframe(analyzer, data_type='z_band_power', skip_controls=False, filter_task=False, filtered=True)
     run_analysis_and_save_results(analyzer, df_all_subjects, "all_subjects_outlier_filtered", adjacency, info, ch_names)
 
     # --- Test 3: No control, no filter ---
     print("--- Running analysis with no control subjects and no filtering ---")
-    df_no_control_no_filter = extract_dataframe(analyzer, skip_controls=True, filter_task=False, filtered=False)
+    df_no_control_no_filter = extract_dataframe(analyzer, data_type='z_band_power', skip_controls=True, filter_task=False, filtered=False)
     run_analysis_and_save_results(analyzer, df_no_control_no_filter, "no_control_no_filter", adjacency, info, ch_names)
 
     # --- Test 4: All subjects, no filter ---
     print("--- Running analysis for all subjects with no filtering ---")
-    df_all_no_filter = extract_dataframe(analyzer, skip_controls=False, filter_task=False, filtered=False)
+    df_all_no_filter = extract_dataframe(analyzer, data_type='z_band_power', skip_controls=False, filter_task=False, filtered=False)
     run_analysis_and_save_results(analyzer, df_all_no_filter, "all_subjects_no_filter", adjacency, info, ch_names)
 
     # --- Test 5: Filter task-specific data ---
     print("--- Running analysis with task-specific filtering (jin2019 dataset) ---")
-    df_task_filtered = extract_dataframe(analyzer, skip_controls=False, filter_task=True, filtered=True)
+    df_task_filtered = extract_dataframe(analyzer, data_type='z_band_power', skip_controls=False, filter_task=True, filtered=True)
     run_analysis_and_save_results(analyzer, df_task_filtered, "task_filtered_outlier_filtered", adjacency, info, ch_names)
 
     print("Cluster permutation analysis complete.")

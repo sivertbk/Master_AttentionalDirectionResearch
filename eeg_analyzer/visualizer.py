@@ -39,7 +39,7 @@ class Visualizer:
         self.derivatives_path = analyzer.derivatives_path
 
     def plot_boxplot(self, 
-                     value_col: str = 'band_db', 
+                     value_col: str = 'log_band_power', 
                      state_col: str = 'state', 
                      output_subfolder: str = 'boxplots',
                      exclude_bads: bool = True,
@@ -65,15 +65,12 @@ class Visualizer:
             return
 
         grouping_col = 'cortical_region' if group_by_region else 'channel'
-        required_cols = ['dataset', 'subject_session', 'is_bad', state_col, value_col, grouping_col]
+        required_cols = ['dataset', 'subject_session', state_col, value_col, grouping_col]
         if not all(col in df.columns for col in required_cols):
             missing_cols = [col for col in required_cols if col not in df.columns]
             print(f"[Visualizer for {self.analyzer_name}] DataFrame is missing required columns: {missing_cols}. Cannot generate boxplots.")
             return
         
-        # Filter out bad data if exclude_bads is True
-        if exclude_bads:
-            df = df[df['is_bad'] == False]
 
         plots_main_dir = os.path.join(self.derivatives_path, output_subfolder, 'channel_boxplots' if not group_by_region else 'region_boxplots')
         os.makedirs(plots_main_dir, exist_ok=True)

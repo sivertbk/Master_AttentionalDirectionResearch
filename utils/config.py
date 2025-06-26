@@ -232,6 +232,16 @@ for dataset in DATASETS.values():
     dataset.path_derivatives = os.path.join(dataset_dir, "derivatives")
 
 
+# ==============================================================================
+#                            EEG ANALYZER SETTINGS
+# ==============================================================================
+
+EEGANALYZER_SETTINGS = {
+    "dataset_configs": DATASETS,  # Reference to the global DATASETS dictionary
+    "analyzer_name": "main_analysis", # Name of the EEG Analyzer instance currently in use
+    "description": "Main EEG Analyzer for the project",
+}
+
 # =============================================================================
 #                            OUTLIER DETECTION SETTINGS
 # =============================================================================
