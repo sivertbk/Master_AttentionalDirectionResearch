@@ -20,7 +20,7 @@ import mne.viz as viz
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
-import os # Added for path operations
+import os 
 
 from utils.config import set_plot_style, channel_positions, PLOTS_PATH, EEG_SETTINGS
 
@@ -72,8 +72,20 @@ class Visualizer:
             return
         
 
-        plots_main_dir = os.path.join(self.derivatives_path, output_subfolder, 'channel_boxplots' if not group_by_region else 'region_boxplots')
+        # Fix derivatives path if it's a Unix-style path on Windows
+        derivatives_path = self.derivatives_path
+        
+        plots_main_dir = os.path.join(derivatives_path, output_subfolder, 'channel_boxplots' if not group_by_region else 'region_boxplots')
+        # Normalize path for current OS
+        plots_main_dir = os.path.abspath(plots_main_dir)
         os.makedirs(plots_main_dir, exist_ok=True)
+        
+        print(f"[Visualizer for {self.analyzer_name}] Base derivatives path: {self.derivatives_path}")
+        print(f"[Visualizer for {self.analyzer_name}] Corrected derivatives path: {derivatives_path}")
+        print(f"[Visualizer for {self.analyzer_name}] Main plots directory: {plots_main_dir}")
+        print(f"[Visualizer for {self.analyzer_name}] Current working directory: {os.getcwd()}")
+        print(f"[Visualizer for {self.analyzer_name}] Platform: {os.name}")
+        print(f"[Visualizer for {self.analyzer_name}] Path separator: {os.sep}")
 
         # User-provided labels for the legend
         state_legend_labels = {"OT": "On-target", "MW": "Mind-wandering"} 
@@ -83,7 +95,11 @@ class Visualizer:
         plot_palette = {"OT": cmap(0.1), "MW": cmap(0.9)} # Adjusted for distinct cool/warm
 
         for dataset_name in df['dataset'].unique():
-            dataset_plot_dir = os.path.join(plots_main_dir, str(dataset_name))
+            # Sanitize dataset name for use in file paths
+            safe_dataset_name = str(dataset_name).replace(" ", "_").replace("(", "").replace(")", "").replace(".", "")
+            dataset_plot_dir = os.path.join(plots_main_dir, safe_dataset_name)
+            # Normalize path for current OS
+            dataset_plot_dir = os.path.abspath(dataset_plot_dir)
             os.makedirs(dataset_plot_dir, exist_ok=True)
             
             df_dataset = df[df['dataset'] == dataset_name]
@@ -117,7 +133,7 @@ class Visualizer:
                 sns.boxplot(x=grouping_col, y=value_col, hue='state', data=group_df, 
                             order=sorted_groups, hue_order=["OT", "MW"], palette=plot_palette, ax=ax)
 
-                title = f'Band Power ({self.analyzer.freq_band[0]} - {self.analyzer.freq_band[1]} Hz) by {grouping_col.replace("_", " ").title()} and State\nDataset: {dataset_name} - Subject Session: {subject_session_id}'
+                title = f'Band Power (8 - 12 Hz) by {grouping_col.replace("_", " ").title()} and State\nDataset: {dataset_name} - Subject Session: {subject_session_id}'
                 ax.set_title(title, fontsize=16)
                 xlabel = grouping_col.replace("_", " ").title()
                 ax.set_xlabel(xlabel, fontsize=14)
@@ -144,14 +160,24 @@ class Visualizer:
                 
                 plt.tight_layout(rect=[0, 0.05, 1, 0.95]) # Adjust rect to make space for annotation and title
 
-                fig_filename = f"{dataset_name}_{subject_session_id}_{value_col}_{grouping_col}_state_boxplot.svg"
+                fig_filename = f"{safe_dataset_name}_{subject_session_id}_{value_col}_{grouping_col}_state_boxplot.svg"
                 fig_path = os.path.join(dataset_plot_dir, fig_filename)
+                # Normalize path for current OS
+                fig_path = os.path.abspath(fig_path)
+                
+                # Ensure directory exists
+                os.makedirs(os.path.dirname(fig_path), exist_ok=True)
                 
                 try:
                     plt.savefig(fig_path, format='svg', bbox_inches='tight')
                     print(f"[Visualizer for {self.analyzer_name}] Saved plot: {fig_path}")
                 except Exception as e:
                     print(f"[Visualizer for {self.analyzer_name}] Error saving plot {fig_path}: {e}")
+                    # Additional debugging info
+                    print(f"[Visualizer for {self.analyzer_name}] Directory exists: {os.path.exists(os.path.dirname(fig_path))}")
+                    print(f"[Visualizer for {self.analyzer_name}] Directory path: {os.path.dirname(fig_path)}")
+                    print(f"[Visualizer for {self.analyzer_name}] File path absolute: {os.path.abspath(fig_path)}")
+                    print(f"[Visualizer for {self.analyzer_name}] Current working directory: {os.getcwd()}")
                 
                 plt.close(fig)
         

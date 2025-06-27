@@ -11,6 +11,7 @@ from utils.helpers import iterate_dataset_items, get_scaled_rejection_threshold
 from utils.file_io import (load_ica, load_raw_data, load_ica_excluded_components, 
                            log_reject_threshold, log_dropped_epochs, save_epochs_dict)
 from utils.preprocessing_tools import prepare_raw_data, fix_bad_channels, create_analysis_epochs
+from .dataset_spesific.jin2019.jin2019_probe_extraction import extract_jin2019_probe_data 
 
 set_plot_style()
 
@@ -78,6 +79,10 @@ def max_ptp_evoked(evoked1, evoked2):
 
 
 if __name__ == "__main__":
+    # Run the probe extraction for the Jin2019 dataset to create necessary CSV files for step 4.
+    # This is a one-time operation to prepare the data for further processing.
+    extract_jin2019_probe_data()
+
     for dataset, subject, label, item, kwargs in iterate_dataset_items(DATASETS):
         ##----------------------------------------------------------------------------##
         #                    1. LOAD AND PREPARE RAW EEG DATA                          #

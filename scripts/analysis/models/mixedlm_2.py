@@ -10,16 +10,17 @@ from scipy.stats import norm
 from statsmodels.stats.multitest import multipletests
 
 from eeg_analyzer import EEGAnalyzer
-from utils.config import DATASETS
+from utils.config import EEGANALYZER_SETTINGS
 
-ANALYZER_NAME = "eeg_analyzer"
+eeganalyzer_kwargs = EEGANALYZER_SETTINGS.copy()
+ANALYZER_NAME = EEGANALYZER_SETTINGS["analyzer_name"]
 MODEL_NAME = "mixedlm_2"
 
 # Trying to load the EEGAnalyzer
 analyzer = EEGAnalyzer.load_analyzer(ANALYZER_NAME)
 if analyzer is None:
     print(f"Analyzer {ANALYZER_NAME} not found. Creating a new one.")
-    analyzer = EEGAnalyzer(DATASETS, ANALYZER_NAME)
+    analyzer = EEGAnalyzer(**eeganalyzer_kwargs)
     analyzer.save_analyzer()
 
 # Creating a DataFrame with the data
@@ -63,14 +64,23 @@ for dataset_name in df['dataset'].unique():
 
     df_dataset["sub_ch"] = df_dataset["subject_id"].astype(str) + "_" + df_dataset["channel"]     # unique sensor instance
 
+    if dataset_name == "Jin et al. 2019":
+        # For this dataset we can have task as variance component
+        vc_formula = {
+            "subject": "0 + C(subject_id)",  # subject intercepts
+            "task": "0 + C(task)"            # task intercepts
+        }
+    else:
+        vc_formula = {
+            "subject": "0 + C(subject_id)"   # subject intercepts
+        }
+
     model = smf.mixedlm(
-        "log_band_power ~ C(state, Treatment(reference='MW'))",
+        "log_band_power ~ C(state, Treatment(reference='MW'))",  # MW is the reference state. Result is OT-MW slope
         df_dataset,
         groups=df_dataset["sub_ch"],      # each physical sensor instance gets its own intercept
-        re_formula="1",                   # No random slope for state per sensor.
-        vc_formula={
-            "subject":"0 + C(subject_id)"   # subject intercepts
-        }
+        re_formula="1 + C(state)",        # random slope for state, *pooled* because channel label is in vc_formula
+        vc_formula=vc_formula
     )
 
     # Save the dataset used here:
@@ -83,13 +93,13 @@ for dataset_name in df['dataset'].unique():
 
     slopes = {}
     for key, effect in random_effects.items():
-        slopes[key] = effect["C(state)[T.OT]"] 
+        slopes[key] = effect["C(state)[T.OT]"]  
 
     df_slopes = pd.DataFrame({
         'sub_ch': slopes.keys(),
         'slope': slopes.values()
     })
-    df_slopes['channel'] = df_slopes['sub_ch'].apply(lambda x: x.split('_')[1])
+    df_slopes['channel'] = df_slopes['sub_ch'].apply(lambda x: x.split('_')[1]) 
 
     # Aggregate mean and std
     channel_stats = df_slopes.groupby('channel')['slope'].agg(['mean', 'std', 'count']).reset_index()
@@ -133,8 +143,8 @@ for dataset_name in df['dataset'].unique():
                         mask_params=dict(marker='o', markerfacecolor='k', markeredgecolor='k', 
                         linewidth=2), show=False)
     cbar = plt.colorbar(im, ax=ax, orientation='vertical', fraction=0.046, pad=0.04)
-    cbar.set_label('Alpha Power [ln(µV²)]', rotation=270, labelpad=15)
-    ax.set_title(f"{dataset_name} State-Effect Slopes (OT-MW)\n(Mixed Effects Model)", fontsize=16)
+    cbar.set_label('Alpha Power [ln(µV²)]', rotation=90, labelpad=15)
+    ax.set_title(f"Mixed Effects Model\n{dataset_name} State-Effect Slopes (OT-MW)", fontsize=16)
     plt.savefig(os.path.join(dataset_model_path, "topoplot_slopes.svg"), format='svg', bbox_inches='tight')
 
     # Creating diagnostic plots

@@ -4,7 +4,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 from eeg_analyzer.eeg_analyzer import EEGAnalyzer
-from utils.config import EEGANALYZER_SETTINGS, set_plot_style, channel_positions, PLOTS_PATH
+from utils.config import EEGANALYZER_SETTINGS, set_plot_style, PLOTS_PATH
 
 set_plot_style()
 
