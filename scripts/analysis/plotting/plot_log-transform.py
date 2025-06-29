@@ -19,26 +19,26 @@ def plot_distribution_comparison(data_before: np.ndarray, data_after: np.ndarray
     
     # Before transformation - histogram
     axes[0, 0].hist(data_before.flatten(), bins=50, alpha=0.7, color='blue', edgecolor='black')
-    axes[0, 0].set_title('Before - Histogram')
+    axes[0, 0].set_title('Histogram - Before Transformation')
     axes[0, 0].set_xlabel('Power [µV²]')
     axes[0, 0].set_ylabel('Frequency')
     axes[0, 0].grid(True, alpha=0.3)
     
     # After transformation - histogram
     axes[0, 1].hist(data_after.flatten(), bins=50, alpha=0.7, color='red', edgecolor='black')
-    axes[0, 1].set_title('After - Histogram')
+    axes[0, 1].set_title('Histogram - After Transformation')
     axes[0, 1].set_xlabel('Power [ln(µV²)]')
     axes[0, 1].set_ylabel('Frequency')
     axes[0, 1].grid(True, alpha=0.3)
     
     # Before transformation - Q-Q plot
     stats.probplot(data_before.flatten(), dist="norm", plot=axes[1, 0])
-    axes[1, 0].set_title('Before - Q-Q Plot (Normal)')
+    axes[1, 0].set_title('Q-Q Plot (Normal) - Before Transformation')
     axes[1, 0].grid(True, alpha=0.3)
     
     # After transformation - Q-Q plot
     stats.probplot(data_after.flatten(), dist="norm", plot=axes[1, 1])
-    axes[1, 1].set_title('After - Q-Q Plot (Normal)')
+    axes[1, 1].set_title('Q-Q Plot (Normal) - After Transformation')
     axes[1, 1].grid(True, alpha=0.3)
     
     plt.tight_layout()

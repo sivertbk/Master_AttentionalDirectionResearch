@@ -479,6 +479,9 @@ def prepare_ica_epochs(raw, dataset, eeg_settings, subject, session=None, task=N
                 n_jobs=cpu_count(), 
                 picks=['eeg', 'eog'],
                 verbose=verbose)
+    
+    # Average reference
+    raw.set_eeg_reference(ref_channels='average', ch_type='eeg', projection=False, verbose=verbose)
 
     # Create synthetic epochs
     epochs = mne.make_fixed_length_epochs(
@@ -488,9 +491,6 @@ def prepare_ica_epochs(raw, dataset, eeg_settings, subject, session=None, task=N
         verbose=verbose
     )
     epochs.pick(picks=['eeg', 'eog'], verbose=verbose)
-
-    # Average reference
-    epochs.set_eeg_reference(ref_channels='average', ch_type='eeg', projection=False, verbose=verbose)
 
     reject = get_scaled_rejection_threshold(
         epochs=epochs,

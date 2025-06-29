@@ -48,9 +48,9 @@ def run_step3_ica_pipeline(datasets=None, verbose=True, show_plots=False,
     if datasets is None:
         datasets = DATASETS.copy()
         # Configure datasets for ICA processing
-        datasets.pop('braboszcz2017', None)  # Remove if not ready
-        datasets.pop('jin2019', None)       # Remove if not ready  
-        datasets.pop('touryan2022', None)   # Remove if not ready
+        # datasets.pop('braboszcz2017', None)  # Remove if not ready
+        # datasets.pop('jin2019', None)       # Remove if not ready  
+        # datasets.pop('touryan2022', None)   # Remove if not ready
     
     print(f"[INFO] Processing datasets: {list(datasets.keys())}")
     print(f"[INFO] Verbose mode: {verbose}")

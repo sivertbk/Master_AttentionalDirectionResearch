@@ -1,0 +1,146 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36 OPR/119.0.0.0" version="27.1.6">
+  <diagram name="Page-1" id="hvYsXWk8Ez6mWVPXY7hX">
+    <mxGraphModel dx="1645" dy="1796" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-59" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#bac8d3;strokeColor=#23445d;" vertex="1" parent="1">
+          <mxGeometry x="680" y="110" width="120" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-58" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#bac8d3;strokeColor=#23445d;" vertex="1" parent="1">
+          <mxGeometry x="520" y="110" width="120" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-57" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#bac8d3;strokeColor=#23445d;" vertex="1" parent="1">
+          <mxGeometry x="360" y="110" width="120" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-56" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#bac8d3;strokeColor=#23445d;" vertex="1" parent="1">
+          <mxGeometry x="200" y="110" width="120" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-54" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#bac8d3;strokeColor=#23445d;" vertex="1" parent="1">
+          <mxGeometry x="40" y="110" width="120" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-49" value="&lt;font face=&quot;Times New Roman&quot;&gt;- Load raw EEG data&lt;/font&gt;&lt;div&gt;&lt;font face=&quot;Times New Roman&quot;&gt;- Set channel types/names&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font face=&quot;Times New Roman&quot;&gt;- Pick EEG and EOG&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font face=&quot;Times New Roman&quot;&gt;- Downsample&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font face=&quot;Times New Roman&quot;&gt;- Set montage&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font face=&quot;Times New Roman&quot;&gt;- Clear bad channels&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font face=&quot;Times New Roman&quot;&gt;- Clear projections&lt;/font&gt;&lt;/div&gt;" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;spacingTop=-6;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="120" width="130" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-25" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;dashed=1;dashPattern=1 2;" vertex="1" parent="1">
+          <mxGeometry x="180" y="-30" width="330" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-3" value="" style="group" vertex="1" connectable="0" parent="1">
+          <mxGeometry x="30" y="70" width="130" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-1" value="&lt;font face=&quot;Times New Roman&quot;&gt;Load/Prep raw&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;fontColor=#333333;strokeColor=#666666;" vertex="1" parent="ZAOrUZbEuU3MXDjW92Bq-3">
+          <mxGeometry x="10" y="10" width="120" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-2" value="&lt;b&gt;&lt;font style=&quot;font-size: 22px; color: rgb(234, 107, 102);&quot; face=&quot;Georgia&quot;&gt;1&lt;/font&gt;&lt;/b&gt;" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#bac8d3;strokeColor=#23445d;" vertex="1" parent="ZAOrUZbEuU3MXDjW92Bq-3">
+          <mxGeometry width="20" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-4" value="" style="group" vertex="1" connectable="0" parent="1">
+          <mxGeometry x="190" y="70" width="130" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-5" value="&lt;font face=&quot;Times New Roman&quot;&gt;Interpolate bads&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;fontColor=#333333;strokeColor=#666666;" vertex="1" parent="ZAOrUZbEuU3MXDjW92Bq-4">
+          <mxGeometry x="10" y="10" width="120" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-6" value="&lt;b&gt;&lt;font style=&quot;font-size: 22px; color: rgb(234, 107, 102);&quot; face=&quot;Georgia&quot;&gt;2&lt;/font&gt;&lt;/b&gt;" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#bac8d3;strokeColor=#23445d;" vertex="1" parent="ZAOrUZbEuU3MXDjW92Bq-4">
+          <mxGeometry width="20" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-7" value="" style="group" vertex="1" connectable="0" parent="1">
+          <mxGeometry x="350" y="70" width="130" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-8" value="&lt;font face=&quot;Times New Roman&quot;&gt;ICA Correction&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;fontColor=#333333;strokeColor=#666666;" vertex="1" parent="ZAOrUZbEuU3MXDjW92Bq-7">
+          <mxGeometry x="9.999999999999998" y="10" width="119.99999999999997" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-9" value="&lt;b&gt;&lt;font style=&quot;font-size: 22px; color: rgb(234, 107, 102);&quot; face=&quot;Georgia&quot;&gt;3&lt;/font&gt;&lt;/b&gt;" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#bac8d3;strokeColor=#23445d;spacing=2;spacingTop=-4;" vertex="1" parent="ZAOrUZbEuU3MXDjW92Bq-7">
+          <mxGeometry width="17.02127659574468" height="17.02127659574468" as="geometry" />
+        </mxCell>
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-10" value="" style="group" vertex="1" connectable="0" parent="1">
+          <mxGeometry x="510" y="70" width="130" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-11" value="&lt;font face=&quot;Times New Roman&quot;&gt;Epoching&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;fontColor=#333333;strokeColor=#666666;" vertex="1" parent="ZAOrUZbEuU3MXDjW92Bq-10">
+          <mxGeometry x="10" y="10" width="120" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-12" value="&lt;b&gt;&lt;font style=&quot;font-size: 22px; color: rgb(234, 107, 102);&quot; face=&quot;Georgia&quot;&gt;4&lt;/font&gt;&lt;/b&gt;" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#bac8d3;strokeColor=#23445d;spacing=2;spacingTop=-4;" vertex="1" parent="ZAOrUZbEuU3MXDjW92Bq-10">
+          <mxGeometry width="20" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-13" value="" style="group" vertex="1" connectable="0" parent="1">
+          <mxGeometry x="670" y="70" width="130" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-14" value="&lt;font face=&quot;Times New Roman&quot;&gt;Rejection&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;fontColor=#333333;strokeColor=#666666;" vertex="1" parent="ZAOrUZbEuU3MXDjW92Bq-13">
+          <mxGeometry x="10" y="10" width="120" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-15" value="&lt;b&gt;&lt;font style=&quot;font-size: 22px; color: rgb(234, 107, 102);&quot; face=&quot;Georgia&quot;&gt;5&lt;/font&gt;&lt;/b&gt;" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#bac8d3;strokeColor=#23445d;spacing=2;spacingTop=-4;" vertex="1" parent="ZAOrUZbEuU3MXDjW92Bq-13">
+          <mxGeometry width="20" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-34" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="ZAOrUZbEuU3MXDjW92Bq-22" target="ZAOrUZbEuU3MXDjW92Bq-1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-22" value="&lt;font style=&quot;font-size: 10px;&quot; face=&quot;Times New Roman&quot;&gt;raw EEG data&lt;/font&gt;" style="shape=datastore;whiteSpace=wrap;html=1;fillColor=#bac8d3;strokeColor=#23445d;" vertex="1" parent="1">
+          <mxGeometry x="70" y="-20" width="60" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-30" value="" style="dashed=0;outlineConnect=0;html=1;align=center;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;shape=mxgraph.weblogos.json_2" vertex="1" parent="1">
+          <mxGeometry x="364" y="20" width="50" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-31" value="&lt;pre&gt;&lt;font style=&quot;color: light-dark(rgb(35, 68, 93), rgb(237, 237, 237)); font-size: 10px; line-height: 100%;&quot;&gt; ica_excluded_components.json&lt;/font&gt;&lt;/pre&gt;" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="334.99999999999994" y="-38.7" width="180" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-32" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="ZAOrUZbEuU3MXDjW92Bq-26" target="ZAOrUZbEuU3MXDjW92Bq-5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-26" value="" style="dashed=0;outlineConnect=0;html=1;align=center;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;shape=mxgraph.weblogos.json_2" vertex="1" parent="1">
+          <mxGeometry x="235" y="20" width="50" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-27" value="&lt;pre&gt;&lt;font style=&quot;color: light-dark(rgb(35, 68, 93), rgb(237, 237, 237)); font-size: 10px; line-height: 100%;&quot;&gt;inspect_bad_channels.json&lt;/font&gt;&lt;/pre&gt;" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="180" y="-25.00000000000001" width="160" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-35" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="ZAOrUZbEuU3MXDjW92Bq-1" target="ZAOrUZbEuU3MXDjW92Bq-6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-36" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="ZAOrUZbEuU3MXDjW92Bq-5" target="ZAOrUZbEuU3MXDjW92Bq-9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-37" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="ZAOrUZbEuU3MXDjW92Bq-8" target="ZAOrUZbEuU3MXDjW92Bq-12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-38" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="ZAOrUZbEuU3MXDjW92Bq-11" target="ZAOrUZbEuU3MXDjW92Bq-15">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-39" value="&lt;font face=&quot;Times New Roman&quot;&gt;&lt;span style=&quot;font-size: 10px;&quot;&gt;analysis epochs&lt;/span&gt;&lt;/font&gt;" style="shape=datastore;whiteSpace=wrap;html=1;fillColor=#bac8d3;strokeColor=#23445d;" vertex="1" parent="1">
+          <mxGeometry x="710" y="-20" width="60" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-40" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="ZAOrUZbEuU3MXDjW92Bq-14" target="ZAOrUZbEuU3MXDjW92Bq-39">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-41" value="&lt;font face=&quot;Times New Roman&quot;&gt;Preparatory derivatives&lt;/font&gt;" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;spacingTop=-6;" vertex="1" parent="1">
+          <mxGeometry x="180" y="-45" width="140" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-48" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="ZAOrUZbEuU3MXDjW92Bq-43">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="449" y="80" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-43" value="" style="verticalLabelPosition=bottom;html=1;verticalAlign=top;align=center;strokeColor=#23445d;fillColor=#bac8d3;shape=mxgraph.azure.cloud_services_configuration_file;pointerEvents=1;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="434" y="15" width="30" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-44" value="&lt;pre&gt;&lt;font color=&quot;#23445d&quot;&gt;&lt;span style=&quot;font-size: 10px;&quot;&gt; ica.fif (fitted model)&lt;/span&gt;&lt;/font&gt;&lt;/pre&gt;" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="350.00000000000006" y="-25" width="150" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-47" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="ZAOrUZbEuU3MXDjW92Bq-30">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="389" y="80" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-50" value="&lt;font face=&quot;Times New Roman&quot;&gt;- Load pre-identified&amp;nbsp;&lt;/font&gt;&lt;span style=&quot;font-family: &amp;quot;Times New Roman&amp;quot;; background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;bad&amp;nbsp;&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;font-family: &amp;quot;Times New Roman&amp;quot;; background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;&amp;nbsp; channels&lt;/span&gt;&lt;div&gt;&lt;font face=&quot;Times New Roman&quot;&gt;- Map the bad channels&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font face=&quot;Times New Roman&quot;&gt;- Interpolate bads&lt;/font&gt;&lt;/div&gt;&lt;/div&gt;&lt;div&gt;&lt;font face=&quot;Times New Roman&quot;&gt;&lt;br&gt;&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font face=&quot;Times New Roman&quot;&gt;&lt;br&gt;&lt;/font&gt;&lt;/div&gt;" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;spacingTop=-6;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="200" y="120" width="130" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-51" value="&lt;font face=&quot;Times New Roman&quot;&gt;- Average re-reference&lt;br&gt;&lt;/font&gt;&lt;div&gt;&lt;font face=&quot;Times New Roman&quot;&gt;- Load pre-traind ICA model&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font face=&quot;Times New Roman&quot;&gt;- Get components to&amp;nbsp;&lt;/font&gt;&lt;span style=&quot;font-family: &amp;quot;Times New Roman&amp;quot;; background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;exclude&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;font face=&quot;Times New Roman&quot;&gt;- Reconstruct signal&amp;nbsp;&lt;/font&gt;&lt;font style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot; face=&quot;Times New Roman&quot;&gt;without&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot; face=&quot;Times New Roman&quot;&gt;&amp;nbsp;&amp;nbsp;&lt;/font&gt;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255)); font-family: &amp;quot;Times New Roman&amp;quot;;&quot;&gt;the components&lt;/span&gt;&lt;/div&gt;" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;spacingTop=-6;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="360" y="120" width="140" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-52" value="&lt;font face=&quot;Times New Roman&quot;&gt;- Dataset-spesific epoching&lt;/font&gt;&lt;div&gt;&lt;font face=&quot;Times New Roman&quot;&gt;(see preprocessing_tools.&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font face=&quot;Times New Roman&quot;&gt;create_analysis_epochs())&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font face=&quot;Times New Roman&quot;&gt;- Dict with epochs with&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font face=&quot;Times New Roman&quot;&gt;key:value - condition:Epochs&lt;/font&gt;&lt;/div&gt;" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;spacingTop=-6;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="520" y="120" width="140" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="ZAOrUZbEuU3MXDjW92Bq-53" value="&lt;font face=&quot;Times New Roman&quot;&gt;- Reject noisy epochs&lt;/font&gt;&lt;div&gt;&lt;font face=&quot;Times New Roman&quot;&gt;&amp;nbsp; with AutoReject&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font face=&quot;Times New Roman&quot;&gt;&lt;br&gt;&lt;/font&gt;&lt;/div&gt;" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;spacingTop=-6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="680" y="120" width="120" height="50" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
